@@ -124,7 +124,6 @@ Accent reserved for: `Start full analysis`, active finding selection state, top-
 | Registry | Blocks Used | Safety Gate |
 |----------|-------------|-------------|
 | shadcn official | `button`, `badge`, `card`, `empty`, `progress`, `scroll-area`, `sheet`, `skeleton`, `tooltip` | not required |
-| `@ai-elements` | none in Phase 1 shell | `npx shadcn view @ai-elements/message` verified registry address on 2026-06-01; installed `src/components/ai-elements/*` scanned for `fetch`, `XMLHttpRequest`, `sendBeacon`, `process.env`, `eval`, `Function`, and external URL imports with no flags on 2026-06-01 |
 
 ---
 
