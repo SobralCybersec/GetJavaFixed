@@ -33,6 +33,7 @@ A Java developer can safely refactor a real repository faster with AI, while kee
 - [ ] User gets git-based safety and rollback help when the opened workspace is a git repository
 - [ ] User can apply approved refactors to the repository from the app
 - [ ] User can optionally run a more autonomous refactor pass after explicit opt-in
+- [ ] User can integrate GitHub Actions-based quality and security checks for Java repositories as part of the workflow
 
 ### Out of Scope
 
@@ -51,6 +52,8 @@ The desired user flow for v1 is:
 open repo -> index project -> detect issues -> fetch docs/context -> show prioritized refactor plan -> review diffs -> create backup -> apply -> allow rollback
 
 External context is important, not optional. The future tool hub should support MCP-oriented integrations such as Exa web search, Context7, and related tools that improve reasoning quality and documentation lookup for Java refactors.
+
+Repository automation is also part of the product direction. The app should help teams wire Java-appropriate GitHub Actions quality and security checks into repositories so refactors can be validated by CI, analogous to how web projects often rely on ESLint and related checks.
 
 ## Constraints
 

@@ -30,6 +30,12 @@
 - [ ] **TOOL-02**: User can use Exa-backed web or code context to support refactor reasoning.
 - [ ] **TOOL-03**: User can use Context7-backed version-specific docs to support refactor reasoning.
 
+### CI/CD & Validation
+
+- [ ] **CICD-01**: User can add or update GitHub Actions workflows for Java repositories from the app.
+- [ ] **CICD-02**: User can configure Java-appropriate quality checks in CI, such as build verification, tests, static analysis, or formatting validation.
+- [ ] **CICD-03**: User can configure Java-appropriate security or vulnerability scanning in CI for the target repository.
+
 ### Review & Apply
 
 - [ ] **APLY-01**: User can review diffs before any refactor is applied.
@@ -68,30 +74,33 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REPO-01 | Phase TBD | Pending |
-| REPO-02 | Phase TBD | Pending |
-| REPO-03 | Phase TBD | Pending |
-| ANLY-01 | Phase TBD | Pending |
-| ANLY-02 | Phase TBD | Pending |
-| ANLY-03 | Phase TBD | Pending |
-| ANLY-04 | Phase TBD | Pending |
-| PLAN-01 | Phase TBD | Pending |
-| PLAN-02 | Phase TBD | Pending |
-| PLAN-03 | Phase TBD | Pending |
-| TOOL-01 | Phase TBD | Pending |
-| TOOL-02 | Phase TBD | Pending |
-| TOOL-03 | Phase TBD | Pending |
-| APLY-01 | Phase TBD | Pending |
-| APLY-02 | Phase TBD | Pending |
-| APLY-03 | Phase TBD | Pending |
-| SAFE-01 | Phase TBD | Pending |
-| SAFE-02 | Phase TBD | Pending |
-| SAFE-03 | Phase TBD | Pending |
+| REPO-01 | Phase 1 | Pending |
+| REPO-02 | Phase 1 | Pending |
+| REPO-03 | Phase 1 | Pending |
+| ANLY-01 | Phase 2 | Pending |
+| ANLY-02 | Phase 2 | Pending |
+| ANLY-03 | Phase 2 | Pending |
+| ANLY-04 | Phase 1 | Pending |
+| PLAN-01 | Phase 1 | Pending |
+| PLAN-02 | Phase 2 | Pending |
+| PLAN-03 | Phase 2 | Pending |
+| TOOL-01 | Phase 3 | Pending |
+| TOOL-02 | Phase 3 | Pending |
+| TOOL-03 | Phase 3 | Pending |
+| CICD-01 | Phase 3 | Pending |
+| CICD-02 | Phase 3 | Pending |
+| CICD-03 | Phase 3 | Pending |
+| APLY-01 | Phase 2 | Pending |
+| APLY-02 | Phase 3 | Pending |
+| APLY-03 | Phase 3 | Pending |
+| SAFE-01 | Phase 2 | Pending |
+| SAFE-02 | Phase 2 | Pending |
+| SAFE-03 | Phase 2 | Pending |
 
 **Coverage:**
-- v1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- v1 requirements: 22 total
+- Mapped to phases: 22
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-01*
