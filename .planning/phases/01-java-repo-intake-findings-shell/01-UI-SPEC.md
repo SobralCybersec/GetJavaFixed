@@ -33,7 +33,7 @@ created: 2026-06-01
 - Unsupported repositories must hard block the flow in a centered rejection state with one recovery action: `Choose another folder`.
 - The dashboard must be findings-first, with findings occupying the primary column and a right-side detail panel for deeper context.
 - The detail panel must include affected files as the most important secondary surface.
-- The loaded repo header must remain as a persistent 40px top bar showing repo name and build tool only.
+- The loaded repo header must remain as a persistent 32px top bar showing repo name and build tool only.
 - The list must stay as one ranked queue ordered by priority, not grouped by category.
 - Each finding row must keep a small category badge, but priority treatment must be visually stronger than category treatment.
 
@@ -46,9 +46,10 @@ created: 2026-06-01
 - Analysis progress must appear inline at the top of the findings column, not in a modal or separate screen.
 - Phase 1 analysis is watch-only. No apply, edit, rollback, or git-state controls may appear in this phase.
 - When analysis completes, the highest-priority finding must auto-select and open in the right-side detail panel.
-- Finding rows must be compact and scannable: target 72px to 88px height with one-line title, one-line rationale, and compact metadata.
-- The right-side detail panel should default to 36% width and remain independently scrollable from the findings list.
+- Finding rows must be compact and scannable: target 64px height with one-line title, one-line rationale, and compact metadata.
+- The right-side detail panel should default to the secondary column in a 64/32 split and remain independently scrollable from the findings list.
 - Other legacy surfaces such as terminal-first flows, generic tabs, and multi-tool navigation must remain visually secondary or hidden from the first-run path.
+- Any icon-only control must expose an accessible name and a tooltip, or use an equivalent visible-label fallback when tooltip behavior is not available.
 
 ---
 
@@ -56,7 +57,7 @@ created: 2026-06-01
 
 - `Repo home`: centered intake card with folder picker, support status, detected build tool, and single primary CTA.
 - `Unsupported repo state`: blocking empty-state panel with explicit reason and one recovery button.
-- `Repo header bar`: persistent compact top bar with repo name and build tool badge.
+- `Repo header bar`: persistent compact 32px top bar with repo name and build tool badge.
 - `Analysis progress strip`: inline progress bar, status label, and watch-only message.
 - `Findings queue`: compact ranked list using card or item primitives with badge, title, rationale, and priority signal.
 - `Finding detail panel`: right sheet/panel with rationale, principle-aware explanation, and affected files.
@@ -79,7 +80,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Entry-state and rejection-state breathing room |
 | 3xl | 64px | Page-level centering space for intake states |
 
-Exceptions: 40px persistent top bar height; 28px square compact icon buttons in the desktop shell; 36px minimum height for the primary `Start full analysis` button.
+Exceptions: none. Use declared spacing values only. Size compact icon buttons at 32px square, keep the persistent top bar at 32px height, and keep the primary `Start full analysis` button at 48px minimum height.
 
 ---
 
