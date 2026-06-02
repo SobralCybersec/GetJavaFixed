@@ -419,6 +419,10 @@ export default function App() {
   const [phase1Repo, setPhase1Repo] = useState<Phase1DashboardRepo | null>(
     null,
   );
+  const [phase1PreviewFilePath, setPhase1PreviewFilePath] = useState<string | null>(
+    null,
+  );
+  const [javaWorkspaceRoot, setJavaWorkspaceRoot] = useState<string | null>(null);
   const [javaRepoHomeState, setJavaRepoHomeState] =
     useState<JavaRepoHomeState>({ kind: "idle" });
 
@@ -433,11 +437,19 @@ export default function App() {
       const readiness = await getJavaRepoReadiness(selected);
       if (readiness.supported && readiness.projectType) {
         const supportedReadiness = readiness as SupportedJavaRepoReadiness;
+        const normalizedPath = selected.replace(/\\/g, "/");
+        try {
+          await native.workspaceAuthorize(normalizedPath);
+        } catch {
+          // Findings flow will surface any real auth errors later.
+        }
         setJavaRepoHomeState({
           kind: "supported",
           path: selected,
           readiness: supportedReadiness,
         });
+        setJavaWorkspaceRoot(normalizedPath);
+        setLaunchCwd(normalizedPath);
         return;
       }
       setJavaRepoHomeState({
@@ -467,6 +479,8 @@ export default function App() {
         path: javaRepoHomeState.path,
         readiness: javaRepoHomeState.readiness,
       });
+      setPhase1PreviewFilePath(null);
+      setJavaWorkspaceRoot(normalizedPath);
       setLaunchCwd(normalizedPath);
       setPhase1Mode("dashboard");
     })();
@@ -478,6 +492,7 @@ export default function App() {
 
   const handleClosePhase1 = useCallback(() => {
     setPhase1Mode("hidden");
+    setPhase1PreviewFilePath(null);
   }, []);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -703,6 +718,7 @@ export default function App() {
     activeTab,
     tabs,
     launchCwd ?? home,
+    javaWorkspaceRoot,
   );
 
   useEffect(() => {
@@ -938,8 +954,28 @@ export default function App() {
       // Explorer defaults to preview (pin=false); explicit actions like
       // context-menu "Open" pass pin=true for a persistent tab.
       openFileTab(path, pin ?? false);
+      const normalizedPath = path.replace(/\\/g, "/");
+      const activeJavaRepo =
+        phase1Repo ??
+        (javaRepoHomeState.kind === "supported"
+          ? {
+              path: javaRepoHomeState.path,
+              readiness: javaRepoHomeState.readiness,
+            }
+          : null);
+      const normalizedRepoPath = activeJavaRepo?.path.replace(/\\/g, "/").replace(/\/+$/, "");
+      if (
+        normalizedRepoPath &&
+        normalizedPath.endsWith(".java") &&
+        (normalizedPath === normalizedRepoPath ||
+          normalizedPath.startsWith(`${normalizedRepoPath}/`))
+      ) {
+        setPhase1Repo(activeJavaRepo);
+        setPhase1PreviewFilePath(path);
+        setPhase1Mode("dashboard");
+      }
     },
-    [openFileTab],
+    [openFileTab, phase1Repo, javaRepoHomeState],
   );
 
   const handlePathRenamed = useCallback(
@@ -1512,7 +1548,11 @@ export default function App() {
   );
 
   const phase1DashboardShell = phase1Repo ? (
-    <FindingsDashboard repo={phase1Repo} onClose={handleClosePhase1} />
+    <FindingsDashboard
+      repo={phase1Repo}
+      initialFilePath={phase1PreviewFilePath}
+      onClose={handleClosePhase1}
+    />
   ) : null;
 
   const phase1Surface =

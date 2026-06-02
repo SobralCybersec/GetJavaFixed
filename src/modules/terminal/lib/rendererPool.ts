@@ -323,7 +323,7 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
     try {
       slot.term.write(p.snapshot);
     } catch (e) {
-      console.warn("[terax] snapshot replay failed:", e);
+      console.warn("[javarf] snapshot replay failed:", e);
     }
   }
   if (p.altScreen) {
@@ -476,7 +476,7 @@ function serializeSlot(slot: Slot): SerializeOutput {
     );
     snapshot = slot.serializeAddon.serialize({ scrollback: cap });
   } catch (e) {
-    console.warn("[terax] serialize failed:", e);
+    console.warn("[javarf] serialize failed:", e);
   }
   return {
     snapshot,

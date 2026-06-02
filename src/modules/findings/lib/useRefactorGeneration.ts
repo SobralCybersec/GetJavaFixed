@@ -30,6 +30,7 @@ export type UseRefactorGenerationResult = {
   result: RefactorResult | null;
   error: string | null;
   generate: (finding: Phase1Finding, repoPath: string) => Promise<void>;
+  generateForFile: (filePath: string, repoPath: string) => Promise<void>;
   reset: () => void;
 };
 
@@ -84,6 +85,16 @@ Rules:
 - Do not reformat code that is not being changed.
 - If the file cannot be safely refactored, output the original content unchanged.`;
 
+const GENERIC_FILE_GUIDANCE = `Review this Java file for safe, behavior-preserving refactors.
+Prioritize:
+- removing obvious code smells
+- extracting small repeated logic
+- modernizing outdated Java syntax when low-risk
+- improving naming and readability only where directly tied to the refactor
+- avoiding broad formatting-only churn
+
+Keep the change set minimal and production-safe.`;
+
 export function useRefactorGeneration(
   modelConfig: {
     modelId?: string;
@@ -104,26 +115,21 @@ export function useRefactorGeneration(
   const [result, setResult] = useState<RefactorResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const generate = useCallback(
-    async (finding: Phase1Finding, repoPath: string) => {
-      if (finding.affectedFiles.length === 0) {
-        setError("No affected files to refactor for this finding.");
-        setStatus("error");
-        return;
-      }
-
+  const generateInternal = useCallback(
+    async ({
+      absolutePath,
+      prompt,
+      emptyChangeMessage,
+    }: {
+      absolutePath: string;
+      prompt: string;
+      emptyChangeMessage: string;
+    }) => {
       setStatus("generating");
       setError(null);
       setResult(null);
 
-      const targetRelPath = finding.affectedFiles[0];
-      const sep = repoPath.includes("\\") && !repoPath.includes("/") ? "\\" : "/";
-      const absolutePath = repoPath.endsWith(sep)
-        ? `${repoPath}${targetRelPath}`
-        : `${repoPath}${sep}${targetRelPath}`;
-
       try {
-        // 1. Read the file
         const readResult = await native.readFile(absolutePath);
         if (readResult.kind !== "text") {
           throw new Error(
@@ -134,7 +140,6 @@ export function useRefactorGeneration(
         }
         const originalContent = readResult.content;
 
-        // 2. Build the model
         const model = await buildConfiguredLanguageModel(
           (modelConfig.modelId ?? "gpt-5.4-mini") as Parameters<typeof buildConfiguredLanguageModel>[0],
           modelConfig.keys as Parameters<typeof buildConfiguredLanguageModel>[1],
@@ -151,22 +156,13 @@ export function useRefactorGeneration(
           },
         );
 
-        const ruleGuidance = getRuleGuidance(finding.id);
-
         const runGeneration = async (withMcp: boolean) => {
           const mcp = withMcp && mcpConfig ? await createRefactorMcpTools(mcpConfig) : null;
           try {
             return await generateText({
               model,
               system: REFACTOR_SYSTEM,
-              prompt: `Finding: ${finding.title}
-Category: ${finding.category}
-Rationale: ${finding.rationale}
-Principles: ${finding.principles.join(", ")}
-File: ${targetRelPath}
-
-Refactoring rule:
-${ruleGuidance}
+              prompt: `${prompt}
 
 Current file content:
 ${originalContent}`,
@@ -188,22 +184,17 @@ ${originalContent}`,
           generation = await runGeneration(false);
         }
 
-        try {
-          const { text } = generation;
-          const proposedContent = text.trim();
-          if (!proposedContent || proposedContent === originalContent.trim()) {
-            throw new Error("AI returned no changes for this finding.");
-          }
-
-          setResult({
-            filePath: absolutePath,
-            originalContent,
-            proposedContent,
-          });
-          setStatus("ready");
-        } finally {
-          // no-op: generation lifecycle already closed any MCP client
+        const proposedContent = generation.text.trim();
+        if (!proposedContent || proposedContent === originalContent.trim()) {
+          throw new Error(emptyChangeMessage);
         }
+
+        setResult({
+          filePath: absolutePath,
+          originalContent,
+          proposedContent,
+        });
+        setStatus("ready");
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
         setStatus("error");
@@ -212,13 +203,65 @@ ${originalContent}`,
     [modelConfig, mcpConfig],
   );
 
+  const generate = useCallback(
+    async (finding: Phase1Finding, repoPath: string) => {
+      if (finding.affectedFiles.length === 0) {
+        setError("No affected files to refactor for this finding.");
+        setStatus("error");
+        return;
+      }
+
+      const targetRelPath = finding.affectedFiles[0];
+      const sep = repoPath.includes("\\") && !repoPath.includes("/") ? "\\" : "/";
+      const absolutePath = repoPath.endsWith(sep)
+        ? `${repoPath}${targetRelPath}`
+        : `${repoPath}${sep}${targetRelPath}`;
+
+      const ruleGuidance = getRuleGuidance(finding.id);
+      await generateInternal({
+        absolutePath,
+        emptyChangeMessage: "AI returned no changes for this finding.",
+        prompt: `Finding: ${finding.title}
+Category: ${finding.category}
+Rationale: ${finding.rationale}
+Principles: ${finding.principles.join(", ")}
+File: ${targetRelPath}
+
+Refactoring rule:
+${ruleGuidance}`,
+      });
+    },
+    [generateInternal],
+  );
+
+  const generateForFile = useCallback(
+    async (filePath: string, repoPath: string) => {
+      const normalizedRepoPath = repoPath.replace(/\\/g, "/").replace(/\/+$/, "");
+      const normalizedFilePath = filePath.replace(/\\/g, "/");
+      const targetRelPath = normalizedFilePath.startsWith(`${normalizedRepoPath}/`)
+        ? normalizedFilePath.slice(normalizedRepoPath.length + 1)
+        : normalizedFilePath.split("/").pop() ?? normalizedFilePath;
+
+      await generateInternal({
+        absolutePath: filePath,
+        emptyChangeMessage: "AI returned no refactor changes for this Java file.",
+        prompt: `File-driven Java refactor preview
+File: ${targetRelPath}
+
+Guidance:
+${GENERIC_FILE_GUIDANCE}`,
+      });
+    },
+    [generateInternal],
+  );
+
   const reset = useCallback(() => {
     setStatus("idle");
     setResult(null);
     setError(null);
   }, []);
 
-  return { status, result, error, generate, reset };
+  return { status, result, error, generate, generateForFile, reset };
 }
 
 function shouldRetryWithoutMcp(error: unknown): boolean {

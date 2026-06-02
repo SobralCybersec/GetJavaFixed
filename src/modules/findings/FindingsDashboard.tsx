@@ -26,14 +26,16 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 
 type Props = {
   repo: FindingsRepo;
+  initialFilePath?: string | null;
   onClose?: () => void;
 };
 
-export function FindingsDashboard({ repo, onClose }: Props) {
+export function FindingsDashboard({ repo, initialFilePath = null, onClose }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [exaApiKey, setExaApiKey] = useState<string | null>(null);
   const [context7ApiKey, setContext7ApiKey] = useState<string | null>(null);
   const [toolKeysLoaded, setToolKeysLoaded] = useState(false);
+  const [activeFilePath, setActiveFilePath] = useState<string | null>(initialFilePath);
 
   const {
     panelState,
@@ -89,12 +91,30 @@ export function FindingsDashboard({ repo, onClose }: Props) {
       context7ApiKey: context7ApiKey ?? undefined,
     },
   );
+  const { generateForFile, reset: resetRefactor } = refactor;
 
   // Reset refactor state when a different finding is selected
   const handleSelectFinding = (id: string) => {
-    if (selectedFinding?.id !== id) refactor.reset();
+    if (selectedFinding?.id !== id) resetRefactor();
+    setActiveFilePath(null);
     selectFinding(id);
   };
+
+  useEffect(() => {
+    if (!initialFilePath) return;
+    setActiveFilePath(initialFilePath);
+    resetRefactor();
+    void generateForFile(initialFilePath, repo.path);
+  }, [generateForFile, initialFilePath, repo.path, resetRefactor]);
+
+  const canGenerateSelectedFinding =
+    selectedFinding !== null &&
+    selectedFinding.affectedFiles.length > 0 &&
+    (refactor.status === "idle" || refactor.status === "error");
+
+  const canGenerateActiveFile =
+    activeFilePath !== null &&
+    (refactor.status === "idle" || refactor.status === "error");
 
   return (
     <div className="java-grid flex h-full min-h-0 flex-col overflow-auto bg-background text-foreground">
@@ -135,7 +155,7 @@ export function FindingsDashboard({ repo, onClose }: Props) {
                 <div>
                   <CardTitle>Refactor findings queue</CardTitle>
                   <CardDescription>
-                    Ranked hotspots first, JVM-red emphasis, and watch-only analysis before any write path.
+                    Ranked hotspots first, plus direct file previews before any write path.
                   </CardDescription>
                 </div>
                 <Button
@@ -185,13 +205,13 @@ export function FindingsDashboard({ repo, onClose }: Props) {
                             setDetailOpen(window.innerWidth < 1024);
                           }}
                           className={cn(
-                            "flex w-full items-start gap-3 rounded-3xl border px-4 py-3 text-left transition-colors",
+                            "flex w-full items-start gap-3 rounded-sm border px-4 py-3 text-left transition-colors",
                             active
                               ? "border-primary/40 bg-primary/8 shadow-[0_12px_30px_color-mix(in_oklab,var(--primary)_15%,transparent)]"
                               : "border-border/60 bg-card/80 hover:bg-muted/30",
                           )}
                         >
-                          <div className="mt-0.5 h-10 w-1.5 rounded-full bg-primary/80" />
+                          <div className="mt-0.5 h-10 w-1.5 bg-primary/80" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="truncate text-sm font-medium">{finding.title}</p>
@@ -219,10 +239,16 @@ export function FindingsDashboard({ repo, onClose }: Props) {
         <div className="hidden w-full max-w-[36rem] lg:block">
           <Card size="sm" className="java-panel border border-border/60">
             <CardHeader>
-              <CardTitle>{selectedFinding?.title ?? "Finding details"}</CardTitle>
+              <CardTitle>
+                {activeFilePath
+                  ? activeFilePath.replace(/\\/g, "/").split("/").pop()
+                  : (selectedFinding?.title ?? "Finding details")}
+              </CardTitle>
               <CardDescription>
-                {selectedFinding?.rationale ??
-                  "The top finding opens automatically here after analysis completes."}
+                {activeFilePath
+                  ? "Automatic Java file preview. Review the suggested refactor before queuing it for apply."
+                  : (selectedFinding?.rationale ??
+                    "The top finding opens automatically here after analysis completes.")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -247,7 +273,54 @@ export function FindingsDashboard({ repo, onClose }: Props) {
                 </div>
               ) : null}
 
-              {selectedFinding ? (
+              {activeFilePath ? (
+                <>
+                  <div className="rounded-sm border border-border/60 bg-background px-3 py-2 font-mono text-xs">
+                    {activeFilePath}
+                  </div>
+                  <div className="space-y-3" data-testid="diff-preview">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        AI Refactor preview
+                      </span>
+                      {canGenerateActiveFile ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => void refactor.generateForFile(activeFilePath, repo.path)}
+                        >
+                          Generate refactor
+                        </Button>
+                      ) : refactor.status === "ready" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={refactor.reset}
+                        >
+                          Clear
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {refactor.status === "idle" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Clicking a Java file opens a preview here automatically. No files are changed until you accept and apply.
+                      </p>
+                    ) : (
+                      <div className="h-[360px] min-h-0">
+                        <RefactorPreviewInline
+                          status={refactor.status}
+                          result={refactor.result}
+                          error={refactor.error}
+                          onReset={refactor.reset}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : selectedFinding ? (
                 <>
                   <div className="flex flex-wrap gap-2">
                     {selectedFinding.principles.map((p) => (
@@ -281,7 +354,7 @@ export function FindingsDashboard({ repo, onClose }: Props) {
                       <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         AI Refactor preview
                       </span>
-                      {(refactor.status === "idle" || refactor.status === "error") && (
+                      {canGenerateSelectedFinding && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -324,7 +397,7 @@ export function FindingsDashboard({ repo, onClose }: Props) {
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Run analysis to populate the right-side detail surface.
+                  Run analysis or click a Java file to populate the right-side detail surface.
                 </p>
               )}
             </CardContent>

@@ -33,7 +33,7 @@ export function FindingDetailSheet({
     finding !== null &&
     repoPath !== null &&
     finding.affectedFiles.length > 0 &&
-    refactor.status === "idle";
+    (refactor.status === "idle" || refactor.status === "error");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

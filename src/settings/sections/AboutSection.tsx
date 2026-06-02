@@ -8,8 +8,8 @@ import { arch, platform } from "@tauri-apps/plugin-os";
 import { useEffect, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";
 
-const REPO_URL = "https://github.com/crynta/terax-ai";
-const WEBSITE = "https://github.com/crynta/terax-ai";
+const REPO_URL = "https://github.com/SobralCybersec/GetJavaFixed";
+const WEBSITE = "https://github.com/SobralCybersec/GetJavaFixed";
 
 const PLATFORM_LABEL: Record<string, string> = {
   macos: "macOS",
@@ -68,7 +68,7 @@ export function AboutSection() {
     <div className="flex flex-col gap-6">
       <SectionHeader title="About" description="" />
 
-      <div className="flex items-center gap-4 rounded-xl border border-border/60 bg-card/60 p-5">
+      <div className="flex items-center gap-4 rounded-sm border border-border/60 bg-card/60 p-5">
         <img src="/java-assistant-mark.svg" alt="" className="size-12" draggable={false} />
         <div className="flex min-w-0 flex-col">
           <span className="text-[15px] font-semibold tracking-tight">
@@ -90,7 +90,7 @@ export function AboutSection() {
         </dd>
 
         <dt className="text-muted-foreground">Bundle ID</dt>
-        <dd className="font-mono text-[11.5px]">app.crynta.javarf</dd>
+        <dd className="font-mono text-[11.5px]">app.javarf.desktop</dd>
 
         <dt className="text-muted-foreground">License</dt>
         <dd>Apache 2.0</dd>
@@ -103,7 +103,7 @@ export function AboutSection() {
             className="inline-flex items-center gap-1.5 rounded-md text-[12px] underline-offset-2 hover:text-foreground hover:underline"
           >
             <HugeiconsIcon icon={GithubIcon} size={12} strokeWidth={1.75} />
-            crynta/terax-ai
+            SobralCybersec/GetJavaFixed
           </button>
         </dd>
         <dt className="text-muted-foreground">Website</dt>
@@ -114,7 +114,7 @@ export function AboutSection() {
             className="inline-flex items-center gap-1.5 rounded-md text-[12px] underline-offset-2 hover:text-foreground hover:underline"
           >
             <HugeiconsIcon icon={Globe02Icon} size={12} strokeWidth={1.75} />
-            github.com/crynta/terax-ai
+            github.com/SobralCybersec/GetJavaFixed
           </button>
         </dd>
       </dl>

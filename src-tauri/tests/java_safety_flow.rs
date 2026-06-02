@@ -1,8 +1,7 @@
 mod common;
 
 use common::FsFixture;
-use javarf_lib::modules::analysis::{compute_safety_snapshot, JavaSafetySnapshot, SafetyKind};
-use javarf_lib::modules::workspace::{WorkspaceEnv, WorkspaceRegistry};
+use javarf_lib::modules::analysis::{compute_safety_snapshot, SafetyKind};
 
 #[test]
 fn safety_snapshot_git_first_when_repo_has_git() {

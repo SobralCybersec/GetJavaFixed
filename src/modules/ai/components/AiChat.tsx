@@ -521,7 +521,7 @@ const ReadGroup = memo(function ReadGroup({ parts }: { parts: AnyPart[] }) {
           </span>
         ) : null}
       </CollapsibleTrigger>
-      <CollapsibleContent className="terax-collapsible-content border-t border-border/30">
+      <CollapsibleContent className="javarf-collapsible-content border-t border-border/30">
         <ul className="flex flex-col gap-0.5 px-2 py-1.5">
           {paths.map((path) => (
             <li

@@ -76,11 +76,6 @@ export function ThemeProvider({ children, defaultMode = "system" }: ThemeProvide
   const [mode, setModeState] = useState<ThemePref>(() => readFastMode(defaultMode));
   const [themeId, setThemeIdState] = useState<string>(() => readFastThemeId());
   const [customThemes, setCustomThemes] = useState<Theme[]>([]);
-  const [systemDark, setSystemDark] = useState<boolean>(() =>
-    typeof window === "undefined"
-      ? true
-      : window.matchMedia("(prefers-color-scheme: dark)").matches,
-  );
 
   useEffect(() => {
     let alive = true;
@@ -118,15 +113,7 @@ export function ThemeProvider({ children, defaultMode = "system" }: ThemeProvide
     };
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  const resolvedMode: "dark" | "light" =
-    mode === "system" ? (systemDark ? "dark" : "light") : mode;
+  const resolvedMode: "dark" | "light" = "dark";
 
   useEffect(() => {
     const root = document.documentElement;
@@ -168,7 +155,7 @@ export function ThemeProvider({ children, defaultMode = "system" }: ThemeProvide
 
   const value = useMemo<ThemeProviderState>(
     () => ({ mode, resolvedMode, themeId, customThemes, setMode, setThemeId }),
-    [mode, resolvedMode, themeId, customThemes, setMode, setThemeId],
+    [mode, themeId, customThemes, setMode, setThemeId],
   );
 
   return (

@@ -1,10 +1,10 @@
 import type { Theme } from "../types";
 
-export const teraxDefault: Theme = {
+export const javarfDefault: Theme = {
   id: "javarf-default",
-  name: "Java Forge",
+  name: "JavaRf Mono",
   description:
-    "Default Java-red shell with warm glass, deep code surfaces, and JVM-blue highlights.",
+    "Black-and-white Java refactor shell with hard edges and minimal contrast accents.",
   editorTheme: { dark: "atomone", light: "atomone" },
   variants: {
     light: {},

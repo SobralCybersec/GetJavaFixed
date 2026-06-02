@@ -17,11 +17,11 @@ type DistroKey = "arch" | "debian" | "fedora";
 function distroCommand(key: DistroKey, version: string): string {
   switch (key) {
     case "arch":
-      return "yay -S terax-bin";
+      return "yay -S javarf-bin";
     case "debian":
-      return `sudo apt install ./Terax_${version}_amd64.deb`;
+      return `sudo apt install ./JavaRf_${version}_amd64.deb`;
     case "fedora":
-      return `sudo dnf install ./Terax-${version}-1.x86_64.rpm`;
+      return `sudo dnf install ./JavaRf-${version}-1.x86_64.rpm`;
   }
 }
 

@@ -226,7 +226,7 @@ fn run_phase1_analysis(
     }
 }
 
-fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
+pub fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
     let mut java_files = Vec::new();
     collect_java_files(root, &mut java_files)?;
 
@@ -343,7 +343,11 @@ fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
                 if t.starts_with("for ") || t.starts_with("while ") || t.starts_with("do {") {
                     in_loop = true;
                 }
-                if in_loop && (t.contains(" += \"") || t.contains(" = " ) && t.contains(" + \"")) {
+                let looks_like_concat_assignment = t.contains(" = ")
+                    && t.contains(" + ")
+                    && t.ends_with(';')
+                    && !t.starts_with("for ");
+                if in_loop && (t.contains(" += \"") || t.contains(" + \"") || looks_like_concat_assignment) {
                     findings.push(Phase1Finding {
                         id: format!("string-concat-loop:{rel}"),
                         title: "String concatenation inside loop — use StringBuilder".to_string(),
