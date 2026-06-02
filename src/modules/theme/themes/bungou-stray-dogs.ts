@@ -1,0 +1,46 @@
+import type { Theme } from "../types";
+
+export const bungouStrayDogs: Theme = {
+  id: "bungou-stray-dogs",
+  name: "Bungou Stray Dogs",
+  franchise: "Bungou Stray Dogs",
+  description: "Ink noir, parchment highlights, and literary crimson accents.",
+  wallpaper: {
+    id: "bungou-noir-ink",
+    label: "Bungou Noir Ink",
+    path: "/wallpapers/bungou-noir-ink.png",
+  },
+  editorTheme: { dark: "copilot", light: "xcode-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#0b0a0c",
+        foreground: "#f2ede8",
+        card: "#141114",
+        cardForeground: "#f2ede8",
+        popover: "#161317",
+        popoverForeground: "#f2ede8",
+        primary: "#a33c41",
+        primaryForeground: "#fff2ef",
+        secondary: "#262127",
+        secondaryForeground: "#ebe2d8",
+        muted: "#1c181d",
+        mutedForeground: "#b2a6a0",
+        accent: "#2f2630",
+        accentForeground: "#f2ede8",
+        destructive: "#da4e58",
+        border: "rgba(163,60,65,0.20)",
+        input: "rgba(255,255,255,0.08)",
+        ring: "#e4d0b0",
+        sidebar: "#0d0b0d",
+        sidebarForeground: "#f2ede8",
+        sidebarPrimary: "#a33c41",
+        sidebarPrimaryForeground: "#fff2ef",
+        sidebarAccent: "#2f2630",
+        sidebarAccentForeground: "#f2ede8",
+        sidebarBorder: "rgba(228,208,176,0.15)",
+        sidebarRing: "#e4d0b0",
+      },
+    },
+  },
+};

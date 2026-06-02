@@ -12,6 +12,9 @@ import {
   EDITOR_THEMES,
   loadPreferences,
   onPreferencesChange,
+  setBackgroundBuiltinId,
+  setBackgroundImageId,
+  setBackgroundKind,
   setEditorTheme as persistEditorTheme,
   setTheme as persistTheme,
   setThemeId as persistThemeId,
@@ -151,7 +154,13 @@ export function ThemeProvider({ children, defaultMode = "system" }: ThemeProvide
     setThemeIdState(id);
     writeFastThemeId(id);
     void persistThemeId(id);
-  }, []);
+    const theme = resolveTheme(id, customThemes);
+    if (theme.wallpaper?.id) {
+      void setBackgroundImageId(null);
+      void setBackgroundBuiltinId(theme.wallpaper.id);
+      void setBackgroundKind("builtin");
+    }
+  }, [customThemes]);
 
   const value = useMemo<ThemeProviderState>(
     () => ({ mode, resolvedMode, themeId, customThemes, setMode, setThemeId }),

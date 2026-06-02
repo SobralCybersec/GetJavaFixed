@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   MODELS,
@@ -36,6 +37,7 @@ import {
   setRefactorToolKey,
 } from "@/modules/ai/lib/toolKeyring";
 import { useChatStore } from "@/modules/ai/store/chatStore";
+import { revealInFinder } from "@/modules/explorer/lib/contextActions";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
@@ -57,6 +59,7 @@ import {
   setOpenaiCompatibleModelId,
   setOpenrouterModelId,
   setProxyPresetId,
+  setRefactorCustomInstructions,
   setRefactorMcpEnabled,
 } from "@/modules/settings/store";
 import {
@@ -154,6 +157,9 @@ export function ModelsSection() {
   const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
   const context7Url = usePreferencesStore((s) => s.context7Url);
   const refactorMcpEnabled = usePreferencesStore((s) => s.refactorMcpEnabled);
+  const refactorCustomInstructions = usePreferencesStore(
+    (s) => s.refactorCustomInstructions,
+  );
   const proxyPresetId = usePreferencesStore((s) => s.proxyPresetId);
   const deepsproxyPath = usePreferencesStore((s) => s.deepsproxyPath);
   const kimiproxyPath = usePreferencesStore((s) => s.kimiproxyPath);
@@ -309,6 +315,8 @@ export function ModelsSection() {
           setContext7Key(null);
         }}
       />
+
+      <RefactorPromptControlBlock value={refactorCustomInstructions} />
 
       <ProxyExamplesBlock
         selectedProxyId={proxyPresetId}
@@ -585,6 +593,70 @@ function RefactorToolsBlock({
           }}
           onClear={onClearContext7Key}
         />
+      </div>
+    </div>
+  );
+}
+
+function RefactorPromptControlBlock({ value }: { value: string }) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const openRefactorPromptFolder = async () => {
+    const path = await native.canonicalize("src/modules/ai/refactoring-db");
+    await revealInFinder(path);
+  };
+
+  const openRefactorPromptBuilder = async () => {
+    const path = await native.canonicalize(
+      "src/modules/findings/lib/useRefactorGeneration.ts",
+    );
+    await revealInFinder(path);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Label>Refactor prompt control</Label>
+      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          This applies only to AI refactor previews. Precedence: built-in
+          refactor system prompt, matched rule docs, your refactor instructions,
+          then the finding or file context.
+        </p>
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="e.g. Prefer guard clauses over nested branches. Favor tiny helper extraction over new abstractions. Keep changes under 30 lines when possible."
+          className="min-h-[120px] resize-y border border-border bg-card/50 font-sans text-[12px] leading-relaxed"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => void setRefactorCustomInstructions(draft)}
+            className="h-8 px-3 text-[11px]"
+          >
+            Save refactor instructions
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void openRefactorPromptFolder()}
+            className="h-8 px-3 text-[11px]"
+          >
+            Open rule folder
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void openRefactorPromptBuilder()}
+            className="h-8 px-3 text-[11px]"
+          >
+            Open prompt builder
+          </Button>
+        </div>
       </div>
     </div>
   );

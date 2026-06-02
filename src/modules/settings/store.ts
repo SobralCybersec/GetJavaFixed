@@ -17,7 +17,7 @@ export type ThemePref = "system" | "light" | "dark";
 
 export const DEFAULT_THEME_ID = "javarf-default";
 
-export type BackgroundKind = "none" | "image";
+export type BackgroundKind = "none" | "image" | "builtin";
 
 export const EDITOR_THEMES = [
   "atomone",
@@ -57,11 +57,13 @@ export type Preferences = {
   themeId: string;
   backgroundKind: BackgroundKind;
   backgroundImageId: string | null;
+  backgroundBuiltinId: string | null;
   backgroundOpacity: number;
   backgroundBlur: number;
   defaultModelId: ModelId;
   editorTheme: EditorThemeId;
   customInstructions: string;
+  refactorCustomInstructions: string;
   autostart: boolean;
   restoreWindowState: boolean;
   autocompleteEnabled: boolean;
@@ -106,11 +108,13 @@ const KEY_THEME = "theme";
 const KEY_THEME_ID = "themeId";
 const KEY_BG_KIND = "backgroundKind";
 const KEY_BG_IMAGE_ID = "backgroundImageId";
+const KEY_BG_BUILTIN_ID = "backgroundBuiltinId";
 const KEY_BG_OPACITY = "backgroundOpacity";
 const KEY_BG_BLUR = "backgroundBlur";
 const KEY_DEFAULT_MODEL = "defaultModelId";
 const KEY_EDITOR_THEME = "editorTheme";
 const KEY_CUSTOM_INSTRUCTIONS = "customInstructions";
+const KEY_REFACTOR_CUSTOM_INSTRUCTIONS = "refactorCustomInstructions";
 const KEY_AUTOSTART = "autostart";
 const KEY_RESTORE_WINDOW = "restoreWindowState";
 const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
@@ -170,11 +174,13 @@ export const DEFAULT_PREFERENCES: Preferences = {
   themeId: DEFAULT_THEME_ID,
   backgroundKind: "none",
   backgroundImageId: null,
+  backgroundBuiltinId: null,
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
   defaultModelId: DEFAULT_MODEL_ID,
   editorTheme: "atomone",
   customInstructions: "",
+  refactorCustomInstructions: "",
   autostart: false,
   restoreWindowState: true,
   autocompleteEnabled: false,
@@ -244,6 +250,9 @@ export async function loadPreferences(): Promise<Preferences> {
     backgroundImageId:
       get<string | null>(KEY_BG_IMAGE_ID) ??
       DEFAULT_PREFERENCES.backgroundImageId,
+    backgroundBuiltinId:
+      get<string | null>(KEY_BG_BUILTIN_ID) ??
+      DEFAULT_PREFERENCES.backgroundBuiltinId,
     backgroundOpacity: clampBgOpacity(
       get<number>(KEY_BG_OPACITY) ?? DEFAULT_PREFERENCES.backgroundOpacity,
     ),
@@ -261,6 +270,9 @@ export async function loadPreferences(): Promise<Preferences> {
     customInstructions:
       get<string>(KEY_CUSTOM_INSTRUCTIONS) ??
       DEFAULT_PREFERENCES.customInstructions,
+    refactorCustomInstructions:
+      get<string>(KEY_REFACTOR_CUSTOM_INSTRUCTIONS) ??
+      DEFAULT_PREFERENCES.refactorCustomInstructions,
     autostart: get<boolean>(KEY_AUTOSTART) ?? DEFAULT_PREFERENCES.autostart,
     restoreWindowState:
       get<boolean>(KEY_RESTORE_WINDOW) ??
@@ -381,6 +393,10 @@ export async function setBackgroundImageId(value: string | null): Promise<void> 
   await writePref(KEY_BG_IMAGE_ID, value);
 }
 
+export async function setBackgroundBuiltinId(value: string | null): Promise<void> {
+  await writePref(KEY_BG_BUILTIN_ID, value);
+}
+
 export async function setBackgroundOpacity(value: number): Promise<void> {
   await writePref(KEY_BG_OPACITY, clampBgOpacity(value));
 }
@@ -400,6 +416,10 @@ export async function setEditorTheme(value: EditorThemeId): Promise<void> {
 
 export async function setCustomInstructions(value: string): Promise<void> {
   await writePref(KEY_CUSTOM_INSTRUCTIONS, value);
+}
+
+export async function setRefactorCustomInstructions(value: string): Promise<void> {
+  await writePref(KEY_REFACTOR_CUSTOM_INSTRUCTIONS, value);
 }
 
 export async function setAutostart(value: boolean): Promise<void> {
@@ -599,11 +619,13 @@ export async function onPreferencesChange(
     [KEY_THEME_ID]: "themeId",
     [KEY_BG_KIND]: "backgroundKind",
     [KEY_BG_IMAGE_ID]: "backgroundImageId",
+    [KEY_BG_BUILTIN_ID]: "backgroundBuiltinId",
     [KEY_BG_OPACITY]: "backgroundOpacity",
     [KEY_BG_BLUR]: "backgroundBlur",
     [KEY_DEFAULT_MODEL]: "defaultModelId",
     [KEY_EDITOR_THEME]: "editorTheme",
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",
+    [KEY_REFACTOR_CUSTOM_INSTRUCTIONS]: "refactorCustomInstructions",
     [KEY_AUTOSTART]: "autostart",
     [KEY_RESTORE_WINDOW]: "restoreWindowState",
     [KEY_AUTOCOMPLETE_ENABLED]: "autocompleteEnabled",

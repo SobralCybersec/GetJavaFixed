@@ -1,0 +1,46 @@
+import type { Theme } from "../types";
+
+export const naruto: Theme = {
+  id: "naruto",
+  name: "Naruto",
+  franchise: "Naruto",
+  description: "Leaf-green and ember-orange with fast shinobi contrast and storm energy.",
+  wallpaper: {
+    id: "naruto-leaf-storm",
+    label: "Naruto Leaf Storm",
+    path: "/wallpapers/naruto-leaf-storm.png",
+  },
+  editorTheme: { dark: "gruvbox-dark", light: "github-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#0a0e08",
+        foreground: "#f6f1e8",
+        card: "#12170f",
+        cardForeground: "#f6f1e8",
+        popover: "#131910",
+        popoverForeground: "#f6f1e8",
+        primary: "#ff7a1f",
+        primaryForeground: "#271200",
+        secondary: "#23311b",
+        secondaryForeground: "#e7f5d9",
+        muted: "#161d12",
+        mutedForeground: "#a7b198",
+        accent: "#39512b",
+        accentForeground: "#eef8e5",
+        destructive: "#ff5a54",
+        border: "rgba(255,122,31,0.20)",
+        input: "rgba(255,255,255,0.08)",
+        ring: "#94d047",
+        sidebar: "#0c1109",
+        sidebarForeground: "#f6f1e8",
+        sidebarPrimary: "#ff7a1f",
+        sidebarPrimaryForeground: "#271200",
+        sidebarAccent: "#39512b",
+        sidebarAccentForeground: "#eef8e5",
+        sidebarBorder: "rgba(148,208,71,0.18)",
+        sidebarRing: "#94d047",
+      },
+    },
+  },
+};

@@ -4,11 +4,12 @@ import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   setBackgroundBlur,
+  setBackgroundBuiltinId,
   setBackgroundImageId,
   setBackgroundKind,
   setBackgroundOpacity,
 } from "@/modules/settings/store";
-import { useTheme } from "@/modules/theme";
+import { getBuiltinWallpaper, useTheme } from "@/modules/theme";
 import {
   deleteBgImage,
   importBgImageFromFile,
@@ -53,6 +54,7 @@ export function ThemesSection() {
 
   const backgroundKind = usePreferencesStore((s) => s.backgroundKind);
   const backgroundImageId = usePreferencesStore((s) => s.backgroundImageId);
+  const backgroundBuiltinId = usePreferencesStore((s) => s.backgroundBuiltinId);
   const backgroundOpacity = usePreferencesStore((s) => s.backgroundOpacity);
   const backgroundBlur = usePreferencesStore((s) => s.backgroundBlur);
 
@@ -101,6 +103,7 @@ export function ThemesSection() {
       const prev = backgroundImageId;
       const { id } = await importBgImageFromFile(file);
       await setBackgroundImageId(id);
+      await setBackgroundBuiltinId(null);
       await setBackgroundKind("image");
       if (prev && prev !== id) await deleteBgImage(prev).catch(() => undefined);
     } catch (e) {
@@ -113,8 +116,13 @@ export function ThemesSection() {
     const prev = backgroundImageId;
     await setBackgroundKind("none");
     await setBackgroundImageId(null);
+    await setBackgroundBuiltinId(null);
     if (prev) await deleteBgImage(prev).catch(() => undefined);
   };
+
+  const activeBuiltinWallpaper = backgroundBuiltinId
+    ? getBuiltinWallpaper(backgroundBuiltinId)
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -220,6 +228,16 @@ export function ThemesSection() {
                       {t.description}
                     </span>
                   ) : null}
+                  {t.franchise ? (
+                    <span className="truncate text-[10px] uppercase tracking-[0.14em] text-primary/80">
+                      {t.franchise}
+                    </span>
+                  ) : null}
+                  {t.wallpaper ? (
+                    <span className="truncate text-[10px] text-muted-foreground">
+                      Wallpaper: {t.wallpaper.label}
+                    </span>
+                  ) : null}
                 </div>
                 {isCustom ? (
                   <span className="ml-1 flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
@@ -302,7 +320,53 @@ export function ThemesSection() {
             {bgError}
           </div>
         ) : null}
-        {backgroundKind === "image" && backgroundImageId ? (
+        {backgroundKind === "builtin" && activeBuiltinWallpaper ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-3">
+            <div className="overflow-hidden rounded-md border border-border/60">
+              <img
+                src={activeBuiltinWallpaper.thumbnailPath ?? activeBuiltinWallpaper.path}
+                alt={activeBuiltinWallpaper.label}
+                className="h-28 w-full object-cover"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11.5px] font-medium">
+                {activeBuiltinWallpaper.label}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Bundled anime wallpaper active. Local image import still overrides it.
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11.5px] text-muted-foreground">
+                Opacity
+              </span>
+              <span className="tabular-nums text-[11px] text-muted-foreground">
+                {Math.round(backgroundOpacity * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[backgroundOpacity]}
+              min={0}
+              max={1}
+              step={0.01}
+              onValueChange={(v) => void setBackgroundOpacity(v[0] ?? 0)}
+            />
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <span className="text-[11.5px] text-muted-foreground">Blur</span>
+              <span className="tabular-nums text-[11px] text-muted-foreground">
+                {backgroundBlur}px
+              </span>
+            </div>
+            <Slider
+              value={[backgroundBlur]}
+              min={0}
+              max={64}
+              step={1}
+              onValueChange={(v) => void setBackgroundBlur(v[0] ?? 0)}
+            />
+          </div>
+        ) : backgroundKind === "image" && backgroundImageId ? (
           <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11.5px] text-muted-foreground">
@@ -335,8 +399,8 @@ export function ThemesSection() {
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground">
-            Drop an image here or pick one. Stored locally; doesn't affect the
-            default look until set.
+            Drop an image here or pick one. Built-in anime wallpapers are applied
+            automatically by their theme and local imports can override them.
           </p>
         )}
       </div>

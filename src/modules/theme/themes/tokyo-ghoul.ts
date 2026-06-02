@@ -1,0 +1,53 @@
+import type { Theme } from "../types";
+
+export const tokyoGhoul: Theme = {
+  id: "tokyo-ghoul",
+  name: "Tokyo Ghoul",
+  franchise: "Tokyo Ghoul",
+  description: "Crimson noir panels with cold ash neutrals and predatory contrast.",
+  wallpaper: {
+    id: "tokyo-ghoul-red-black",
+    label: "Tokyo Ghoul Red Black",
+    path: "/wallpapers/tokyo-ghoul-red-black.png",
+  },
+  editorTheme: { dark: "copilot", light: "github-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#09090c",
+        foreground: "#f4f1f4",
+        card: "#101015",
+        cardForeground: "#f4f1f4",
+        popover: "#111117",
+        popoverForeground: "#f4f1f4",
+        primary: "#e03b4f",
+        primaryForeground: "#fff5f6",
+        secondary: "#191922",
+        secondaryForeground: "#e9e7ea",
+        muted: "#181820",
+        mutedForeground: "#aa9aa3",
+        accent: "#2a1218",
+        accentForeground: "#ffe3e8",
+        destructive: "#ff4d61",
+        border: "rgba(224,59,79,0.24)",
+        input: "rgba(255,255,255,0.08)",
+        ring: "#ff6d7f",
+        sidebar: "#0b0b10",
+        sidebarForeground: "#f4f1f4",
+        sidebarPrimary: "#e03b4f",
+        sidebarPrimaryForeground: "#fff5f6",
+        sidebarAccent: "#1b1116",
+        sidebarAccentForeground: "#ffe3e8",
+        sidebarBorder: "rgba(224,59,79,0.18)",
+        sidebarRing: "#ff6d7f",
+      },
+      terminal: {
+        background: "#09090c",
+        foreground: "#f4f1f4",
+        cursor: "#ff6d7f",
+        cursorAccent: "#09090c",
+        selection: "rgba(224,59,79,0.25)",
+      },
+    },
+  },
+};

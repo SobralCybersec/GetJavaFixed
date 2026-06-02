@@ -10,7 +10,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import {
@@ -19,6 +19,12 @@ import {
   setRefactorToolKey,
 } from "@/modules/ai/lib/toolKeyring";
 import { FindingDetailSheet } from "@/modules/findings/FindingDetailSheet";
+import {
+  buildFindingsAnalytics,
+  formatImpactSummary,
+  type FindingsAnalytics,
+  type FindingsAnalyticsBucket,
+} from "@/modules/findings/lib/analytics";
 import { useFindings, type FindingsRepo } from "@/modules/findings/lib/useFindings";
 import { useRefactorGeneration } from "@/modules/findings/lib/useRefactorGeneration";
 import { useChatStore } from "@/modules/ai/store/chatStore";
@@ -92,6 +98,7 @@ export function FindingsDashboard({
       openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
       openaiCompatibleModelId: prefs.openaiCompatibleModelId,
       openrouterModelId: prefs.openrouterModelId,
+      refactorCustomInstructions: prefs.refactorCustomInstructions,
     },
     {
       exaEnabled: prefs.refactorMcpEnabled,
@@ -112,6 +119,9 @@ export function FindingsDashboard({
     if (selectedFinding?.id !== id) resetRefactor();
     selectFinding(id);
   };
+
+  const analytics = useMemo(() => buildFindingsAnalytics(findings), [findings]);
+  const impactSummary = useMemo(() => formatImpactSummary(analytics), [analytics]);
 
   const canGenerateSelectedFinding =
     selectedFinding !== null &&
@@ -150,6 +160,11 @@ export function FindingsDashboard({
             mcpEnabled={prefs.refactorMcpEnabled}
             onExaKeySaved={setExaApiKey}
             onContext7KeySaved={setContext7ApiKey}
+          />
+          <DashboardAnalyticsOverview
+            analytics={analytics}
+            progress={progress}
+            impactSummary={impactSummary}
           />
           <Card size="sm" className="java-panel border border-border/60">
             <CardHeader className="gap-2">
@@ -396,6 +411,368 @@ export function FindingsDashboard({
   );
 }
 
+const CHART_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+];
+
+function DashboardAnalyticsOverview({
+  analytics,
+  progress,
+  impactSummary,
+}: {
+  analytics: FindingsAnalytics;
+  progress: number;
+  impactSummary: string;
+}) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <Card size="sm" className="java-panel overflow-hidden border border-border/60">
+        <CardHeader className="gap-2 border-b border-border/40 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_55%)]">
+          <CardTitle>Refactor intelligence</CardTitle>
+          <CardDescription>
+            Visual breakdown of what the scan found and where the biggest likely wins are.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              label="Total findings"
+              value={analytics.totalFindings}
+              hint="Ranked hotspots ready for review"
+            />
+            <KpiCard
+              label="Affected files"
+              value={analytics.affectedFiles}
+              hint="Unique files touched by findings"
+            />
+            <KpiCard
+              label="Top issue mix"
+              value={analytics.topCategory?.label ?? "None"}
+              hint={
+                analytics.topCategory
+                  ? `${analytics.topCategory.count} findings in the largest category`
+                  : "No findings yet"
+              }
+            />
+            <KpiCard
+              label="Estimated impact"
+              value={`${analytics.impactLabel} · ${analytics.impactScore}`}
+              hint="Heuristic estimate, not profiler output"
+            />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+            <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Issue mix</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pizza-style category view of the current findings queue.
+                  </p>
+                </div>
+                <Badge variant="outline" data-testid="issue-mix-chart">
+                  {analytics.categories.length} categories
+                </Badge>
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <DonutChart buckets={analytics.categories} />
+                <div className="min-w-0 flex-1 space-y-2">
+                  {analytics.categories.length > 0 ? (
+                    analytics.categories.map((bucket, index) => (
+                      <LegendRow
+                        key={bucket.key}
+                        bucket={bucket}
+                        color={CHART_COLORS[index % CHART_COLORS.length]}
+                        total={analytics.totalFindings}
+                      />
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Run analysis to populate the issue-mix chart.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Estimated gains</p>
+                    <p className="text-xs text-muted-foreground">{impactSummary}</p>
+                  </div>
+                  <Badge variant="secondary">Heuristic</Badge>
+                </div>
+                <ImpactStrip buckets={analytics.categories} total={analytics.totalFindings} />
+                <div className="mt-4 space-y-3">
+                  {analytics.solutionMessages.map((entry) => (
+                    <div
+                      key={entry.category}
+                      className="rounded-2xl border border-border/50 bg-background/55 px-3 py-2"
+                    >
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {entry.label}
+                      </div>
+                      <p className="mt-1 text-sm text-foreground/90">{entry.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Performance outlook</p>
+                    <p className="text-xs text-muted-foreground">
+                      Likely runtime improvements from deterministic heuristics.
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {analytics.performanceSummary.gainLabel}
+                  </Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <KpiCard
+                    label="Runtime hotspots"
+                    value={analytics.performanceSummary.hotspots}
+                    hint="Findings tied to allocation or repeated work"
+                    compact
+                  />
+                  <KpiCard
+                    label="Scan progress"
+                    value={`${progress}%`}
+                    hint="Latest analysis progress snapshot"
+                    compact
+                  />
+                </div>
+                <div className="mt-4 space-y-2">
+                  {analytics.performanceSummary.triggeredBy.length > 0 ? (
+                    analytics.performanceSummary.triggeredBy.map((message) => (
+                      <p key={message} className="text-sm text-muted-foreground">
+                        {message}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No clear performance-specific hotspots detected yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card size="sm" className="java-panel border border-border/60">
+        <CardHeader className="gap-2">
+          <CardTitle>Hotspot map</CardTitle>
+          <CardDescription>
+            Most repeated categories, triggered principles, and affected files.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5" data-testid="hotspot-map">
+          <MetricBars
+            title="Category pressure"
+            buckets={analytics.categories}
+            empty="No category mix yet."
+          />
+          <MetricBars
+            title="Principles triggered most"
+            buckets={analytics.principles}
+            empty="No principle hints yet."
+          />
+          <MetricBars
+            title="Top affected files"
+            buckets={analytics.hotspots}
+            empty="No file hotspots yet."
+            monospaceLabels
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  compact = false,
+}: {
+  label: string;
+  value: string | number;
+  hint: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-3xl border border-border/60 bg-background/70 px-4 py-3",
+        compact && "px-3 py-2.5",
+      )}
+    >
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </div>
+      <div className={cn("mt-2 text-2xl font-semibold", compact && "text-xl")}>{value}</div>
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
+  const total = Math.max(
+    1,
+    buckets.reduce((sum, bucket) => sum + bucket.count, 0),
+  );
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <div className="relative flex h-44 w-44 items-center justify-center self-center">
+      <svg viewBox="0 0 140 140" className="h-40 w-40 -rotate-90">
+        <circle
+          cx="70"
+          cy="70"
+          r={radius}
+          fill="none"
+          stroke="color-mix(in oklab, var(--muted) 80%, transparent)"
+          strokeWidth="18"
+        />
+        {buckets.map((bucket, index) => {
+          const length = (bucket.count / total) * circumference;
+          const segment = (
+            <circle
+              key={bucket.key}
+              cx="70"
+              cy="70"
+              r={radius}
+              fill="none"
+              stroke={CHART_COLORS[index % CHART_COLORS.length]}
+              strokeWidth="18"
+              strokeLinecap="butt"
+              strokeDasharray={`${length} ${circumference - length}`}
+              strokeDashoffset={-offset}
+            />
+          );
+          offset += length;
+          return segment;
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <div className="text-3xl font-semibold">{buckets.reduce((sum, bucket) => sum + bucket.count, 0)}</div>
+        <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          Findings
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LegendRow({
+  bucket,
+  color,
+  total,
+}: {
+  bucket: FindingsAnalyticsBucket;
+  color: string;
+  total: number;
+}) {
+  const percent = total > 0 ? Math.round((bucket.count / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span>{bucket.label}</span>
+          <span className="text-muted-foreground">{bucket.count}</span>
+        </div>
+        <div className="text-xs text-muted-foreground">{percent}% of current queue</div>
+      </div>
+    </div>
+  );
+}
+
+function ImpactStrip({
+  buckets,
+  total,
+}: {
+  buckets: FindingsAnalyticsBucket[];
+  total: number;
+}) {
+  return (
+    <div
+      className="flex h-3 overflow-hidden rounded-full bg-muted/60"
+      data-testid="impact-strip"
+    >
+      {buckets.length > 0 ? (
+        buckets.map((bucket, index) => (
+          <div
+            key={bucket.key}
+            style={{
+              width: `${total > 0 ? (bucket.count / total) * 100 : 0}%`,
+              backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+            }}
+          />
+        ))
+      ) : (
+        <div className="w-full bg-muted/50" />
+      )}
+    </div>
+  );
+}
+
+function MetricBars({
+  title,
+  buckets,
+  empty,
+  monospaceLabels = false,
+}: {
+  title: string;
+  buckets: FindingsAnalyticsBucket[];
+  empty: string;
+  monospaceLabels?: boolean;
+}) {
+  const max = buckets[0]?.count ?? 1;
+  return (
+    <section className="space-y-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {title}
+      </div>
+      {buckets.length > 0 ? (
+        buckets.map((bucket, index) => (
+          <div key={`${title}-${bucket.key}`} className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className={cn("truncate", monospaceLabels && "font-mono text-[12px]")}>
+                {bucket.label}
+              </span>
+              <span className="text-muted-foreground">{bucket.count}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted/50">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${(bucket.count / max) * 100}%`,
+                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                }}
+              />
+            </div>
+          </div>
+        ))
+      ) : (
+        <p className="text-sm text-muted-foreground">{empty}</p>
+      )}
+    </section>
+  );
+}
+
 
 import { RefactorPreviewPanel } from "@/modules/findings/RefactorPreviewPanel";
 import type { RefactorResult, RefactorStatus } from "@/modules/findings/lib/useRefactorGeneration";
@@ -449,23 +826,23 @@ function McpResearchCard({
 
   return (
     <Card size="sm" className="java-panel border border-border/60">
-      <CardHeader className="gap-2">
-        <CardTitle>Research MCPs</CardTitle>
-        <CardDescription>
-          Refactor preview can enrich reasoning with Exa web search and Context7 docs.
-        </CardDescription>
-      </CardHeader>
+        <CardHeader className="gap-2">
+          <CardTitle>Research MCPs</CardTitle>
+          <CardDescription>
+          Refactor preview can enrich reasoning with Exa live search plus Context7 version-aware docs.
+          </CardDescription>
+        </CardHeader>
       <CardContent className="space-y-3">
         <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           {mcpEnabled
-            ? "MCP enrichment enabled for refactor previews."
+            ? "MCP enrichment enabled for refactor previews. Exa tools: web_search_exa + web_fetch_exa."
             : "MCP enrichment disabled in Settings > Models."}
         </div>
         <div className="rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium">Exa</p>
-              <p className="text-xs text-muted-foreground">Optional web/code search for live refactor examples.</p>
+              <p className="text-xs text-muted-foreground">Optional live web fetch/search for refactor examples. Session target matches Exa MCP server tools and the npm package line is currently 3.2.1.</p>
             </div>
             {toolKeysLoaded && exaApiKey ? <Badge variant="secondary">{maskKey(exaApiKey)}</Badge> : null}
           </div>

@@ -3,6 +3,7 @@ import {
   usePreferencesStore,
 } from "@/modules/settings/preferences";
 import { BG_OPACITY_RENDER_FACTOR } from "@/modules/settings/store";
+import { getBuiltinWallpaper } from "@/modules/theme/wallpapers";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -13,18 +14,34 @@ const FADE_IN_MS = 200;
 export function SurfaceLayer() {
   const [fastPath] = useState(readBgFastPath);
   const storeActive = usePreferencesStore(
-    (s) => s.backgroundKind === "image" && !!s.backgroundImageId,
+    (s) =>
+      (s.backgroundKind === "image" && !!s.backgroundImageId) ||
+      (s.backgroundKind === "builtin" && !!s.backgroundBuiltinId),
   );
   const hydrated = usePreferencesStore((s) => s.hydrated);
   const active = hydrated ? storeActive : fastPath.active;
   if (!active) return null;
-  return <BackgroundImage fastImageId={fastPath.imageId} />;
+  return (
+    <BackgroundImage
+      fastImageId={fastPath.imageId}
+      fastBuiltinId={fastPath.builtinId}
+    />
+  );
 }
 
-function BackgroundImage({ fastImageId }: { fastImageId: string | null }) {
+function BackgroundImage({
+  fastImageId,
+  fastBuiltinId,
+}: {
+  fastImageId: string | null;
+  fastBuiltinId: string | null;
+}) {
+  const backgroundKind = usePreferencesStore((s) => s.backgroundKind);
   const storeImageId = usePreferencesStore((s) => s.backgroundImageId);
+  const storeBuiltinId = usePreferencesStore((s) => s.backgroundBuiltinId);
   const hydrated = usePreferencesStore((s) => s.hydrated);
   const imageId = hydrated ? storeImageId : fastImageId;
+  const builtinId = hydrated ? storeBuiltinId : fastBuiltinId;
   const opacity = usePreferencesStore((s) => s.backgroundOpacity);
   const blur = usePreferencesStore((s) => s.backgroundBlur);
   const [state, setState] = useState<{ url: string; animated: boolean } | null>(
@@ -36,7 +53,14 @@ function BackgroundImage({ fastImageId }: { fastImageId: string | null }) {
   const docHidden = useDocumentHidden();
 
   useEffect(() => {
-    if (!imageId) return;
+    if (backgroundKind === "builtin" && builtinId) {
+      const wallpaper = getBuiltinWallpaper(builtinId);
+      if (!wallpaper) return;
+      setState({ url: wallpaper.path, animated: false });
+      requestAnimationFrame(() => setVisible(true));
+      return;
+    }
+    if (backgroundKind !== "image" || !imageId) return;
     let alive = true;
     let rafId: number | null = null;
     setVisible(false);
@@ -60,7 +84,7 @@ function BackgroundImage({ fastImageId }: { fastImageId: string | null }) {
       alive = false;
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [imageId]);
+  }, [backgroundKind, imageId, builtinId]);
 
   useEffect(() => {
     return () => {

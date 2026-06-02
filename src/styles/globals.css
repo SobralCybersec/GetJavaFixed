@@ -9,8 +9,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Inter Variable', sans-serif;
+    --font-heading: 'CC Wild Words Roman', 'Inter Variable', sans-serif;
+    --font-sans: 'CC Wild Words Roman', 'Inter Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -95,6 +95,7 @@
     @apply bg-background text-foreground;
     margin: 0;
     overflow: hidden;
+    font-family: var(--font-sans);
     background-image:
       linear-gradient(180deg, color-mix(in oklab, var(--background) 96%, white 4%), var(--background)),
       linear-gradient(90deg, color-mix(in oklab, var(--border) 35%, transparent) 1px, transparent 1px),
@@ -220,11 +221,13 @@ html[data-chrome="borderless"] #settings-root {
 .xterm-screen,
 .xterm:focus,
 .xterm.focus {
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace !important;
   outline: none !important;
 }
 
 .cm-editor,
 .cm-scroller {
+  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
@@ -241,10 +244,15 @@ body {
 }
 input,
 textarea,
+select,
 [contenteditable="true"],
+code,
+pre,
+kbd,
 .cm-editor,
 .select-text,
 .select-text * {
+  font-family: 'Inter Variable', sans-serif;
   -webkit-user-select: text;
   user-select: text;
 }

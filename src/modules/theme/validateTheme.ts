@@ -1,4 +1,10 @@
-import type { Theme, ThemeColors, ThemeVariant, TerminalPalette } from "./types";
+import type {
+  BuiltinWallpaper,
+  Theme,
+  ThemeColors,
+  ThemeVariant,
+  TerminalPalette,
+} from "./types";
 
 export type ValidationResult =
   | { ok: true; theme: Theme }
@@ -91,6 +97,28 @@ function parseVariant(raw: unknown, path: string): ThemeVariant | string {
   return { colors, terminal };
 }
 
+function parseWallpaper(raw: unknown): BuiltinWallpaper | string {
+  if (raw === undefined) {
+    return {
+      id: "",
+      label: "",
+      path: "",
+    };
+  }
+  if (!isObj(raw)) return "wallpaper must be an object";
+  if (!isStr(raw.id) || !raw.id.trim()) return "wallpaper.id must be a non-empty string";
+  if (!isStr(raw.label) || !raw.label.trim()) return "wallpaper.label must be a non-empty string";
+  if (!isStr(raw.path) || !raw.path.trim()) return "wallpaper.path must be a non-empty string";
+  const wallpaper: BuiltinWallpaper = {
+    id: raw.id.trim(),
+    label: raw.label.trim(),
+    path: raw.path.trim(),
+  };
+  if (isStr(raw.thumbnailPath)) wallpaper.thumbnailPath = raw.thumbnailPath.trim();
+  if (isStr(raw.attribution)) wallpaper.attribution = raw.attribution.trim();
+  return wallpaper;
+}
+
 export function validateTheme(raw: unknown): ValidationResult {
   if (!isObj(raw)) return { ok: false, error: "Theme must be a JSON object" };
   if (!isStr(raw.id) || !ID_RE.test(raw.id)) {
@@ -121,6 +149,14 @@ export function validateTheme(raw: unknown): ValidationResult {
   };
   if (isStr(raw.author)) theme.author = raw.author;
   if (isStr(raw.description)) theme.description = raw.description;
+  if (isStr(raw.franchise)) theme.franchise = raw.franchise.trim();
+  if (raw.wallpaper !== undefined) {
+    const wallpaper = parseWallpaper(raw.wallpaper);
+    if (typeof wallpaper === "string") return { ok: false, error: wallpaper };
+    if (wallpaper.id && wallpaper.label && wallpaper.path) {
+      theme.wallpaper = wallpaper;
+    }
+  }
   if (isObj(raw.editorTheme)) {
     const et: Theme["editorTheme"] = {};
     if (isStr(raw.editorTheme.light)) et.light = raw.editorTheme.light;

@@ -1,0 +1,46 @@
+import type { Theme } from "../types";
+
+export const onePiece: Theme = {
+  id: "one-piece",
+  name: "One Piece",
+  franchise: "One Piece",
+  description: "Open-sea blues, parchment gold, and pirate-banner reds.",
+  wallpaper: {
+    id: "one-piece-grand-line",
+    label: "One Piece Grand Line",
+    path: "/wallpapers/one-piece-grand-line.png",
+  },
+  editorTheme: { dark: "tokyo-night", light: "github-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#08101a",
+        foreground: "#fdf3de",
+        card: "#0f1b2a",
+        cardForeground: "#fdf3de",
+        popover: "#112033",
+        popoverForeground: "#fdf3de",
+        primary: "#e8b24c",
+        primaryForeground: "#281200",
+        secondary: "#173453",
+        secondaryForeground: "#e4f1ff",
+        muted: "#132131",
+        mutedForeground: "#aeb6c4",
+        accent: "#8e2d34",
+        accentForeground: "#fff1ee",
+        destructive: "#ff645f",
+        border: "rgba(232,178,76,0.18)",
+        input: "rgba(255,255,255,0.08)",
+        ring: "#6cb8ff",
+        sidebar: "#0a1320",
+        sidebarForeground: "#fdf3de",
+        sidebarPrimary: "#e8b24c",
+        sidebarPrimaryForeground: "#281200",
+        sidebarAccent: "#173453",
+        sidebarAccentForeground: "#e4f1ff",
+        sidebarBorder: "rgba(108,184,255,0.15)",
+        sidebarRing: "#6cb8ff",
+      },
+    },
+  },
+};

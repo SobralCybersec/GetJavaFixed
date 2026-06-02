@@ -442,7 +442,9 @@ export function useTerminalSession({
   }, [webglPref]);
 
   const bgActive = usePreferencesStore(
-    (p) => p.backgroundKind === "image" && !!p.backgroundImageId,
+    (p) =>
+      (p.backgroundKind === "image" && !!p.backgroundImageId) ||
+      (p.backgroundKind === "builtin" && !!p.backgroundBuiltinId),
   );
   useEffect(() => {
     applyBackgroundActive(bgActive);

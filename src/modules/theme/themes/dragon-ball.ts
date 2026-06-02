@@ -1,0 +1,46 @@
+import type { Theme } from "../types";
+
+export const dragonBall: Theme = {
+  id: "dragon-ball",
+  name: "Dragon Ball",
+  franchise: "Dragon Ball",
+  description: "High-energy orange and blue with bright tournament-arena contrast.",
+  wallpaper: {
+    id: "dragon-ball-sunset",
+    label: "Dragon Ball Sunset",
+    path: "/wallpapers/dragon-ball-sunset.png",
+  },
+  editorTheme: { dark: "atomone", light: "github-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#110d08",
+        foreground: "#fff2df",
+        card: "#1a130b",
+        cardForeground: "#fff2df",
+        popover: "#1c140c",
+        popoverForeground: "#fff2df",
+        primary: "#ff8c1a",
+        primaryForeground: "#241200",
+        secondary: "#12233b",
+        secondaryForeground: "#dcecff",
+        muted: "#21160d",
+        mutedForeground: "#c0a58b",
+        accent: "#15345d",
+        accentForeground: "#e7f1ff",
+        destructive: "#ff5c3f",
+        border: "rgba(255,140,26,0.20)",
+        input: "rgba(255,255,255,0.09)",
+        ring: "#4ea7ff",
+        sidebar: "#120d08",
+        sidebarForeground: "#fff2df",
+        sidebarPrimary: "#ff8c1a",
+        sidebarPrimaryForeground: "#241200",
+        sidebarAccent: "#15345d",
+        sidebarAccentForeground: "#e7f1ff",
+        sidebarBorder: "rgba(78,167,255,0.18)",
+        sidebarRing: "#4ea7ff",
+      },
+    },
+  },
+};

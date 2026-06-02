@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -509,6 +510,66 @@ fn scan_findings_in_scope(
                 });
             }
         }
+
+        if has_deep_nesting(&content) {
+            findings.push(Phase1Finding {
+                id: format!("deep-nesting:{rel}"),
+                title: "Deep nesting suggests guard-clause refactoring".to_string(),
+                category: "maintainability".to_string(),
+                priority: 86,
+                rationale: "Heavily nested control flow makes the happy path harder to read. Flattening with guard clauses or tiny extractions improves KISS and reviewability.".to_string(),
+                principles: vec!["KISS".to_string(), "CleanCode".to_string()],
+                affected_files: vec![rel.clone()],
+            });
+        }
+
+        if has_duplicate_logic(&content) {
+            findings.push(Phase1Finding {
+                id: format!("duplicate-code:{rel}"),
+                title: "Repeated local logic suggests extraction".to_string(),
+                category: "maintainability".to_string(),
+                priority: 83,
+                rationale: "Repeated statement patterns are a strong DRY signal. Extracting the repeated logic usually shrinks risk and makes behavior easier to change safely.".to_string(),
+                principles: vec!["DRY".to_string(), "CleanCode".to_string()],
+                affected_files: vec![rel.clone()],
+            });
+        }
+
+        if has_potential_null_risk(&content) {
+            findings.push(Phase1Finding {
+                id: format!("potential-null:{rel}"),
+                title: "Likely null-sensitive dereference pattern".to_string(),
+                category: "safe".to_string(),
+                priority: 90,
+                rationale: "Calling methods like equals or trim on a variable can throw if the value is null. Favor null-safe order or a guard clause.".to_string(),
+                principles: vec!["SOLID".to_string(), "CleanCode".to_string()],
+                affected_files: vec![rel.clone()],
+            });
+        }
+
+        if has_repeated_call_cache_opportunity(&content) {
+            findings.push(Phase1Finding {
+                id: format!("repeated-call-cache:{rel}"),
+                title: "Repeated method calls suggest local caching".to_string(),
+                category: "performance".to_string(),
+                priority: 76,
+                rationale: "Repeating the same method call in a tight block or loop can add noise and cost. Cache the value once when semantics are stable.".to_string(),
+                principles: vec!["KISS".to_string(), "YAGNI".to_string()],
+                affected_files: vec![rel.clone()],
+            });
+        }
+
+        if has_tell_dont_ask_candidate(&content) {
+            findings.push(Phase1Finding {
+                id: format!("tell-dont-ask:{rel}"),
+                title: "Object state is queried before telling it what to do".to_string(),
+                category: "maintainability".to_string(),
+                priority: 81,
+                rationale: "Checking an object's internal state from the outside before invoking behavior is a classic Tell Don't Ask smell. A tiny move toward object-owned behavior often improves encapsulation and readability.".to_string(),
+                principles: vec!["SOLID".to_string(), "CleanCode".to_string()],
+                affected_files: vec![rel.clone()],
+            });
+        }
     }
 
     findings.sort_by(|left, right| {
@@ -616,4 +677,151 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::from_secs(0))
         .as_millis() as u64
+}
+
+fn has_deep_nesting(content: &str) -> bool {
+    let mut control_depth = 0i32;
+    let mut max_depth = 0i32;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        let control_start = (trimmed.starts_with("if ")
+            || trimmed.starts_with("if(")
+            || trimmed.starts_with("for ")
+            || trimmed.starts_with("for(")
+            || trimmed.starts_with("while ")
+            || trimmed.starts_with("while(")
+            || trimmed.starts_with("switch ")
+            || trimmed.starts_with("switch(")
+            || trimmed.starts_with("try")
+            || trimmed.starts_with("catch "))
+            && trimmed.contains('{');
+        if control_start {
+            control_depth += 1;
+            max_depth = max_depth.max(control_depth);
+        }
+        let closing = trimmed.chars().filter(|ch| *ch == '}').count() as i32;
+        control_depth = (control_depth - closing).max(0);
+    }
+    max_depth >= 3
+}
+
+fn has_duplicate_logic(content: &str) -> bool {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.len() < 12
+            || trimmed.starts_with("import ")
+            || trimmed.starts_with("package ")
+            || trimmed == "{"
+            || trimmed == "}"
+        {
+            continue;
+        }
+        if !(trimmed.ends_with(';') || trimmed.ends_with('{')) {
+            continue;
+        }
+        *counts.entry(trimmed.to_string()).or_insert(0) += 1;
+    }
+    counts.values().any(|count| *count >= 3)
+}
+
+fn has_potential_null_risk(content: &str) -> bool {
+    content.lines().any(|line| {
+        let trimmed = line.trim();
+        if trimmed.contains("\".equals(") || trimmed.contains("Objects.equals(") {
+            return false;
+        }
+        trimmed.contains(".equals(")
+            || trimmed.contains(".equalsIgnoreCase(")
+            || trimmed.contains(".trim()")
+            || trimmed.contains(".toLowerCase()")
+            || trimmed.contains(".toUpperCase()")
+    })
+}
+
+fn has_repeated_call_cache_opportunity(content: &str) -> bool {
+    let lines: Vec<&str> = content.lines().collect();
+    for start in 0..lines.len() {
+        let line = lines[start].trim();
+        if !(line.starts_with("for ") || line.starts_with("for(") || line.starts_with("while ")) {
+            continue;
+        }
+        let window_end = usize::min(start + 8, lines.len());
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for body_line in &lines[start..window_end] {
+            for call in extract_call_tokens(body_line) {
+                if call.ends_with(".size(") || call.starts_with("System.out.") {
+                    continue;
+                }
+                *counts.entry(call).or_insert(0) += 1;
+            }
+        }
+        if counts.values().any(|count| *count >= 2) {
+            return true;
+        }
+    }
+    false
+}
+
+fn has_tell_dont_ask_candidate(content: &str) -> bool {
+    let lines: Vec<&str> = content.lines().collect();
+    for (idx, raw_line) in lines.iter().enumerate() {
+        let line = raw_line.trim();
+        if !(line.starts_with("if ") || line.starts_with("if(") || line.starts_with("return ")) {
+            continue;
+        }
+        let Some(getter_idx) = line.find(".get").or_else(|| line.find(".is")) else {
+            continue;
+        };
+        let prefix = line[..getter_idx].trim();
+        let receiver = prefix
+            .rsplit(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .next()
+            .unwrap_or("")
+            .trim();
+        if receiver.is_empty() || !line.contains('(') || !line.contains(')') {
+            continue;
+        }
+        let window_end = usize::min(idx + 6, lines.len());
+        for candidate in &lines[idx..window_end] {
+            let candidate = candidate.trim();
+            if candidate == line {
+                continue;
+            }
+            if candidate.contains(&format!("{receiver}."))
+                && !candidate.contains(".get")
+                && !candidate.contains(".is")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn extract_call_tokens(line: &str) -> Vec<String> {
+    let bytes = line.as_bytes();
+    let mut out = Vec::new();
+    for idx in 0..bytes.len() {
+        if bytes[idx] != b'(' {
+            continue;
+        }
+        let mut start = idx;
+        while start > 0 {
+            let ch = bytes[start - 1] as char;
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                start -= 1;
+            } else {
+                break;
+            }
+        }
+        if start == idx {
+            continue;
+        }
+        let token = &line[start..idx + 1];
+        if token.contains('.') {
+            out.push(token.to_string());
+        }
+    }
+    out
 }

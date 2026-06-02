@@ -1,5 +1,13 @@
 export type ThemeMode = "light" | "dark";
 
+export type BuiltinWallpaper = {
+  id: string;
+  label: string;
+  path: string;
+  thumbnailPath?: string;
+  attribution?: string;
+};
+
 export type ThemeColors = Partial<{
   background: string;
   foreground: string;
@@ -52,6 +60,8 @@ export type Theme = {
   name: string;
   author?: string;
   description?: string;
+  franchise?: string;
+  wallpaper?: BuiltinWallpaper;
   variants: {
     light?: ThemeVariant;
     dark?: ThemeVariant;
@@ -62,4 +72,4 @@ export type Theme = {
   };
 };
 
-export const DEFAULT_THEME_ID = "javarf-default";
+export const DEFAULT_THEME_ID = "tokyo-ghoul";

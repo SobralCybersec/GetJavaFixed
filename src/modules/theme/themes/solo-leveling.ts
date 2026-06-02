@@ -1,0 +1,46 @@
+import type { Theme } from "../types";
+
+export const soloLeveling: Theme = {
+  id: "solo-leveling",
+  name: "Solo Leveling",
+  franchise: "Solo Leveling",
+  description: "Shadow-violet, electric indigo, and sharp hunter-grade neon contrast.",
+  wallpaper: {
+    id: "solo-leveling-shadow",
+    label: "Solo Leveling Shadow",
+    path: "/wallpapers/solo-leveling-shadow.png",
+  },
+  editorTheme: { dark: "aura", light: "github-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#06070d",
+        foreground: "#eef0ff",
+        card: "#10131c",
+        cardForeground: "#eef0ff",
+        popover: "#121620",
+        popoverForeground: "#eef0ff",
+        primary: "#6f63ff",
+        primaryForeground: "#f7f6ff",
+        secondary: "#171f36",
+        secondaryForeground: "#dbe1ff",
+        muted: "#111624",
+        mutedForeground: "#98a1c6",
+        accent: "#20274f",
+        accentForeground: "#eef0ff",
+        destructive: "#ff5578",
+        border: "rgba(111,99,255,0.22)",
+        input: "rgba(255,255,255,0.08)",
+        ring: "#8bb2ff",
+        sidebar: "#090b12",
+        sidebarForeground: "#eef0ff",
+        sidebarPrimary: "#6f63ff",
+        sidebarPrimaryForeground: "#f7f6ff",
+        sidebarAccent: "#20274f",
+        sidebarAccentForeground: "#eef0ff",
+        sidebarBorder: "rgba(139,178,255,0.16)",
+        sidebarRing: "#8bb2ff",
+      },
+    },
+  },
+};

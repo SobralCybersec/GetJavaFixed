@@ -1980,6 +1980,7 @@ function JavaRefactorPreviewShell({
       openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
       openaiCompatibleModelId: prefs.openaiCompatibleModelId,
       openrouterModelId: prefs.openrouterModelId,
+      refactorCustomInstructions: prefs.refactorCustomInstructions,
     },
     {
       exaEnabled: prefs.refactorMcpEnabled,

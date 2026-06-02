@@ -86,7 +86,10 @@ const MCR_BG_INACTIVE = 1;
 function bgActive(
   prefs: ReturnType<typeof usePreferencesStore.getState>,
 ): boolean {
-  return prefs.backgroundKind === "image" && !!prefs.backgroundImageId;
+  return (
+    (prefs.backgroundKind === "image" && !!prefs.backgroundImageId) ||
+    (prefs.backgroundKind === "builtin" && !!prefs.backgroundBuiltinId)
+  );
 }
 
 function termOptions() {

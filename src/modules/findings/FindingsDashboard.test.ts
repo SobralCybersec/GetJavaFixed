@@ -26,6 +26,15 @@ describe("FindingsDashboard shell", () => {
     expect(dashboardSrc).toContain("finding.category");
   });
 
+  it("adds analytics summary surfaces and built-in charts", () => {
+    expect(dashboardSrc).toContain("Refactor intelligence");
+    expect(dashboardSrc).toContain("Issue mix");
+    expect(dashboardSrc).toContain("Performance outlook");
+    expect(dashboardSrc).toContain("issue-mix-chart");
+    expect(dashboardSrc).toContain("impact-strip");
+    expect(dashboardSrc).toContain("Hotspot map");
+  });
+
   it("auto-selects the top finding when analysis completes", () => {
     expect(hookSrc).toContain("sorted[0]?.id ?? null");
     expect(hookSrc).toContain("rankFindings");
@@ -77,5 +86,10 @@ describe("FindingsDashboard Phase 2 review surface", () => {
   it("safety snapshot is loaded eagerly when repo changes", () => {
     expect(hookSrc).toContain("java_safety_snapshot");
     expect(hookSrc).toContain("setSafety");
+  });
+
+  it("keeps analytics derivations out of the hook snapshot contract", () => {
+    expect(hookSrc).not.toContain("impactScore");
+    expect(hookSrc).not.toContain("topCategory");
   });
 });

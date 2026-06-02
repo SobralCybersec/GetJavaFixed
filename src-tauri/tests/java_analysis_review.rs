@@ -189,6 +189,138 @@ fn scan_findings_detects_wildcard_imports() {
 }
 
 #[test]
+fn scan_findings_detects_deep_nesting() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main/java/Nested.java",
+        r#"
+public class Nested {
+    public void run(boolean a, boolean b, boolean c) {
+        if (a) {
+            for (int i = 0; i < 3; i++) {
+                if (b) {
+                    while (c) {
+                        System.out.println(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings.iter().any(|f| f.id.contains("deep-nesting")),
+        "Expected deep nesting finding"
+    );
+}
+
+#[test]
+fn scan_findings_detects_duplicate_logic() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main/java/Duplicate.java",
+        r#"
+public class Duplicate {
+    public void run() {
+        normalizeUser();
+        normalizeUser();
+        normalizeUser();
+    }
+
+    private void normalizeUser() {}
+}
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings.iter().any(|f| f.id.contains("duplicate-code")),
+        "Expected duplicate code finding"
+    );
+}
+
+#[test]
+fn scan_findings_detects_potential_null_pattern() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main/java/NullRisk.java",
+        r#"
+public class NullRisk {
+    public boolean isAdmin(String role) {
+        return role.equals("ADMIN");
+    }
+}
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings.iter().any(|f| f.id.contains("potential-null")),
+        "Expected null-risk finding"
+    );
+}
+
+#[test]
+fn scan_findings_detects_repeated_call_cache_opportunity() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main/java/Cache.java",
+        r#"
+public class Cache {
+    public void run(Service service) {
+        for (int i = 0; i < 3; i++) {
+            String value = service.fetchConfig();
+            if (service.fetchConfig().isEmpty()) {
+                System.out.println(value);
+            }
+        }
+    }
+}
+interface Service { String fetchConfig(); }
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings
+            .iter()
+            .any(|f| f.id.contains("repeated-call-cache")),
+        "Expected repeated-call-cache finding"
+    );
+}
+
+#[test]
+fn scan_findings_detects_tell_dont_ask_candidate() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main/java/AccountService.java",
+        r#"
+public class AccountService {
+    public void withdraw(Account account, int amount) {
+        if (account.getBalance() >= amount) {
+            account.debit(amount);
+        }
+    }
+}
+interface Account {
+    int getBalance();
+    void debit(int amount);
+}
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings.iter().any(|f| f.id.contains("tell-dont-ask")),
+        "Expected tell-dont-ask finding"
+    );
+}
+
+#[test]
 fn scan_findings_sorts_by_priority_descending() {
     let fx = FsFixture::new();
     fx.write(

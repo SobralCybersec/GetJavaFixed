@@ -1,0 +1,46 @@
+import type { Theme } from "../types";
+
+export const gintama: Theme = {
+  id: "gintama",
+  name: "Gintama",
+  franchise: "Gintama",
+  description: "Silver, violet, and neon city blues with comedic calm under pressure.",
+  wallpaper: {
+    id: "gintama-neon-city",
+    label: "Gintama Neon City",
+    path: "/wallpapers/gintama-neon-city.png",
+  },
+  editorTheme: { dark: "nord", light: "xcode-light" },
+  variants: {
+    dark: {
+      colors: {
+        background: "#0b1018",
+        foreground: "#eef3fb",
+        card: "#11182a",
+        cardForeground: "#eef3fb",
+        popover: "#131a2c",
+        popoverForeground: "#eef3fb",
+        primary: "#d7d4ff",
+        primaryForeground: "#17162b",
+        secondary: "#1d2940",
+        secondaryForeground: "#dfeaf9",
+        muted: "#141f30",
+        mutedForeground: "#95a5c4",
+        accent: "#263b60",
+        accentForeground: "#eef3fb",
+        destructive: "#ff6b7a",
+        border: "rgba(215,212,255,0.18)",
+        input: "rgba(255,255,255,0.08)",
+        ring: "#7aa7ff",
+        sidebar: "#0d1420",
+        sidebarForeground: "#eef3fb",
+        sidebarPrimary: "#d7d4ff",
+        sidebarPrimaryForeground: "#17162b",
+        sidebarAccent: "#263b60",
+        sidebarAccentForeground: "#eef3fb",
+        sidebarBorder: "rgba(122,167,255,0.18)",
+        sidebarRing: "#7aa7ff",
+      },
+    },
+  },
+};
