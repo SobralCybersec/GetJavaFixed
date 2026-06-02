@@ -50,6 +50,9 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
 export type Preferences = {
   firstRunSetupDone: boolean;
   firstRunRepoPath: string | null;
+  proxyPresetId: string | null;
+  deepsproxyPath: string;
+  kimiproxyPath: string;
   theme: ThemePref;
   themeId: string;
   backgroundKind: BackgroundKind;
@@ -96,6 +99,9 @@ export type Preferences = {
 const STORE_PATH = "javarf-settings.json";
 const KEY_FIRST_RUN_SETUP_DONE = "firstRunSetupDone";
 const KEY_FIRST_RUN_REPO_PATH = "firstRunRepoPath";
+const KEY_PROXY_PRESET_ID = "proxyPresetId";
+const KEY_DEEPSPROXY_PATH = "deepsproxyPath";
+const KEY_KIMIPROXY_PATH = "kimiproxyPath";
 const KEY_THEME = "theme";
 const KEY_THEME_ID = "themeId";
 const KEY_BG_KIND = "backgroundKind";
@@ -157,6 +163,9 @@ export const TERMINAL_SCROLLBACK_PRESETS = [
 export const DEFAULT_PREFERENCES: Preferences = {
   firstRunSetupDone: false,
   firstRunRepoPath: null,
+  proxyPresetId: null,
+  deepsproxyPath: "",
+  kimiproxyPath: "",
   theme: "system",
   themeId: DEFAULT_THEME_ID,
   backgroundKind: "none",
@@ -227,6 +236,13 @@ export async function loadPreferences(): Promise<Preferences> {
     firstRunRepoPath:
       get<string | null>(KEY_FIRST_RUN_REPO_PATH) ??
       DEFAULT_PREFERENCES.firstRunRepoPath,
+    proxyPresetId:
+      get<string | null>(KEY_PROXY_PRESET_ID) ??
+      DEFAULT_PREFERENCES.proxyPresetId,
+    deepsproxyPath:
+      get<string>(KEY_DEEPSPROXY_PATH) ?? DEFAULT_PREFERENCES.deepsproxyPath,
+    kimiproxyPath:
+      get<string>(KEY_KIMIPROXY_PATH) ?? DEFAULT_PREFERENCES.kimiproxyPath,
     theme: get<ThemePref>(KEY_THEME) ?? DEFAULT_PREFERENCES.theme,
     themeId: get<string>(KEY_THEME_ID) ?? DEFAULT_PREFERENCES.themeId,
     backgroundKind:
@@ -467,6 +483,18 @@ export async function setFirstRunRepoPath(value: string | null): Promise<void> {
   await writePref(KEY_FIRST_RUN_REPO_PATH, value);
 }
 
+export async function setProxyPresetId(value: string | null): Promise<void> {
+  await writePref(KEY_PROXY_PRESET_ID, value);
+}
+
+export async function setDeepsproxyPath(value: string): Promise<void> {
+  await writePref(KEY_DEEPSPROXY_PATH, value.trim());
+}
+
+export async function setKimiproxyPath(value: string): Promise<void> {
+  await writePref(KEY_KIMIPROXY_PATH, value.trim());
+}
+
 export async function setContext7Url(value: string): Promise<void> {
   await writePref(KEY_CONTEXT7_URL, value.trim());
 }
@@ -570,6 +598,9 @@ export async function onPreferencesChange(
   const map: Record<string, PrefKey> = {
     [KEY_FIRST_RUN_SETUP_DONE]: "firstRunSetupDone",
     [KEY_FIRST_RUN_REPO_PATH]: "firstRunRepoPath",
+    [KEY_PROXY_PRESET_ID]: "proxyPresetId",
+    [KEY_DEEPSPROXY_PATH]: "deepsproxyPath",
+    [KEY_KIMIPROXY_PATH]: "kimiproxyPath",
     [KEY_THEME]: "theme",
     [KEY_THEME_ID]: "themeId",
     [KEY_BG_KIND]: "backgroundKind",

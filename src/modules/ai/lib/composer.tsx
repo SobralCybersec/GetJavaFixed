@@ -9,7 +9,11 @@ import {
 import { useWhisperRecording } from "../hooks/useWhisperRecording";
 import { expandSnippetTokens, type Snippet } from "../lib/snippets";
 import { tryRunSlashCommand, type SlashCommandMeta } from "./slashCommands";
-import { getOrCreateChat, useChatStore } from "../store/chatStore";
+import {
+  getOrCreateChat,
+  getSelectedModelReadinessError,
+  useChatStore,
+} from "../store/chatStore";
 import { useSnippetsStore } from "../store/snippetsStore";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 
@@ -303,6 +307,14 @@ export function AiComposerProvider({ children }: ProviderProps) {
     }
 
     if (!sessionId) return;
+    const readinessError = getSelectedModelReadinessError();
+    if (readinessError) {
+      useChatStore.getState().patchAgentMeta({
+        status: "error",
+        error: readinessError,
+      });
+      return;
+    }
     const chat = getOrCreateChat(sessionId);
     void chat.sendMessage({ role: "user", parts } as Parameters<
       typeof chat.sendMessage

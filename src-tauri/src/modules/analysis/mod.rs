@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use ignore::WalkBuilder;
 use serde::Serialize;
 
 use crate::modules::java_repo::{
@@ -10,8 +11,8 @@ use crate::modules::java_repo::{
 };
 use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
-const JAVA_FILE_LIMIT: usize = 256;
-const ENTRY_LIMIT: usize = 4096;
+const JAVA_FILE_LIMIT: usize = 8_000;
+const ENTRY_LIMIT: usize = 100_000;
 
 // ── Safety snapshot ──────────────────────────────────────────────────────────
 
@@ -110,9 +111,24 @@ pub struct Phase1AnalysisSnapshot {
     pub message: String,
     pub repo_name: String,
     pub project_type: JavaProjectType,
+    pub scan_path: String,
+    pub scope_label: String,
+    pub files_scanned: usize,
+    pub entries_visited: usize,
+    pub partial: bool,
+    pub partial_reason: Option<String>,
     pub findings: Vec<Phase1Finding>,
     pub error: Option<String>,
     pub updated_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScanFindingsResult {
+    pub findings: Vec<Phase1Finding>,
+    pub files_scanned: usize,
+    pub entries_visited: usize,
+    pub partial: bool,
+    pub partial_reason: Option<String>,
 }
 
 #[derive(Default, Clone)]
@@ -135,20 +151,43 @@ impl Phase1AnalysisState {
 
 #[tauri::command]
 pub async fn phase1_analysis_start(
-    path: String,
+    repo_path: String,
+    scan_path: Option<String>,
     workspace: Option<WorkspaceEnv>,
     registry: tauri::State<'_, WorkspaceRegistry>,
     analysis: tauri::State<'_, Phase1AnalysisState>,
 ) -> Result<Phase1AnalysisSnapshot, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
-    let readiness = classify_selected_root(&path, &workspace, &registry)?;
+    let readiness = classify_selected_root(&repo_path, &workspace, &registry)?;
     let project_type = readiness
         .project_type
         .clone()
         .ok_or_else(|| readiness.reason.unwrap_or_else(|| "Unsupported repository".to_string()))?;
-    let resolved = resolve_path(&path, &workspace);
-    let canonical = registry.authorize(&resolved).map_err(|e| e.to_string())?;
+    let resolved_repo = resolve_path(&repo_path, &workspace);
+    let canonical_repo = registry.authorize(&resolved_repo).map_err(|e| e.to_string())?;
+    let requested_scan = scan_path.unwrap_or_else(|| repo_path.clone());
+    let resolved_scan = resolve_path(&requested_scan, &workspace);
+    let canonical_scan = registry
+        .canonicalize_cached(&resolved_scan)
+        .map_err(|e| format!("scan path not accessible: {e}"))?;
+    if !canonical_scan.is_dir() {
+        return Err("scan path must be a directory".to_string());
+    }
+    if !canonical_scan.starts_with(&canonical_repo) {
+        return Err("scan path must stay inside the selected Java repository".to_string());
+    }
     let repo_name = readiness.repo_name.clone();
+    let scan_path_string = crate::modules::fs::to_canon(&canonical_scan);
+    let scope_label = if canonical_scan == canonical_repo {
+        "Whole repository".to_string()
+    } else {
+        let rel = canonical_scan
+            .strip_prefix(&canonical_repo)
+            .ok()
+            .map(crate::modules::fs::to_canon)
+            .unwrap_or_else(|| scan_path_string.clone());
+        format!("Folder: {rel}")
+    };
 
     let running = Phase1AnalysisSnapshot {
         status: Phase1AnalysisStatus::Running,
@@ -156,6 +195,12 @@ pub async fn phase1_analysis_start(
         message: "Preparing analysis…".to_string(),
         repo_name: repo_name.clone(),
         project_type: project_type.clone(),
+        scan_path: scan_path_string.clone(),
+        scope_label: scope_label.clone(),
+        files_scanned: 0,
+        entries_visited: 0,
+        partial: false,
+        partial_reason: None,
         findings: Vec::new(),
         error: None,
         updated_at_ms: now_ms(),
@@ -164,7 +209,15 @@ pub async fn phase1_analysis_start(
 
     let analysis_state = analysis.inner.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        run_phase1_analysis(analysis_state, canonical, repo_name, project_type);
+        run_phase1_analysis(
+            analysis_state,
+            canonical_repo,
+            canonical_scan,
+            repo_name,
+            project_type,
+            scan_path_string,
+            scope_label,
+        );
     });
 
     Ok(running)
@@ -179,9 +232,12 @@ pub async fn phase1_analysis_status(
 
 fn run_phase1_analysis(
     analysis_state: Arc<Mutex<Option<Phase1AnalysisSnapshot>>>,
-    canonical: PathBuf,
+    repo_root: PathBuf,
+    scan_root: PathBuf,
     repo_name: String,
     project_type: JavaProjectType,
+    scan_path: String,
+    scope_label: String,
 ) {
     let state = Phase1AnalysisState {
         inner: analysis_state,
@@ -192,21 +248,37 @@ fn run_phase1_analysis(
         message: "Scanning Java sources…".to_string(),
         repo_name: repo_name.clone(),
         project_type: project_type.clone(),
+        scan_path: scan_path.clone(),
+        scope_label: scope_label.clone(),
+        files_scanned: 0,
+        entries_visited: 0,
+        partial: false,
+        partial_reason: None,
         findings: Vec::new(),
         error: None,
         updated_at_ms: now_ms(),
     });
 
-    let result = scan_findings(&canonical);
+    let result = scan_findings_in_scope(&repo_root, &scan_root);
     match result {
-        Ok(findings) => {
+        Ok(result) => {
             state.set(Phase1AnalysisSnapshot {
                 status: Phase1AnalysisStatus::Completed,
                 progress: 100,
-                message: "Starter analysis complete.".to_string(),
+                message: if result.partial {
+                    "Analysis complete with partial scan limits.".to_string()
+                } else {
+                    "Starter analysis complete.".to_string()
+                },
                 repo_name,
                 project_type,
-                findings,
+                scan_path,
+                scope_label,
+                files_scanned: result.files_scanned,
+                entries_visited: result.entries_visited,
+                partial: result.partial,
+                partial_reason: result.partial_reason,
+                findings: result.findings,
                 error: None,
                 updated_at_ms: now_ms(),
             });
@@ -218,6 +290,12 @@ fn run_phase1_analysis(
                 message: "Analysis failed.".to_string(),
                 repo_name,
                 project_type,
+                scan_path,
+                scope_label,
+                files_scanned: 0,
+                entries_visited: 0,
+                partial: false,
+                partial_reason: None,
                 findings: Vec::new(),
                 error: Some(error),
                 updated_at_ms: now_ms(),
@@ -227,13 +305,16 @@ fn run_phase1_analysis(
 }
 
 pub fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
-    let mut java_files = Vec::new();
-    collect_java_files(root, &mut java_files)?;
+    Ok(scan_findings_in_scope(root, root)?.findings)
+}
+
+fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFindingsResult, String> {
+    let scan = collect_java_files(scan_root)?;
 
     let mut findings = Vec::new();
-    for path in &java_files {
+    for path in &scan.files {
         let rel = path
-            .strip_prefix(root)
+            .strip_prefix(repo_root)
             .map(crate::modules::fs::to_canon)
             .map_err(|e| e.to_string())?;
         let content = fs::read_to_string(path)
@@ -445,7 +526,7 @@ pub fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
     findings.dedup_by(|left, right| left.id == right.id);
 
     if findings.is_empty() {
-        let readiness = inspect_repo_root(root)?;
+        let readiness = inspect_repo_root(repo_root)?;
         findings.push(Phase1Finding {
             id: format!("starter-scan:{}", readiness.repo_name),
             title: "Starter scan found no obvious lightweight heuristics".to_string(),
@@ -457,51 +538,81 @@ pub fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
         });
     }
 
-    Ok(findings)
+    Ok(ScanFindingsResult {
+        findings,
+        files_scanned: scan.files.len(),
+        entries_visited: scan.entries_visited,
+        partial: scan.partial,
+        partial_reason: scan.partial_reason,
+    })
 }
 
-fn collect_java_files(root: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
-    let mut stack = vec![PathBuf::from(root)];
-    let mut entries_seen = 0usize;
+struct JavaScan {
+    files: Vec<PathBuf>,
+    entries_visited: usize,
+    partial: bool,
+    partial_reason: Option<String>,
+}
 
-    while let Some(dir) = stack.pop() {
-        let entries = fs::read_dir(&dir)
-            .map_err(|e| format!("failed to scan {}: {e}", dir.display()))?;
-        for entry in entries {
-            let entry = entry.map_err(|e| format!("failed to read {}: {e}", dir.display()))?;
-            entries_seen += 1;
-            if entries_seen > ENTRY_LIMIT || files.len() >= JAVA_FILE_LIMIT {
-                return Ok(());
-            }
+fn collect_java_files(root: &Path) -> Result<JavaScan, String> {
+    let mut files = Vec::new();
+    let mut entries_visited = 0usize;
+    let mut partial = false;
+    let mut partial_reason = None;
 
-            let path = entry.path();
-            let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
-                continue;
+    let mut walk = WalkBuilder::new(root);
+    walk.hidden(false)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .parents(true)
+        .filter_entry(|entry| {
+            let Some(name) = entry.file_name().to_str() else {
+                return false;
             };
-            if path.is_dir() {
-                if should_skip_dir(name) {
-                    continue;
-                }
-                stack.push(path);
-                continue;
-            }
-            if path
+            !should_skip_dir_name(name)
+        });
+
+    for entry in walk.build() {
+        let entry = entry.map_err(|e| format!("failed to scan {}: {e}", root.display()))?;
+        entries_visited += 1;
+        if entries_visited > ENTRY_LIMIT {
+            partial = true;
+            partial_reason = Some(format!(
+                "Stopped after visiting {ENTRY_LIMIT} filesystem entries for safety."
+            ));
+            break;
+        }
+        if entry.file_type().is_some_and(|kind| kind.is_file())
+            && entry
+                .path()
                 .extension()
                 .and_then(|value| value.to_str())
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
-            {
-                files.push(path);
+        {
+            files.push(entry.into_path());
+            if files.len() >= JAVA_FILE_LIMIT {
+                partial = true;
+                partial_reason = Some(format!(
+                    "Stopped after scanning {JAVA_FILE_LIMIT} Java files for safety."
+                ));
+                break;
             }
         }
     }
 
-    Ok(())
+    Ok(JavaScan {
+        files,
+        entries_visited,
+        partial,
+        partial_reason,
+    })
 }
 
-fn should_skip_dir(name: &str) -> bool {
+fn should_skip_dir_name(name: &str) -> bool {
     matches!(
         name,
-        ".git" | ".gradle" | "target" | "build" | "node_modules" | ".idea"
+        ".git" | ".gradle" | "target" | "build" | "node_modules" | ".idea" | "out" | ".settings"
     )
 }
 

@@ -21,6 +21,12 @@ const snapshotSchema = z.object({
   message: z.string(),
   repoName: z.string(),
   projectType: z.enum(["maven", "gradle"]),
+  scanPath: z.string(),
+  scopeLabel: z.string(),
+  filesScanned: z.number(),
+  entriesVisited: z.number(),
+  partial: z.boolean(),
+  partialReason: z.string().nullable(),
   findings: z.array(findingSchema),
   error: z.string().nullable(),
   updatedAtMs: z.number(),
@@ -52,7 +58,13 @@ type UseFindingsResult = {
   selectedFinding: Phase1Finding | null;
   error: string | null;
   safety: JavaSafetySnapshot | null;
-  startAnalysis: () => Promise<void>;
+  activeScanPath: string | null;
+  scopeLabel: string | null;
+  filesScanned: number;
+  entriesVisited: number;
+  partial: boolean;
+  partialReason: string | null;
+  startAnalysis: (scanPath?: string | null) => Promise<void>;
   selectFinding: (id: string) => void;
 };
 
@@ -76,6 +88,12 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [safety, setSafety] = useState<JavaSafetySnapshot | null>(null);
+  const [activeScanPath, setActiveScanPath] = useState<string | null>(null);
+  const [scopeLabel, setScopeLabel] = useState<string | null>(null);
+  const [filesScanned, setFilesScanned] = useState(0);
+  const [entriesVisited, setEntriesVisited] = useState(0);
+  const [partial, setPartial] = useState(false);
+  const [partialReason, setPartialReason] = useState<string | null>(null);
   const pollTimerRef = useRef<number>(0);
 
   const applySnapshot = useCallback((snapshot: Phase1AnalysisSnapshot) => {
@@ -83,6 +101,12 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     setProgress(snapshot.progress);
     setMessage(snapshot.message);
     setFindings(sorted);
+    setActiveScanPath(snapshot.scanPath);
+    setScopeLabel(snapshot.scopeLabel);
+    setFilesScanned(snapshot.filesScanned);
+    setEntriesVisited(snapshot.entriesVisited);
+    setPartial(snapshot.partial);
+    setPartialReason(snapshot.partialReason ?? null);
     if (snapshot.status === "failed") {
       setPanelState("error");
       setError(snapshot.error ?? "Analysis failed.");
@@ -138,6 +162,12 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     setProgress(0);
     setError(null);
     setSafety(null);
+    setActiveScanPath(null);
+    setScopeLabel(null);
+    setFilesScanned(0);
+    setEntriesVisited(0);
+    setPartial(false);
+    setPartialReason(null);
     if (repo) {
       setPanelState("empty");
       setMessage("Start full analysis to build the ranked refactor findings queue.");
@@ -154,7 +184,7 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     }
   }, [repo, stopPolling]);
 
-  const startAnalysis = useCallback(async () => {
+  const startAnalysis = useCallback(async (scanPath?: string | null) => {
     if (!repo) return;
     stopPolling();
     setPanelState("analyzing");
@@ -163,7 +193,8 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     setMessage("Preparing analysis…");
     try {
       const result = await invoke<unknown>("phase1_analysis_start", {
-        path: repo.path,
+        repoPath: repo.path,
+        scanPath: scanPath ?? null,
         workspace: currentWorkspaceEnv(),
       });
       applySnapshot(snapshotSchema.parse(result));
@@ -188,6 +219,12 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     selectedFinding,
     error,
     safety,
+    activeScanPath,
+    scopeLabel,
+    filesScanned,
+    entriesVisited,
+    partial,
+    partialReason,
     startAnalysis,
     selectFinding: setSelectedId,
   };

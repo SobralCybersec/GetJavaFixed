@@ -240,10 +240,7 @@ pub fn shell_bg_spawn(
 ) -> Result<u32, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     authorize_spawn_cwd(&registry, cwd.as_deref(), &workspace)?;
-    let proc = background::spawn(command, cwd, workspace)?;
-    let id = state.next_bg_id.fetch_add(1, Ordering::Relaxed);
-    state.bg.write().unwrap().insert(id, proc);
-    Ok(id)
+    spawn_background_registered(&state, command, cwd, workspace)
 }
 
 #[tauri::command]
@@ -279,6 +276,18 @@ pub fn shell_bg_list(state: tauri::State<ShellState>) -> Result<Vec<BackgroundPr
     }
     out.sort_by_key(|i| i.handle);
     Ok(out)
+}
+
+pub(crate) fn spawn_background_registered(
+    state: &ShellState,
+    command: String,
+    cwd: Option<String>,
+    workspace: WorkspaceEnv,
+) -> Result<u32, String> {
+    let proc = background::spawn(command, cwd, workspace)?;
+    let id = state.next_bg_id.fetch_add(1, Ordering::Relaxed);
+    state.bg.write().unwrap().insert(id, proc);
+    Ok(id)
 }
 
 pub(crate) fn build_oneshot_command(

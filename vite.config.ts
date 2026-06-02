@@ -69,6 +69,10 @@ export default defineConfig(async ({ mode }) => ({
     },
   },
   clearScreen: false,
+  test: {
+    include: ["src/**/*.test.ts"],
+    exclude: ["proxyexamples/**", "src-tauri/**"],
+  },
   server: {
     port: 1420,
     strictPort: true,

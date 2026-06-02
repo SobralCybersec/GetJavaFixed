@@ -118,6 +118,47 @@ export type GitPanelSnapshot = {
   status: GitStatusSnapshot | null;
 };
 
+export type ProxyExampleInfo = {
+  id: string;
+  displayName: string;
+  path: string | null;
+  detected: boolean;
+  hasStartScript: boolean;
+  hasLoginScript: boolean;
+  defaultBaseUrl: string;
+  loginVariants: string[];
+};
+
+export type ProxyExampleHealth = {
+  ok: boolean;
+  status: number;
+  body: string;
+};
+
+export type ProxyExampleModel = {
+  id: string;
+  object?: string | null;
+  ownedBy?: string | null;
+};
+
+function trimTrailingSlash(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+export function normalizeOpenAiCompatibleBaseUrl(baseUrl: string): string {
+  return trimTrailingSlash(baseUrl);
+}
+
+export function normalizeOpenAiCompatibleHealthUrl(baseUrl: string): string {
+  const root = normalizeOpenAiCompatibleBaseUrl(baseUrl).replace(/\/v1$/, "");
+  return `${root}/health`;
+}
+
+export function normalizeOpenAiCompatibleModelsBaseUrl(baseUrl: string): string {
+  const root = normalizeOpenAiCompatibleBaseUrl(baseUrl).replace(/\/v1$/, "");
+  return `${root}/v1`;
+}
+
 export type GitDiscardEntry = {
   path: string;
   untracked: boolean;
@@ -245,6 +286,38 @@ export const native = {
         exit_code: number | null;
       }[]
     >("shell_bg_list"),
+  proxyexampleDetect: (proxyId: string) =>
+    invoke<ProxyExampleInfo>("proxyexample_detect", {
+      proxyId,
+      path: null,
+      workspace: currentWorkspaceEnv(),
+    }),
+  proxyexampleDetectAtPath: (proxyId: string, path: string | null) =>
+    invoke<ProxyExampleInfo>("proxyexample_detect", {
+      proxyId,
+      path,
+      workspace: currentWorkspaceEnv(),
+    }),
+  proxyexampleStart: (proxyId: string, path: string) =>
+    invoke<number>("proxyexample_start", {
+      proxyId,
+      path,
+      workspace: currentWorkspaceEnv(),
+    }),
+  proxyexampleLogin: (proxyId: string, path: string, script?: string | null) =>
+    invoke<number>("proxyexample_login", {
+      proxyId,
+      path,
+      script: script ?? null,
+      workspace: currentWorkspaceEnv(),
+    }),
+  proxyexampleHealth: (baseUrl: string) =>
+    invoke<ProxyExampleHealth>("proxyexample_health", { baseUrl }),
+  proxyexampleModels: (baseUrl: string, apiKey?: string | null) =>
+    invoke<ProxyExampleModel[]>("proxyexample_models", {
+      baseUrl,
+      apiKey: apiKey ?? null,
+    }),
   gitResolveRepo: (cwd: string) =>
     invoke<GitRepoInfo | null>("git_resolve_repo", {
       cwd,

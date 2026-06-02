@@ -33,6 +33,8 @@ export type EntryRowProps = {
   isRenaming: boolean;
   onOpenFile: (path: string, pin?: boolean) => void;
   onSelectPath: (path: string) => void;
+  onSelectDirectory?: (path: string) => void;
+  onAnalyzeFolder?: (path: string) => void;
   onRevealInTerminal?: (path: string) => void;
   onAttachToAgent?: (path: string) => void;
   onOpenMarkdownPreview?: (path: string) => void;
@@ -55,6 +57,8 @@ function EntryRowImpl(props: EntryRowProps) {
     isRenaming,
     onOpenFile,
     onSelectPath,
+    onSelectDirectory,
+    onAnalyzeFolder,
     onRevealInTerminal,
     onAttachToAgent,
     onOpenMarkdownPreview,
@@ -68,7 +72,10 @@ function EntryRowImpl(props: EntryRowProps) {
   const handleClick = () => {
     if (tree.renaming) return;
     onSelectPath(path);
-    if (isDir) tree.toggle(path);
+    if (isDir) {
+      onSelectDirectory?.(path);
+      tree.toggle(path);
+    }
     else onOpenFile(path);
   };
 
@@ -154,6 +161,14 @@ function EntryRowImpl(props: EntryRowProps) {
             onSelect={() => onRevealInTerminal(path)}
           >
             Open in Terminal
+          </ContextMenuItem>
+        )}
+        {isDir && onAnalyzeFolder && (
+          <ContextMenuItem
+            className={COMPACT_ITEM}
+            onSelect={() => onAnalyzeFolder(path)}
+          >
+            Analyze This Folder
           </ContextMenuItem>
         )}
         <ContextMenuItem

@@ -15,6 +15,7 @@ import { useCallback, useState } from "react";
 import { buildConfiguredLanguageModel } from "@/modules/ai/lib/agent";
 import { createRefactorMcpTools, type McpConfig } from "@/modules/ai/lib/mcpClient";
 import { native } from "@/modules/ai/lib/native";
+import { getModel } from "@/modules/ai/config";
 import type { Phase1Finding } from "./useFindings";
 
 export type RefactorStatus = "idle" | "generating" | "ready" | "error";
@@ -139,6 +140,10 @@ export function useRefactorGeneration(
           );
         }
         const originalContent = readResult.content;
+        const readinessError = getRefactorModelReadinessError(modelConfig);
+        if (readinessError) {
+          throw new Error(readinessError);
+        }
 
         const model = await buildConfiguredLanguageModel(
           (modelConfig.modelId ?? "gpt-5.4-mini") as Parameters<typeof buildConfiguredLanguageModel>[0],
@@ -271,4 +276,45 @@ function shouldRetryWithoutMcp(error: unknown): boolean {
     message.includes("Failed to execute 'fetch' on 'Window'") ||
     message.includes("Failed to execute fetch in Window")
   );
+}
+
+function getRefactorModelReadinessError(modelConfig: {
+  modelId?: string;
+  openaiCompatibleBaseURL?: string;
+  openaiCompatibleModelId?: string;
+  lmstudioModelId?: string;
+  mlxModelId?: string;
+  ollamaModelId?: string;
+  openrouterModelId?: string;
+}): string | null {
+  if (!modelConfig.modelId) return null;
+  const selectedModel = getModel(modelConfig.modelId as Parameters<typeof getModel>[0]);
+  if (
+    selectedModel.id === "openai-compatible-custom" &&
+    !modelConfig.openaiCompatibleBaseURL?.trim()
+  ) {
+    return "OpenAI-compatible endpoint has no base URL. Open Settings -> Models.";
+  }
+  if (
+    selectedModel.id === "openai-compatible-custom" &&
+    !modelConfig.openaiCompatibleModelId?.trim()
+  ) {
+    return "OpenAI-compatible endpoint has no model id. Load models or enter one in Settings -> Models.";
+  }
+  if (selectedModel.id === "lmstudio-local" && !modelConfig.lmstudioModelId?.trim()) {
+    return "LM Studio has no model id configured. Open Settings -> Models.";
+  }
+  if (selectedModel.id === "mlx-local" && !modelConfig.mlxModelId?.trim()) {
+    return "MLX has no model id configured. Open Settings -> Models.";
+  }
+  if (selectedModel.id === "ollama-local" && !modelConfig.ollamaModelId?.trim()) {
+    return "Ollama has no model id configured. Open Settings -> Models.";
+  }
+  if (
+    selectedModel.id === "openrouter-custom" &&
+    !modelConfig.openrouterModelId?.trim()
+  ) {
+    return "OpenRouter has no model id configured. Open Settings -> Models.";
+  }
+  return null;
 }

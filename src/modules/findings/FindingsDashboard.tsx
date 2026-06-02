@@ -26,10 +26,17 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 
 type Props = {
   repo: FindingsRepo;
+  selectedScanPath?: string | null;
+  autoStartScanPath?: string | null;
   onClose?: () => void;
 };
 
-export function FindingsDashboard({ repo, onClose }: Props) {
+export function FindingsDashboard({
+  repo,
+  selectedScanPath,
+  autoStartScanPath,
+  onClose,
+}: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [exaApiKey, setExaApiKey] = useState<string | null>(null);
   const [context7ApiKey, setContext7ApiKey] = useState<string | null>(null);
@@ -43,6 +50,12 @@ export function FindingsDashboard({ repo, onClose }: Props) {
     selectedFinding,
     error,
     safety,
+    activeScanPath,
+    scopeLabel,
+    filesScanned,
+    entriesVisited,
+    partial,
+    partialReason,
     startAnalysis,
     selectFinding,
   } = useFindings(repo);
@@ -90,6 +103,11 @@ export function FindingsDashboard({ repo, onClose }: Props) {
     },
   );
   const { reset: resetRefactor } = refactor;
+
+  useEffect(() => {
+    if (!autoStartScanPath) return;
+    void startAnalysis(autoStartScanPath);
+  }, [autoStartScanPath, startAnalysis]);
 
   // Reset refactor state when a different finding is selected
   const handleSelectFinding = (id: string) => {
@@ -143,14 +161,36 @@ export function FindingsDashboard({ repo, onClose }: Props) {
                   <CardDescription>
                     Ranked hotspots first, plus direct file previews before any write path.
                   </CardDescription>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">{scopeLabel ?? "Whole repository"}</Badge>
+                    {activeScanPath ? <span className="font-mono">{activeScanPath}</span> : null}
+                    {filesScanned > 0 ? (
+                      <span>{filesScanned} Java files scanned</span>
+                    ) : null}
+                    {entriesVisited > 0 ? (
+                      <span>{entriesVisited} entries visited</span>
+                    ) : null}
+                  </div>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => void startAnalysis()}
-                  disabled={panelState === "analyzing"}
-                >
-                  Start full analysis
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedScanPath && selectedScanPath !== repo.path ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void startAnalysis(selectedScanPath)}
+                      disabled={panelState === "analyzing"}
+                    >
+                      Analyze selected folder
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    onClick={() => void startAnalysis()}
+                    disabled={panelState === "analyzing"}
+                  >
+                    Start full analysis
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -167,6 +207,12 @@ export function FindingsDashboard({ repo, onClose }: Props) {
               {panelState === "error" && error ? (
                 <div className="rounded-3xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-muted-foreground">
                   {error}
+                </div>
+              ) : null}
+
+              {partial ? (
+                <div className="rounded-3xl border border-amber-500/30 bg-amber-500/8 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+                  {partialReason ?? "This scan hit a safety limit and may be incomplete."}
                 </div>
               ) : null}
 

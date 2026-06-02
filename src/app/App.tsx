@@ -429,6 +429,8 @@ export default function App() {
   const [javaWorkspaceRoot, setJavaWorkspaceRoot] = useState<string | null>(null);
   const [javaPreviewFilePath, setJavaPreviewFilePath] = useState<string | null>(null);
   const [javaPreviewOpen, setJavaPreviewOpen] = useState(false);
+  const [javaAnalysisFolderPath, setJavaAnalysisFolderPath] = useState<string | null>(null);
+  const [javaAutoScanPath, setJavaAutoScanPath] = useState<string | null>(null);
   const [showFirstRunSetup, setShowFirstRunSetup] = useState(false);
   const [javaRepoHomeState, setJavaRepoHomeState] =
     useState<JavaRepoHomeState>({ kind: "idle" });
@@ -455,6 +457,8 @@ export default function App() {
           path: selected,
           readiness: supportedReadiness,
         });
+        setJavaAnalysisFolderPath(null);
+        setJavaAutoScanPath(null);
         setJavaWorkspaceRoot(normalizedPath);
         setLaunchCwd(normalizedPath);
         setPhase1Repo({
@@ -490,6 +494,8 @@ export default function App() {
         path: javaRepoHomeState.path,
         readiness: javaRepoHomeState.readiness,
       });
+      setJavaAnalysisFolderPath(null);
+      setJavaAutoScanPath(null);
       setJavaWorkspaceRoot(normalizedPath);
       setLaunchCwd(normalizedPath);
       setPhase1Mode("dashboard");
@@ -505,7 +511,59 @@ export default function App() {
 
   const handleClosePhase1 = useCallback(() => {
     setPhase1Mode("hidden");
+    setJavaAutoScanPath(null);
   }, []);
+
+  const handleAnalyzeFolder = useCallback(
+    (path: string) => {
+      const activeJavaRepo =
+        phase1Repo ??
+        (javaRepoHomeState.kind === "supported"
+          ? {
+              path: javaRepoHomeState.path,
+              readiness: javaRepoHomeState.readiness,
+            }
+          : null);
+      if (!activeJavaRepo) return;
+      const normalizedRepoPath = activeJavaRepo.path.replace(/\\/g, "/").replace(/\/+$/, "");
+      const normalizedPath = path.replace(/\\/g, "/");
+      if (
+        normalizedPath !== normalizedRepoPath &&
+        !normalizedPath.startsWith(`${normalizedRepoPath}/`)
+      ) {
+        return;
+      }
+      setPhase1Repo(activeJavaRepo);
+      setJavaAnalysisFolderPath(path);
+      setJavaAutoScanPath(path);
+      setJavaPreviewOpen(false);
+      setPhase1Mode("dashboard");
+    },
+    [phase1Repo, javaRepoHomeState],
+  );
+
+  const handleSelectAnalysisFolder = useCallback(
+    (path: string) => {
+      const activeJavaRepo =
+        phase1Repo ??
+        (javaRepoHomeState.kind === "supported"
+          ? {
+              path: javaRepoHomeState.path,
+              readiness: javaRepoHomeState.readiness,
+            }
+          : null);
+      if (!activeJavaRepo) return;
+      const normalizedRepoPath = activeJavaRepo.path.replace(/\\/g, "/").replace(/\/+$/, "");
+      const normalizedPath = path.replace(/\\/g, "/");
+      if (
+        normalizedPath === normalizedRepoPath ||
+        normalizedPath.startsWith(`${normalizedRepoPath}/`)
+      ) {
+        setJavaAnalysisFolderPath(path);
+      }
+    },
+    [phase1Repo, javaRepoHomeState],
+  );
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [newEditorOpen, setNewEditorOpen] = useState(false);
@@ -1039,6 +1097,7 @@ export default function App() {
       } else {
         setJavaPreviewOpen(false);
       }
+      setJavaAutoScanPath(null);
     },
     [openFileTab, phase1Repo, javaRepoHomeState],
   );
@@ -1613,7 +1672,12 @@ export default function App() {
   );
 
   const phase1DashboardShell = phase1Repo ? (
-    <FindingsDashboard repo={phase1Repo} onClose={handleClosePhase1} />
+    <FindingsDashboard
+      repo={phase1Repo}
+      selectedScanPath={javaAnalysisFolderPath}
+      autoStartScanPath={javaAutoScanPath}
+      onClose={handleClosePhase1}
+    />
   ) : null;
 
   const phase1Surface =
@@ -1710,6 +1774,8 @@ export default function App() {
                         onPathRenamed={handlePathRenamed}
                         onPathDeleted={handlePathDeleted}
                         onRevealInTerminal={cdInNewTab}
+                        onSelectDirectory={handleSelectAnalysisFolder}
+                        onAnalyzeFolder={handleAnalyzeFolder}
                         onAttachToAgent={handleAttachFileToAgent}
                         onOpenMarkdownPreview={openMarkdownPreview}
                       />

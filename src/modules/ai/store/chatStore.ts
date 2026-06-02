@@ -533,6 +533,41 @@ export function getActiveProviderKey(): string | null {
   return apiKeys[getModel(selectedModelId).provider] ?? null;
 }
 
+export function getSelectedModelReadinessError(): string | null {
+  const { selectedModelId } = useChatStore.getState();
+  const selectedModel = getModel(selectedModelId);
+  const prefs = usePreferencesStore.getState();
+
+  if (providerNeedsKey(selectedModel.provider) && !getActiveProviderKey()) {
+    return `No API key configured for ${selectedModel.provider}. Open Settings -> Models.`;
+  }
+  if (
+    selectedModel.id === "openai-compatible-custom" &&
+    !prefs.openaiCompatibleBaseURL.trim()
+  ) {
+    return "OpenAI-compatible endpoint has no base URL. Open Settings -> Models.";
+  }
+  if (
+    selectedModel.id === "openai-compatible-custom" &&
+    !prefs.openaiCompatibleModelId.trim()
+  ) {
+    return "OpenAI-compatible endpoint has no model id. Load models or enter one in Settings -> Models.";
+  }
+  if (selectedModel.id === "lmstudio-local" && !prefs.lmstudioModelId.trim()) {
+    return "LM Studio has no model id configured. Open Settings -> Models.";
+  }
+  if (selectedModel.id === "mlx-local" && !prefs.mlxModelId.trim()) {
+    return "MLX has no model id configured. Open Settings -> Models.";
+  }
+  if (selectedModel.id === "ollama-local" && !prefs.ollamaModelId.trim()) {
+    return "Ollama has no model id configured. Open Settings -> Models.";
+  }
+  if (selectedModel.id === "openrouter-custom" && !prefs.openrouterModelId.trim()) {
+    return "OpenRouter has no model id configured. Open Settings -> Models.";
+  }
+  return null;
+}
+
 export function hasKeyForModel(modelId: ModelId): boolean {
   const { apiKeys } = useChatStore.getState();
   const provider = getModel(modelId).provider;
@@ -560,7 +595,11 @@ export async function sendMessage(text: string): Promise<boolean> {
   const state = useChatStore.getState();
   const sessionId = state.activeSessionId;
   if (!sessionId) return false;
-  if (providerNeedsKey(getModel(state.selectedModelId).provider) && !getActiveProviderKey()) return false;
+  const readinessError = getSelectedModelReadinessError();
+  if (readinessError) {
+    state.patchAgentMeta({ status: "error", error: readinessError });
+    throw new Error(readinessError);
+  }
   const c = getOrCreateChat(sessionId);
   await c.sendMessage({ text });
   return true;

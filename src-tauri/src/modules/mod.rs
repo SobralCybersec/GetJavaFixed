@@ -5,6 +5,7 @@ pub mod git;
 pub mod java_repo;
 pub mod net;
 pub mod proc;
+pub mod proxyexamples;
 pub mod pty;
 pub mod secrets;
 pub mod shell;

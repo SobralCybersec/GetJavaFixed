@@ -17,24 +17,35 @@ import {
   getModel,
   getProvider,
   providerNeedsKey,
+  providerSupportsKey,
   type ModelId,
   type ProviderId,
   type ProviderInfo,
 } from "@/modules/ai/config";
 import { clearKey, getAllKeys, setKey } from "@/modules/ai/lib/keyring";
 import {
+  native,
+  normalizeOpenAiCompatibleBaseUrl,
+  normalizeOpenAiCompatibleModelsBaseUrl,
+  type ProxyExampleInfo,
+  type ProxyExampleModel,
+} from "@/modules/ai/lib/native";
+import {
   clearRefactorToolKey,
   getRefactorToolKey,
   setRefactorToolKey,
 } from "@/modules/ai/lib/toolKeyring";
+import { useChatStore } from "@/modules/ai/store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
   setContext7Url,
+  setDeepsproxyPath,
   setAutocompleteEnabled,
   setAutocompleteModelId,
   setAutocompleteProvider,
   setDefaultModel,
+  setKimiproxyPath,
   setLmstudioBaseURL,
   setLmstudioModelId,
   setMlxBaseURL,
@@ -45,6 +56,7 @@ import {
   setOpenaiCompatibleContextLimit,
   setOpenaiCompatibleModelId,
   setOpenrouterModelId,
+  setProxyPresetId,
   setRefactorMcpEnabled,
 } from "@/modules/settings/store";
 import {
@@ -56,6 +68,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
 import { ProviderIcon } from "../components/ProviderIcon";
@@ -141,6 +154,10 @@ export function ModelsSection() {
   const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
   const context7Url = usePreferencesStore((s) => s.context7Url);
   const refactorMcpEnabled = usePreferencesStore((s) => s.refactorMcpEnabled);
+  const proxyPresetId = usePreferencesStore((s) => s.proxyPresetId);
+  const deepsproxyPath = usePreferencesStore((s) => s.deepsproxyPath);
+  const kimiproxyPath = usePreferencesStore((s) => s.kimiproxyPath);
+  const setSelectedModelId = useChatStore((s) => s.setSelectedModelId);
 
   useEffect(() => {
     void getAllKeys().then(setKeys);
@@ -290,6 +307,43 @@ export function ModelsSection() {
         onClearContext7Key={async () => {
           await clearRefactorToolKey("context7");
           setContext7Key(null);
+        }}
+      />
+
+      <ProxyExamplesBlock
+        selectedProxyId={proxyPresetId}
+        compatBaseURL={compatBaseURL}
+        compatModelId={compatModelId}
+        compatKey={keys["openai-compatible"]}
+        deepsproxyPath={deepsproxyPath}
+        kimiproxyPath={kimiproxyPath}
+        onSelectProxy={async (proxy) => {
+          await setProxyPresetId(proxy.id);
+          const normalizedBaseUrl = normalizeOpenAiCompatibleModelsBaseUrl(
+            proxy.defaultBaseUrl,
+          );
+          await setOpenaiCompatibleBaseURL(normalizedBaseUrl);
+          await setDefaultModel("openai-compatible-custom");
+          setSelectedModelId("openai-compatible-custom");
+          const models = await native.proxyexampleModels(
+            normalizedBaseUrl,
+            keys["openai-compatible"] ?? null,
+          ).catch(
+            () => [] as ProxyExampleModel[],
+          );
+          const defaultModel = models[0]?.id ?? "";
+          if (defaultModel) {
+            await setOpenaiCompatibleModelId(defaultModel);
+          }
+        }}
+        onSelectModel={async (modelId) => {
+          await setOpenaiCompatibleModelId(modelId);
+          await setDefaultModel("openai-compatible-custom");
+          setSelectedModelId("openai-compatible-custom");
+        }}
+        onSaveProxyPath={async (proxyId, path) => {
+          if (proxyId === "deepsproxy") await setDeepsproxyPath(path);
+          if (proxyId === "kimiproxy") await setKimiproxyPath(path);
         }}
       />
 
@@ -835,16 +889,38 @@ function LocalProviderCard({
   const [modelDraft, setModelDraft] = useState(modelId);
   const [contextDraft, setContextDraft] = useState(String(contextLimit ?? ""));
   const [keyDraft, setKeyDraft] = useState("");
+  const [availableModels, setAvailableModels] = useState<ProxyExampleModel[]>([]);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<
     "idle" | "testing" | "ok" | "fail"
   >("idle");
+  const setSelectedModelId = useChatStore((s) => s.setSelectedModelId);
 
   useEffect(() => setUrlDraft(baseURL), [baseURL]);
   useEffect(() => setModelDraft(modelId), [modelId]);
   useEffect(() => setContextDraft(String(contextLimit ?? "")), [contextLimit]);
 
-  const supportsKey =
-    provider.id === "openai-compatible" || provider.id === "openrouter";
+  const supportsKey = providerSupportsKey(provider.id);
+  const supportsModelDiscovery =
+    provider.id === "openai-compatible" ||
+    provider.id === "lmstudio" ||
+    provider.id === "mlx" ||
+    provider.id === "ollama";
+
+  const activateProviderModel = async () => {
+    const selectedByProvider: Partial<Record<ProviderId, ModelId>> = {
+      "openai-compatible": "openai-compatible-custom",
+      lmstudio: "lmstudio-local",
+      mlx: "mlx-local",
+      ollama: "ollama-local",
+      openrouter: "openrouter-custom",
+    };
+    const next = selectedByProvider[provider.id];
+    if (!next) return;
+    await setDefaultModel(next);
+    setSelectedModelId(next);
+  };
 
   const test = async () => {
     setTestStatus("testing");
@@ -855,6 +931,34 @@ function LocalProviderCard({
       setTestStatus("fail");
     }
   };
+
+  const refreshModels = async () => {
+    if (!supportsModelDiscovery || !urlDraft.trim()) return;
+    setModelsBusy(true);
+    setModelsError(null);
+    try {
+      const loaded = await native.proxyexampleModels(
+        normalizeOpenAiCompatibleBaseUrl(urlDraft),
+        compatKey ?? null,
+      );
+      setAvailableModels(loaded);
+      if (!modelDraft.trim() && loaded[0]?.id) {
+        const next = loaded[0].id;
+        setModelDraft(next);
+        await setModelId(next);
+      }
+    } catch (error) {
+      setAvailableModels([]);
+      setModelsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setModelsBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    setAvailableModels([]);
+    setModelsError(null);
+  }, [provider.id, baseURL, compatKey]);
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
@@ -901,7 +1005,7 @@ function LocalProviderCard({
                 value={urlDraft}
                 onChange={(e) => setUrlDraft(e.target.value)}
                 onBlur={() => {
-                  const v = urlDraft.trim();
+                  const v = normalizeOpenAiCompatibleBaseUrl(urlDraft);
                   if (v !== baseURL) void setBaseURL(v);
                 }}
                 placeholder={meta.urlPlaceholder}
@@ -917,6 +1021,17 @@ function LocalProviderCard({
               >
                 Test
               </Button>
+              {supportsModelDiscovery ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void refreshModels()}
+                  disabled={!urlDraft.trim() || modelsBusy}
+                  className="h-8 px-3 text-[11px]"
+                >
+                  {modelsBusy ? "Loading…" : "Load models"}
+                </Button>
+              ) : null}
             </div>
           </FieldRow>
         )}
@@ -1002,11 +1117,236 @@ function LocalProviderCard({
 
         <StatusLine status={testStatus} />
 
+        {supportsModelDiscovery ? (
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap gap-1.5">
+              {availableModels.length > 0 ? (
+                availableModels.map((availableModel) => (
+                  <Button
+                    key={availableModel.id}
+                    size="sm"
+                    variant={modelDraft === availableModel.id ? "secondary" : "outline"}
+                    className="h-7 px-2 font-mono text-[10.5px]"
+                    onClick={async () => {
+                      setModelDraft(availableModel.id);
+                      await setModelId(availableModel.id);
+                      await activateProviderModel();
+                    }}
+                  >
+                    {availableModel.id}
+                  </Button>
+                ))
+              ) : (
+                <span className="text-[10.5px] text-muted-foreground">
+                  {modelsError
+                    ? `Model discovery failed: ${modelsError}`
+                    : "Load models from this endpoint to pick one directly."}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
+
         {!modelId.trim() && meta.modelHint ? (
           <p className="text-[10.5px] leading-relaxed text-muted-foreground">
             {meta.modelHint}
           </p>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ProxyExamplesBlock({
+  selectedProxyId,
+  compatBaseURL,
+  compatModelId,
+  compatKey,
+  deepsproxyPath,
+  kimiproxyPath,
+  onSelectProxy,
+  onSelectModel,
+  onSaveProxyPath,
+}: {
+  selectedProxyId: string | null;
+  compatBaseURL: string;
+  compatModelId: string;
+  compatKey?: string | null;
+  deepsproxyPath: string;
+  kimiproxyPath: string;
+  onSelectProxy: (proxy: ProxyExampleInfo) => Promise<void>;
+  onSelectModel: (modelId: string) => Promise<void>;
+  onSaveProxyPath: (proxyId: string, path: string) => Promise<void>;
+}) {
+  const [proxies, setProxies] = useState<Record<string, ProxyExampleInfo>>({});
+  const [health, setHealth] = useState<Record<string, string>>({});
+  const [models, setModels] = useState<Record<string, ProxyExampleModel[]>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const configuredPaths: Record<string, string> = {
+    deepsproxy: deepsproxyPath,
+    kimiproxy: kimiproxyPath,
+  };
+
+  const refreshProxy = async (proxyId: string) => {
+    const info = await native.proxyexampleDetectAtPath(
+      proxyId,
+      configuredPaths[proxyId] || null,
+    );
+    setProxies((prev) => ({ ...prev, [proxyId]: info }));
+    const status = await native
+      .proxyexampleHealth(info.defaultBaseUrl)
+      .then((result) => `${result.ok ? "Healthy" : "Unhealthy"} (${result.status})`)
+      .catch(() => "Offline");
+    setHealth((prev) => ({ ...prev, [proxyId]: status }));
+    const normalizedBaseUrl = normalizeOpenAiCompatibleModelsBaseUrl(
+      info.defaultBaseUrl,
+    );
+    const availableModels = await native
+      .proxyexampleModels(normalizedBaseUrl, compatKey ?? null)
+      .catch(() => [] as ProxyExampleModel[]);
+    setModels((prev) => ({ ...prev, [proxyId]: availableModels }));
+  };
+
+  useEffect(() => {
+    void Promise.all(["deepsproxy", "kimiproxy"].map(refreshProxy));
+  }, [compatKey, deepsproxyPath, kimiproxyPath]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Label>Proxyexamples</Label>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {["deepsproxy", "kimiproxy"].map((proxyId) => {
+          const info = proxies[proxyId];
+          const availableModels = models[proxyId] ?? [];
+          const isSelected = selectedProxyId === proxyId;
+          const configuredPath = configuredPaths[proxyId] ?? "";
+          return (
+            <div
+              key={proxyId}
+              className={cn(
+                "flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3",
+                isSelected && "border-primary/40 bg-primary/5",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[12.5px] font-medium">
+                  {info?.displayName ?? proxyId}
+                </span>
+                {isSelected ? <Badge variant="secondary">Selected</Badge> : null}
+                <Badge variant="outline" className="ml-auto">
+                  {health[proxyId] ?? "Checking…"}
+                </Badge>
+              </div>
+              <p className="text-[10.5px] text-muted-foreground">
+                {configuredPath.trim()
+                  ? info?.path ?? "Configured path not found"
+                  : "No folder configured"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const selected = await open({
+                      directory: true,
+                      multiple: false,
+                      title: `Choose ${info?.displayName ?? proxyId} folder`,
+                    });
+                    if (typeof selected !== "string") return;
+                    await onSaveProxyPath(proxyId, selected);
+                  }}
+                  className="h-8 px-3 text-[11px]"
+                >
+                  Choose Folder
+                </Button>
+                {configuredPath.trim() ? (
+                  <code className="min-w-0 flex-1 truncate rounded bg-muted/40 px-2 py-1 text-[10.5px]">
+                    {configuredPath}
+                  </code>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void refreshProxy(proxyId)}
+                  className="h-8 px-3 text-[11px]"
+                >
+                  Refresh
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    setBusyId(`${proxyId}:start`);
+                    try {
+                      await native.proxyexampleStart(proxyId, configuredPath);
+                      await refreshProxy(proxyId);
+                    } finally {
+                      setBusyId(null);
+                    }
+                  }}
+                  disabled={!info?.detected || !info?.hasStartScript || !configuredPath.trim() || busyId !== null}
+                  className="h-8 px-3 text-[11px]"
+                >
+                  Start
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    setBusyId(`${proxyId}:login`);
+                    try {
+                      await native.proxyexampleLogin(
+                        proxyId,
+                        configuredPath,
+                        info?.loginVariants[0] ?? null,
+                      );
+                    } finally {
+                      setBusyId(null);
+                    }
+                  }}
+                  disabled={!info?.detected || !info?.hasLoginScript || !configuredPath.trim() || busyId !== null}
+                  className="h-8 px-3 text-[11px]"
+                >
+                  Login
+                </Button>
+                <Button
+                  size="sm"
+                  variant={isSelected ? "secondary" : "outline"}
+                  onClick={() => void (info ? onSelectProxy(info) : Promise.resolve())}
+                  disabled={!info?.detected}
+                  className="h-8 px-3 text-[11px]"
+                >
+                  Use preset
+                </Button>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-[10.5px] text-muted-foreground">
+                  Base URL: <span className="font-mono">{normalizeOpenAiCompatibleModelsBaseUrl(info?.defaultBaseUrl ?? compatBaseURL)}</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableModels.length > 0 ? (
+                    availableModels.map((model) => (
+                      <Button
+                        key={model.id}
+                        size="sm"
+                        variant={compatModelId === model.id && isSelected ? "secondary" : "outline"}
+                        className="h-7 px-2 font-mono text-[10.5px]"
+                        onClick={() => void onSelectModel(model.id)}
+                      >
+                        {model.id}
+                      </Button>
+                    ))
+                  ) : (
+                    <span className="text-[10.5px] text-muted-foreground">
+                      No models loaded yet.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
