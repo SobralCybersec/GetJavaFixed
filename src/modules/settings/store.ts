@@ -48,6 +48,8 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
 };
 
 export type Preferences = {
+  firstRunSetupDone: boolean;
+  firstRunRepoPath: string | null;
   theme: ThemePref;
   themeId: string;
   backgroundKind: BackgroundKind;
@@ -92,6 +94,8 @@ export type Preferences = {
 };
 
 const STORE_PATH = "javarf-settings.json";
+const KEY_FIRST_RUN_SETUP_DONE = "firstRunSetupDone";
+const KEY_FIRST_RUN_REPO_PATH = "firstRunRepoPath";
 const KEY_THEME = "theme";
 const KEY_THEME_ID = "themeId";
 const KEY_BG_KIND = "backgroundKind";
@@ -151,6 +155,8 @@ export const TERMINAL_SCROLLBACK_PRESETS = [
 ] as const;
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  firstRunSetupDone: false,
+  firstRunRepoPath: null,
   theme: "system",
   themeId: DEFAULT_THEME_ID,
   backgroundKind: "none",
@@ -215,6 +221,12 @@ export async function loadPreferences(): Promise<Preferences> {
   const map = new Map<string, unknown>(entries);
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
   return {
+    firstRunSetupDone:
+      get<boolean>(KEY_FIRST_RUN_SETUP_DONE) ??
+      DEFAULT_PREFERENCES.firstRunSetupDone,
+    firstRunRepoPath:
+      get<string | null>(KEY_FIRST_RUN_REPO_PATH) ??
+      DEFAULT_PREFERENCES.firstRunRepoPath,
     theme: get<ThemePref>(KEY_THEME) ?? DEFAULT_PREFERENCES.theme,
     themeId: get<string>(KEY_THEME_ID) ?? DEFAULT_PREFERENCES.themeId,
     backgroundKind:
@@ -447,6 +459,14 @@ export async function setOpenrouterModelId(value: string): Promise<void> {
   await writePref(KEY_OPENROUTER_MODEL_ID, value);
 }
 
+export async function setFirstRunSetupDone(value: boolean): Promise<void> {
+  await writePref(KEY_FIRST_RUN_SETUP_DONE, value);
+}
+
+export async function setFirstRunRepoPath(value: string | null): Promise<void> {
+  await writePref(KEY_FIRST_RUN_REPO_PATH, value);
+}
+
 export async function setContext7Url(value: string): Promise<void> {
   await writePref(KEY_CONTEXT7_URL, value.trim());
 }
@@ -548,6 +568,8 @@ export async function onPreferencesChange(
   cb: (key: PrefKey, value: unknown) => void,
 ): Promise<UnlistenFn> {
   const map: Record<string, PrefKey> = {
+    [KEY_FIRST_RUN_SETUP_DONE]: "firstRunSetupDone",
+    [KEY_FIRST_RUN_REPO_PATH]: "firstRunRepoPath",
     [KEY_THEME]: "theme",
     [KEY_THEME_ID]: "themeId",
     [KEY_BG_KIND]: "backgroundKind",

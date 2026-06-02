@@ -6,7 +6,7 @@ import { gruvbox } from "./gruvbox";
 import { nord } from "./nord";
 import { rosePine } from "./rose-pine";
 import { sage } from "./sage";
-import { javarfDefault } from "./terax-default";
+import { javarfDefault } from "./javarf-default";
 import { tide } from "./tide";
 import { tokyoNight } from "./tokyo-night";
 

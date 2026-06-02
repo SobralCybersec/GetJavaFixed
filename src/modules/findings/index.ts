@@ -1,5 +1,6 @@
 export { FindingsDashboard } from "./FindingsDashboard";
 export { FindingDetailSheet } from "./FindingDetailSheet";
+export { JavaRefactorPreviewPane } from "./JavaRefactorPreviewPane";
 export { RefactorPreviewPanel } from "./RefactorPreviewPanel";
 export {
   useFindings,

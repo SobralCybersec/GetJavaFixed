@@ -1,3 +1,4 @@
+export { JavaFirstRunSetup } from "./JavaFirstRunSetup";
 export { JavaRepoHome, type JavaRepoHomeState } from "./JavaRepoHome";
 export {
   getJavaRepoReadiness,
@@ -5,4 +6,3 @@ export {
   type JavaRepoReadiness,
   type SupportedJavaRepoReadiness,
 } from "./lib/native";
-

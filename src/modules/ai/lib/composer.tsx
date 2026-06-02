@@ -226,8 +226,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
     )
       return;
 
-    // Slash-command interception. `/plan` toggles plan mode; `/init` rewrites
-    // the prompt to the TERAX.md scan template before sending.
+
     let effectiveText = trimmed;
     let commandMarker: string | null = null;
     let commandSource = trimmed;

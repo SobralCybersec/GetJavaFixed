@@ -63,9 +63,9 @@ export function JavaRepoHome({
             </div>
             <div className="java-panel rounded-[28px] bg-background/55 p-4">
               <img
-                src="/java-assistant-mark.svg"
+                src="/java.png"
                 alt=""
-                className="size-24"
+                className="size-24 object-contain"
                 draggable={false}
               />
             </div>

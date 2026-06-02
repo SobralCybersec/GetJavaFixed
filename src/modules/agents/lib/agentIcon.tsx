@@ -22,10 +22,10 @@ export function AgentIcon({
   size?: number;
   className?: string;
 }) {
-  if (agent.toLowerCase().includes("terax")) {
+  if (agent.toLowerCase().includes("javarf") || agent.toLowerCase().includes("java")) {
     return (
       <img
-        src="/java-assistant-mark.svg"
+        src="/java.png"
         alt=""
         width={size}
         height={size}

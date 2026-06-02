@@ -26,16 +26,14 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 
 type Props = {
   repo: FindingsRepo;
-  initialFilePath?: string | null;
   onClose?: () => void;
 };
 
-export function FindingsDashboard({ repo, initialFilePath = null, onClose }: Props) {
+export function FindingsDashboard({ repo, onClose }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [exaApiKey, setExaApiKey] = useState<string | null>(null);
   const [context7ApiKey, setContext7ApiKey] = useState<string | null>(null);
   const [toolKeysLoaded, setToolKeysLoaded] = useState(false);
-  const [activeFilePath, setActiveFilePath] = useState<string | null>(initialFilePath);
 
   const {
     panelState,
@@ -91,29 +89,17 @@ export function FindingsDashboard({ repo, initialFilePath = null, onClose }: Pro
       context7ApiKey: context7ApiKey ?? undefined,
     },
   );
-  const { generateForFile, reset: resetRefactor } = refactor;
+  const { reset: resetRefactor } = refactor;
 
   // Reset refactor state when a different finding is selected
   const handleSelectFinding = (id: string) => {
     if (selectedFinding?.id !== id) resetRefactor();
-    setActiveFilePath(null);
     selectFinding(id);
   };
-
-  useEffect(() => {
-    if (!initialFilePath) return;
-    setActiveFilePath(initialFilePath);
-    resetRefactor();
-    void generateForFile(initialFilePath, repo.path);
-  }, [generateForFile, initialFilePath, repo.path, resetRefactor]);
 
   const canGenerateSelectedFinding =
     selectedFinding !== null &&
     selectedFinding.affectedFiles.length > 0 &&
-    (refactor.status === "idle" || refactor.status === "error");
-
-  const canGenerateActiveFile =
-    activeFilePath !== null &&
     (refactor.status === "idle" || refactor.status === "error");
 
   return (
@@ -121,7 +107,7 @@ export function FindingsDashboard({ repo, initialFilePath = null, onClose }: Pro
       {/* Header */}
       <div className="border-b border-border/60 bg-card/90 px-6 py-3 backdrop-blur">
         <div className="flex h-8 items-center gap-3">
-          <img src="/java-assistant-mark.svg" alt="" className="size-7 rounded-xl" />
+          <img src="/java.png" alt="" className="size-7 object-contain" />
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold">Java Refactor Dashboard</div>
             <div className="truncate text-xs text-muted-foreground">{repo.readiness.repoName}</div>
@@ -239,16 +225,10 @@ export function FindingsDashboard({ repo, initialFilePath = null, onClose }: Pro
         <div className="hidden w-full max-w-[36rem] lg:block">
           <Card size="sm" className="java-panel border border-border/60">
             <CardHeader>
-              <CardTitle>
-                {activeFilePath
-                  ? activeFilePath.replace(/\\/g, "/").split("/").pop()
-                  : (selectedFinding?.title ?? "Finding details")}
-              </CardTitle>
+              <CardTitle>{selectedFinding?.title ?? "Finding details"}</CardTitle>
               <CardDescription>
-                {activeFilePath
-                  ? "Automatic Java file preview. Review the suggested refactor before queuing it for apply."
-                  : (selectedFinding?.rationale ??
-                    "The top finding opens automatically here after analysis completes.")}
+                {selectedFinding?.rationale ??
+                  "The top finding opens automatically here after analysis completes."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -273,54 +253,7 @@ export function FindingsDashboard({ repo, initialFilePath = null, onClose }: Pro
                 </div>
               ) : null}
 
-              {activeFilePath ? (
-                <>
-                  <div className="rounded-sm border border-border/60 bg-background px-3 py-2 font-mono text-xs">
-                    {activeFilePath}
-                  </div>
-                  <div className="space-y-3" data-testid="diff-preview">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        AI Refactor preview
-                      </span>
-                      {canGenerateActiveFile ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => void refactor.generateForFile(activeFilePath, repo.path)}
-                        >
-                          Generate refactor
-                        </Button>
-                      ) : refactor.status === "ready" ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs"
-                          onClick={refactor.reset}
-                        >
-                          Clear
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {refactor.status === "idle" ? (
-                      <p className="text-sm text-muted-foreground">
-                        Clicking a Java file opens a preview here automatically. No files are changed until you accept and apply.
-                      </p>
-                    ) : (
-                      <div className="h-[360px] min-h-0">
-                        <RefactorPreviewInline
-                          status={refactor.status}
-                          result={refactor.result}
-                          error={refactor.error}
-                          onReset={refactor.reset}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : selectedFinding ? (
+              {selectedFinding ? (
                 <>
                   <div className="flex flex-wrap gap-2">
                     {selectedFinding.principles.map((p) => (

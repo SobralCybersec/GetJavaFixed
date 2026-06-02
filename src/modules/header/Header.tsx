@@ -126,9 +126,9 @@ export function Header({
         {!compact ? (
           <div className="java-panel hidden h-8 shrink-0 items-center gap-2 rounded-xl px-2.5 sm:flex">
             <img
-              src="/java-assistant-mark.svg"
+              src="/java.png"
               alt=""
-              className="size-5 shrink-0"
+              className="size-5 shrink-0 object-contain"
               draggable={false}
             />
             <div className="flex min-w-0 flex-col leading-none">

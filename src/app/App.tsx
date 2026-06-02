@@ -47,8 +47,10 @@ import {
   GitHistoryStack,
   type GitHistorySearchHandle,
 } from "@/modules/git-history";
-import { FindingsDashboard } from "@/modules/findings";
+import { FindingsDashboard, JavaRefactorPreviewPane } from "@/modules/findings";
+import { useRefactorGeneration } from "@/modules/findings";
 import {
+  JavaFirstRunSetup,
   getJavaRepoReadiness,
   JavaRepoHome,
   pickJavaRepoDirectory,
@@ -74,7 +76,12 @@ import { MarkdownStack } from "@/modules/markdown";
 import { PreviewStack, type PreviewPaneHandle } from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { onKeysChanged, setThemeId as persistThemeId } from "@/modules/settings/store";
+import {
+  onKeysChanged,
+  setFirstRunRepoPath,
+  setFirstRunSetupDone,
+  setThemeId as persistThemeId,
+} from "@/modules/settings/store";
 import {
   ShortcutsDialog,
   useGlobalShortcuts,
@@ -419,10 +426,10 @@ export default function App() {
   const [phase1Repo, setPhase1Repo] = useState<Phase1DashboardRepo | null>(
     null,
   );
-  const [phase1PreviewFilePath, setPhase1PreviewFilePath] = useState<string | null>(
-    null,
-  );
   const [javaWorkspaceRoot, setJavaWorkspaceRoot] = useState<string | null>(null);
+  const [javaPreviewFilePath, setJavaPreviewFilePath] = useState<string | null>(null);
+  const [javaPreviewOpen, setJavaPreviewOpen] = useState(false);
+  const [showFirstRunSetup, setShowFirstRunSetup] = useState(false);
   const [javaRepoHomeState, setJavaRepoHomeState] =
     useState<JavaRepoHomeState>({ kind: "idle" });
 
@@ -450,6 +457,10 @@ export default function App() {
         });
         setJavaWorkspaceRoot(normalizedPath);
         setLaunchCwd(normalizedPath);
+        setPhase1Repo({
+          path: selected,
+          readiness: supportedReadiness,
+        });
         return;
       }
       setJavaRepoHomeState({
@@ -479,7 +490,6 @@ export default function App() {
         path: javaRepoHomeState.path,
         readiness: javaRepoHomeState.readiness,
       });
-      setPhase1PreviewFilePath(null);
       setJavaWorkspaceRoot(normalizedPath);
       setLaunchCwd(normalizedPath);
       setPhase1Mode("dashboard");
@@ -487,12 +497,14 @@ export default function App() {
   }, [javaRepoHomeState]);
 
   const handleOpenJavaRefactor = useCallback(() => {
-    setPhase1Mode((current) => (current === "hidden" ? "intake" : current));
-  }, []);
+    setPhase1Mode((current) => {
+      if (current !== "hidden") return current;
+      return phase1Repo ? "dashboard" : "intake";
+    });
+  }, [phase1Repo]);
 
   const handleClosePhase1 = useCallback(() => {
     setPhase1Mode("hidden");
-    setPhase1PreviewFilePath(null);
   }, []);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -532,6 +544,25 @@ export default function App() {
       openaiCompatibleModelId.trim().length > 0);
   const hasComposer = hasAnyKey(apiKeys) || hasLocalModel;
 
+  const handleCompleteFirstRunSetup = useCallback(() => {
+    if (javaRepoHomeState.kind !== "supported" || !hasComposer) return;
+    void (async () => {
+      const normalizedPath = javaRepoHomeState.path.replace(/\\/g, "/");
+      await setFirstRunRepoPath(normalizedPath);
+      await setFirstRunSetupDone(true);
+      setShowFirstRunSetup(false);
+      setJavaWorkspaceRoot(normalizedPath);
+      setLaunchCwd(normalizedPath);
+      setPhase1Repo({
+        path: javaRepoHomeState.path,
+        readiness: javaRepoHomeState.readiness,
+      });
+      setPhase1Mode("dashboard");
+    })().catch((error) => {
+      window.alert(error instanceof Error ? error.message : String(error));
+    });
+  }, [javaRepoHomeState, hasComposer]);
+
   const [keysLoaded, setKeysLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -555,6 +586,8 @@ export default function App() {
   const initPrefs = usePreferencesStore((s) => s.init);
   const prefDefaultModel = usePreferencesStore((s) => s.defaultModelId);
   const prefsHydrated = usePreferencesStore((s) => s.hydrated);
+  const firstRunSetupDone = usePreferencesStore((s) => s.firstRunSetupDone);
+  const firstRunRepoPath = usePreferencesStore((s) => s.firstRunRepoPath);
   useEffect(() => {
     void initPrefs();
   }, [initPrefs]);
@@ -562,6 +595,35 @@ export default function App() {
     if (!prefsHydrated) return;
     setSelectedModelId(prefDefaultModel);
   }, [prefsHydrated, prefDefaultModel, setSelectedModelId]);
+
+  useEffect(() => {
+    if (!prefsHydrated || !keysLoaded) return;
+    setShowFirstRunSetup(!firstRunSetupDone);
+  }, [prefsHydrated, keysLoaded, firstRunSetupDone]);
+
+  useEffect(() => {
+    if (!prefsHydrated || !firstRunRepoPath) return;
+    void (async () => {
+      const readiness = await getJavaRepoReadiness(firstRunRepoPath);
+      if (!(readiness.supported && readiness.projectType)) return;
+      const supportedReadiness = readiness as SupportedJavaRepoReadiness;
+      setJavaRepoHomeState({
+        kind: "supported",
+        path: firstRunRepoPath,
+        readiness: supportedReadiness,
+      });
+      setPhase1Repo({
+        path: firstRunRepoPath,
+        readiness: supportedReadiness,
+      });
+      const normalizedPath = firstRunRepoPath.replace(/\\/g, "/");
+      setJavaWorkspaceRoot(normalizedPath);
+      setLaunchCwd(normalizedPath);
+      if (firstRunSetupDone) {
+        setPhase1Mode("dashboard");
+      }
+    })().catch(() => {});
+  }, [prefsHydrated, firstRunRepoPath, firstRunSetupDone]);
 
   const hydrateSessions = useChatStore((s) => s.hydrateSessions);
   useEffect(() => {
@@ -971,8 +1033,11 @@ export default function App() {
           normalizedPath.startsWith(`${normalizedRepoPath}/`))
       ) {
         setPhase1Repo(activeJavaRepo);
-        setPhase1PreviewFilePath(path);
-        setPhase1Mode("dashboard");
+        setJavaPreviewFilePath(path);
+        setJavaPreviewOpen(true);
+        setPhase1Mode("hidden");
+      } else {
+        setJavaPreviewOpen(false);
       }
     },
     [openFileTab, phase1Repo, javaRepoHomeState],
@@ -1548,11 +1613,7 @@ export default function App() {
   );
 
   const phase1DashboardShell = phase1Repo ? (
-    <FindingsDashboard
-      repo={phase1Repo}
-      initialFilePath={phase1PreviewFilePath}
-      onClose={handleClosePhase1}
-    />
+    <FindingsDashboard repo={phase1Repo} onClose={handleClosePhase1} />
   ) : null;
 
   const phase1Surface =
@@ -1566,6 +1627,33 @@ export default function App() {
     ) : (
       phase1DashboardShell
     );
+
+  const javaPreviewActive =
+    javaPreviewOpen &&
+    javaPreviewFilePath !== null &&
+    phase1Repo !== null &&
+    activeTab?.kind === "editor" &&
+    activeTab.path.replace(/\\/g, "/") === javaPreviewFilePath.replace(/\\/g, "/");
+
+  const previewWorkspaceSurface = javaPreviewActive ? (
+    <ResizablePanelGroup orientation="horizontal" className="h-full min-h-0">
+      <ResizablePanel defaultSize="58%" minSize="32%">
+        {workspaceSurface}
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel defaultSize="42%" minSize="26%">
+        <div className="h-full min-h-0 px-3 pt-2 pb-2">
+          <JavaRefactorPreviewShell
+            repo={phase1Repo}
+            filePath={javaPreviewFilePath}
+            onClose={() => setJavaPreviewOpen(false)}
+          />
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  ) : (
+    workspaceSurface
+  );
 
   const shell = (
     <ThemeProvider>
@@ -1655,7 +1743,26 @@ export default function App() {
               <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
                 <div className="flex h-full min-h-0 flex-col">
                   <div className="relative min-h-0 flex-1">
-                    {phase1Surface ?? workspaceSurface}
+                    {showFirstRunSetup ? (
+                      <JavaFirstRunSetup
+                        hasModelAccess={hasComposer}
+                        repoLabel={
+                          javaRepoHomeState.kind === "supported"
+                            ? javaRepoHomeState.path
+                            : firstRunRepoPath
+                        }
+                        repoReady={javaRepoHomeState.kind === "supported"}
+                        onOpenModels={() => void openSettingsWindow("models")}
+                        onChooseRepo={handleChooseJavaRepo}
+                        onContinue={handleCompleteFirstRunSetup}
+                      />
+                    ) : phase1Mode === "hidden" ? (
+                      previewWorkspaceSurface
+                    ) : javaPreviewActive ? (
+                      previewWorkspaceSurface
+                    ) : (
+                      phase1Surface
+                    )}
                   </div>
 
                   {keysLoaded ? (
@@ -1803,4 +1910,58 @@ export default function App() {
   );
 
   return <AiComposerProvider>{shell}</AiComposerProvider>;
+}
+
+function JavaRefactorPreviewShell({
+  repo,
+  filePath,
+  onClose,
+}: {
+  repo: Phase1DashboardRepo | null;
+  filePath: string | null;
+  onClose: () => void;
+}) {
+  const selectedModelId = useChatStore((s) => s.selectedModelId);
+  const apiKeys = useChatStore((s) => s.apiKeys);
+  const prefs = usePreferencesStore();
+
+  const refactor = useRefactorGeneration(
+    {
+      modelId: selectedModelId,
+      keys: apiKeys as Record<string, string>,
+      lmstudioBaseURL: prefs.lmstudioBaseURL,
+      lmstudioModelId: prefs.lmstudioModelId,
+      mlxBaseURL: prefs.mlxBaseURL,
+      mlxModelId: prefs.mlxModelId,
+      ollamaBaseURL: prefs.ollamaBaseURL,
+      ollamaModelId: prefs.ollamaModelId,
+      openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
+      openaiCompatibleModelId: prefs.openaiCompatibleModelId,
+      openrouterModelId: prefs.openrouterModelId,
+    },
+    {
+      exaEnabled: prefs.refactorMcpEnabled,
+      context7Enabled: prefs.refactorMcpEnabled,
+      context7Url: prefs.context7Url,
+    },
+  );
+  const { generateForFile, reset } = refactor;
+
+  useEffect(() => {
+    if (!repo || !filePath) return;
+    reset();
+    void generateForFile(filePath, repo.path);
+  }, [filePath, generateForFile, repo, reset]);
+
+  if (!repo || !filePath) return null;
+
+  return (
+    <JavaRefactorPreviewPane
+      repoPath={repo.path}
+      filePath={filePath}
+      refactor={refactor}
+      onRetry={() => void generateForFile(filePath, repo.path)}
+      onClose={onClose}
+    />
+  );
 }

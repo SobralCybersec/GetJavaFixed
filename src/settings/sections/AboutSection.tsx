@@ -69,7 +69,7 @@ export function AboutSection() {
       <SectionHeader title="About" description="" />
 
       <div className="flex items-center gap-4 rounded-sm border border-border/60 bg-card/60 p-5">
-        <img src="/java-assistant-mark.svg" alt="" className="size-12" draggable={false} />
+        <img src="/java.png" alt="" className="size-12 object-contain" draggable={false} />
         <div className="flex min-w-0 flex-col">
           <span className="text-[15px] font-semibold tracking-tight">
             {name}

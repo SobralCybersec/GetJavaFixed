@@ -76,7 +76,7 @@ export function poolSize(): number {
 function getRecycler(): HTMLDivElement {
   if (recyclerEl && recyclerEl.isConnected) return recyclerEl;
   const el = document.createElement("div");
-  el.setAttribute("data-terax-recycler", "");
+  el.setAttribute("data-javarf-recycler", "");
   el.style.cssText =
     "position:fixed;left:-99999px;top:-99999px;width:1024px;height:768px;overflow:hidden;pointer-events:none;contain:strict;";
   document.body.appendChild(el);
@@ -131,7 +131,7 @@ function createSlot(): Slot {
 
   const host = document.createElement("div");
   host.style.cssText = "width:100%;height:100%;";
-  host.setAttribute("data-terax-slot", String(slots.length));
+  host.setAttribute("data-javarf-slot", String(slots.length));
   getRecycler().appendChild(host);
   term.open(host);
 
@@ -556,7 +556,7 @@ function attachWebgl(slot: Slot): void {
     slot.webglAddon = webgl;
     slot.webglCanvases = added;
   } catch (e) {
-    console.warn("[terax-webgl] unavailable:", e);
+    console.warn("[javarf-webgl] unavailable:", e);
   }
 }
 
@@ -568,7 +568,7 @@ function disposeSlotWebgl(slot: Slot): void {
   try {
     addon.dispose();
   } catch (e) {
-    console.warn("[terax-webgl] dispose failed:", e);
+    console.warn("[javarf-webgl] dispose failed:", e);
   }
   try {
     const r = (
