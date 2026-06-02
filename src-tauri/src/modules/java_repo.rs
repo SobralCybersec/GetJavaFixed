@@ -28,7 +28,10 @@ pub struct JavaRepoReadiness {
 
 pub fn inspect_repo_root(root: &Path) -> Result<JavaRepoReadiness, String> {
     if !root.is_dir() {
-        return Err(format!("selected root is not a directory: {}", root.display()));
+        return Err(format!(
+            "selected root is not a directory: {}",
+            root.display()
+        ));
     }
 
     let repo_name = repo_name(root);
@@ -95,8 +98,8 @@ fn contains_java_files(root: &Path) -> Result<bool, String> {
     let mut scanned = 0usize;
 
     while let Some(dir) = stack.pop() {
-        let entries = fs::read_dir(&dir)
-            .map_err(|e| format!("failed to scan {}: {e}", dir.display()))?;
+        let entries =
+            fs::read_dir(&dir).map_err(|e| format!("failed to scan {}: {e}", dir.display()))?;
         for entry in entries {
             let entry = entry.map_err(|e| format!("failed to read {}: {e}", dir.display()))?;
             scanned += 1;
@@ -134,4 +137,3 @@ fn should_skip_dir(name: &str) -> bool {
         ".git" | ".gradle" | "target" | "build" | "node_modules"
     )
 }
-

@@ -179,7 +179,10 @@ pub fn proxyexample_start(
     let dir = resolve_proxy_dir(&path, &workspace, &registry)?;
     let info = package_scripts_info(kind, Some(&dir));
     if !info.has_start_script {
-        return Err(format!("{} does not define an npm start script", info.display_name));
+        return Err(format!(
+            "{} does not define an npm start script",
+            info.display_name
+        ));
     }
     spawn_background_registered(
         &shell_state,
@@ -203,13 +206,19 @@ pub fn proxyexample_login(
     let dir = resolve_proxy_dir(&path, &workspace, &registry)?;
     let info = package_scripts_info(kind, Some(&dir));
     if !info.has_login_script {
-        return Err(format!("{} does not define an npm login script", info.display_name));
+        return Err(format!(
+            "{} does not define an npm login script",
+            info.display_name
+        ));
     }
     let chosen = script
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "login".to_string());
     if !info.login_variants.iter().any(|value| value == &chosen) {
-        return Err(format!("{} does not define npm script '{chosen}'", info.display_name));
+        return Err(format!(
+            "{} does not define npm script '{chosen}'",
+            info.display_name
+        ));
     }
     spawn_background_registered(
         &shell_state,
@@ -249,9 +258,12 @@ pub async fn proxyexample_models(
 ) -> Result<Vec<ProxyExampleModel>, String> {
     let response = request_proxy_url(normalize_models_url(&base_url), api_key).await?;
     if response.status < 200 || response.status >= 300 {
-        return Err(format!("models request failed with status {}", response.status));
+        return Err(format!(
+            "models request failed with status {}",
+            response.status
+        ));
     }
-    let parsed: ProxyModelsResponse =
-        serde_json::from_slice(&response.body).map_err(|e| format!("invalid models response: {e}"))?;
+    let parsed: ProxyModelsResponse = serde_json::from_slice(&response.body)
+        .map_err(|e| format!("invalid models response: {e}"))?;
     Ok(parsed.data)
 }

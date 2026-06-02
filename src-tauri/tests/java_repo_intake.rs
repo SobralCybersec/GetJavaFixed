@@ -86,6 +86,9 @@ fn classify_selected_root_authorizes_and_returns_repo_name() {
 
     assert!(readiness.supported);
     assert_eq!(readiness.project_type, Some(JavaProjectType::Maven));
-    assert_eq!(readiness.repo_name, fx.root.file_name().unwrap().to_string_lossy());
+    assert_eq!(
+        readiness.repo_name,
+        fx.root.file_name().unwrap().to_string_lossy()
+    );
     assert!(registry.is_authorized(&fx.root));
 }

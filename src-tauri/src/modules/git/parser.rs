@@ -198,7 +198,6 @@ mod tests {
         assert!(parsed.upstream.is_none());
     }
 
-
     #[test]
     fn preserves_paths_with_spaces() {
         let parsed = parse_porcelain_v2(&ordinary(".M", "src/my file name.rs"));
@@ -236,7 +235,7 @@ mod tests {
     #[test]
     fn staged_unstaged_untracked_matrix() {
         let cases = [
-            (".M", false, true, false, "Modified"), 
+            (".M", false, true, false, "Modified"),
             ("M.", true, false, false, "Modified"),
             ("MM", true, true, false, "Modified"),
             ("A.", true, false, false, "Added"),

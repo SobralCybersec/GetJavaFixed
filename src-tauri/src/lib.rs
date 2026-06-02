@@ -1,6 +1,8 @@
 pub mod modules;
 
-use modules::{agent, analysis, fs, git, java_repo, net, proxyexamples, pty, secrets, shell, workspace};
+use modules::{
+    agent, analysis, fs, git, java_repo, net, proxyexamples, pty, secrets, shell, workspace,
+};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_window_state::StateFlags;
@@ -18,7 +20,9 @@ fn parse_launch_dir() -> Option<String> {
         if arg.starts_with('-') {
             continue;
         }
-        let Ok(canon) = std::fs::canonicalize(&arg) else { continue };
+        let Ok(canon) = std::fs::canonicalize(&arg) else {
+            continue;
+        };
         if !canon.is_dir() {
             continue;
         }

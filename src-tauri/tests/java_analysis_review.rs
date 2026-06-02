@@ -34,9 +34,18 @@ public class App {
     );
 
     let findings = scan_findings(&fx.root).expect("scan_findings");
-    assert!(category_count(&findings, "safe") >= 1, "Expected at least one safe finding");
-    assert!(category_count(&findings, "performance") >= 1, "Expected at least one performance finding");
-    assert!(category_count(&findings, "modernization") >= 1, "Expected at least one modernization finding");
+    assert!(
+        category_count(&findings, "safe") >= 1,
+        "Expected at least one safe finding"
+    );
+    assert!(
+        category_count(&findings, "performance") >= 1,
+        "Expected at least one performance finding"
+    );
+    assert!(
+        category_count(&findings, "modernization") >= 1,
+        "Expected at least one modernization finding"
+    );
 }
 
 #[test]
@@ -58,14 +67,9 @@ public class Handler {
     );
 
     let findings = scan_findings(&fx.root).expect("scan_findings");
-    let empty_catch = findings
-        .iter()
-        .find(|f| f.id.contains("empty-catch"));
+    let empty_catch = findings.iter().find(|f| f.id.contains("empty-catch"));
 
-    assert!(
-        empty_catch.is_some(),
-        "Expected empty catch block finding"
-    );
+    assert!(empty_catch.is_some(), "Expected empty catch block finding");
     assert_eq!(empty_catch.unwrap().category, "safe");
 }
 
@@ -117,14 +121,9 @@ public class Loop {
     );
 
     let findings = scan_findings(&fx.root).expect("scan_findings");
-    let size_in_loop = findings
-        .iter()
-        .find(|f| f.id.contains("size-in-loop"));
+    let size_in_loop = findings.iter().find(|f| f.id.contains("size-in-loop"));
 
-    assert!(
-        size_in_loop.is_some(),
-        "Expected size in loop finding"
-    );
+    assert!(size_in_loop.is_some(), "Expected size in loop finding");
     assert_eq!(size_in_loop.unwrap().category, "performance");
 }
 
@@ -168,9 +167,7 @@ public class Raw {
     );
 
     let findings = scan_findings(&fx.root).expect("scan_findings");
-    let raw_type = findings
-        .iter()
-        .find(|f| f.id.contains("raw-type"));
+    let raw_type = findings.iter().find(|f| f.id.contains("raw-type"));
 
     assert!(raw_type.is_some(), "Expected raw type finding");
     assert_eq!(raw_type.unwrap().category, "modernization");
@@ -185,9 +182,7 @@ fn scan_findings_detects_wildcard_imports() {
     );
 
     let findings = scan_findings(&fx.root).expect("scan_findings");
-    let wildcard = findings
-        .iter()
-        .find(|f| f.id.contains("wildcard-import"));
+    let wildcard = findings.iter().find(|f| f.id.contains("wildcard-import"));
 
     assert!(wildcard.is_some(), "Expected wildcard import finding");
     assert_eq!(wildcard.unwrap().category, "safe");
@@ -240,5 +235,12 @@ public class App {
         .map(|f| f.id.clone())
         .collect();
 
-    assert_eq!(println_ids.len(), println_ids.iter().collect::<std::collections::HashSet<_>>().len(), "IDs should be unique");
+    assert_eq!(
+        println_ids.len(),
+        println_ids
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        "IDs should be unique"
+    );
 }

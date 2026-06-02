@@ -63,7 +63,7 @@ fn ip_kind(ip: IpAddr) -> IpKind {
             if segs[0] & 0xffc0 == 0xfe80 {
                 return IpKind::BlockedMetadata;
             }
-  
+
             if segs[0] & 0xfe00 == 0xfc00 {
                 return IpKind::Private;
             }
@@ -235,8 +235,7 @@ fn build_safe_client(
     allow_private: bool,
     pinned: &[(String, Vec<IpAddr>)],
 ) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(10));
+    let mut builder = reqwest::Client::builder().connect_timeout(Duration::from_secs(10));
 
     for (host, ips) in pinned {
         let addrs: Vec<SocketAddr> = ips.iter().map(|ip| SocketAddr::new(*ip, 0)).collect();
@@ -434,16 +433,13 @@ mod tests {
             ip_kind("fd00:ec2::254".parse().unwrap()),
             IpKind::BlockedMetadata
         );
-    
+
         assert_eq!(
             ip_kind(IpAddr::V4(Ipv4Addr::new(169, 254, 1, 1))),
             IpKind::BlockedMetadata
         );
-   
-        assert_eq!(
-            ip_kind("fe80::1".parse().unwrap()),
-            IpKind::BlockedMetadata
-        );
+
+        assert_eq!(ip_kind("fe80::1".parse().unwrap()), IpKind::BlockedMetadata);
     }
 
     #[test]

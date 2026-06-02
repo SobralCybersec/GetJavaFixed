@@ -18,7 +18,6 @@ pub struct SearchResult {
     pub truncated: bool,
 }
 
-
 const MAX_SCANNED: usize = 50_000;
 
 const PRUNE_DIRS: &[&str] = &[

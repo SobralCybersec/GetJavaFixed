@@ -14,17 +14,9 @@ const BINARY_SNIFF_BYTES: usize = 8 * 1024;
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ReadResult {
-    Text {
-        content: String,
-        size: u64,
-    },
-    Binary {
-        size: u64,
-    },
-    TooLarge {
-        size: u64,
-        limit: u64,
-    },
+    Text { content: String, size: u64 },
+    Binary { size: u64 },
+    TooLarge { size: u64, limit: u64 },
 }
 
 #[derive(Serialize)]

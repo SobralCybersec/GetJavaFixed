@@ -6,9 +6,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use ignore::WalkBuilder;
 use serde::Serialize;
 
-use crate::modules::java_repo::{
-    classify_selected_root, inspect_repo_root, JavaProjectType,
-};
+use crate::modules::java_repo::{classify_selected_root, inspect_repo_root, JavaProjectType};
 use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
 const JAVA_FILE_LIMIT: usize = 8_000;
@@ -156,12 +154,15 @@ pub async fn phase1_analysis_start(
 ) -> Result<Phase1AnalysisSnapshot, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     let readiness = classify_selected_root(&repo_path, &workspace, &registry)?;
-    let project_type = readiness
-        .project_type
-        .clone()
-        .ok_or_else(|| readiness.reason.unwrap_or_else(|| "Unsupported repository".to_string()))?;
+    let project_type = readiness.project_type.clone().ok_or_else(|| {
+        readiness
+            .reason
+            .unwrap_or_else(|| "Unsupported repository".to_string())
+    })?;
     let resolved_repo = resolve_path(&repo_path, &workspace);
-    let canonical_repo = registry.authorize(&resolved_repo).map_err(|e| e.to_string())?;
+    let canonical_repo = registry
+        .authorize(&resolved_repo)
+        .map_err(|e| e.to_string())?;
     let requested_scan = scan_path.unwrap_or_else(|| repo_path.clone());
     let resolved_scan = resolve_path(&requested_scan, &workspace);
     let canonical_scan = registry
@@ -305,7 +306,10 @@ pub fn scan_findings(root: &Path) -> Result<Vec<Phase1Finding>, String> {
     Ok(scan_findings_in_scope(root, root)?.findings)
 }
 
-fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFindingsResult, String> {
+fn scan_findings_in_scope(
+    repo_root: &Path,
+    scan_root: &Path,
+) -> Result<ScanFindingsResult, String> {
     let scan = collect_java_files(scan_root)?;
 
     let mut findings = Vec::new();
@@ -420,7 +424,9 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
                     && t.contains(" + ")
                     && t.ends_with(';')
                     && !t.starts_with("for ");
-                if in_loop && (t.contains(" += \"") || t.contains(" + \"") || looks_like_concat_assignment) {
+                if in_loop
+                    && (t.contains(" += \"") || t.contains(" + \"") || looks_like_concat_assignment)
+                {
                     findings.push(Phase1Finding {
                         id: format!("string-concat-loop:{rel}"),
                         title: "String concatenation inside loop — use StringBuilder".to_string(),
@@ -441,9 +447,7 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
         if content.contains(".size()") {
             for line in content.lines() {
                 let t = line.trim();
-                if (t.starts_with("for (") || t.starts_with("while ("))
-                    && t.contains(".size()")
-                {
+                if (t.starts_with("for (") || t.starts_with("while (")) && t.contains(".size()") {
                     findings.push(Phase1Finding {
                         id: format!("size-in-loop:{rel}"),
                         title: "Collection .size() called in loop condition".to_string(),
@@ -488,7 +492,10 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
         if content.contains("instanceof ") && !content.contains("instanceof (") {
             let has_old_instanceof = content.lines().any(|line| {
                 let t = line.trim();
-                t.contains("instanceof ") && !t.contains("instanceof (") && t.contains("(") && t.contains(")")
+                t.contains("instanceof ")
+                    && !t.contains("instanceof (")
+                    && t.contains("(")
+                    && t.contains(")")
             });
             if has_old_instanceof {
                 findings.push(Phase1Finding {
