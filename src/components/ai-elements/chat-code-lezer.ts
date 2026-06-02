@@ -9,10 +9,6 @@ export type HighlightedNode =
 type ParserLoader = () => Promise<Language>;
 type StreamLoader = () => Promise<StreamParser<unknown>>;
 
-// Only langs that ship a real Lezer parser. Legacy stream-modes (bash,
-// yaml, toml, c/cpp, java, csharp) fall back to plain <pre> — they don't
-// produce a Tree, and dragging in a token-stream driver isn't worth the
-// bytes for chat-side highlight.
 const loaders: Record<string, ParserLoader> = {
   js: () => import("@codemirror/lang-javascript").then((m) => m.javascriptLanguage),
   jsx: () => import("@codemirror/lang-javascript").then((m) => m.jsxLanguage),
@@ -25,17 +21,13 @@ const loaders: Record<string, ParserLoader> = {
   html: () => import("@codemirror/lang-html").then((m) => m.htmlLanguage),
   css: () => import("@codemirror/lang-css").then((m) => m.cssLanguage),
   markdown: () => import("@codemirror/lang-markdown").then((m) => m.markdownLanguage),
-  // `phpLanguage` parses files wrapped in `<?php …`. Chat snippets are bare
-  // PHP, so use the `plain: true` variant's Language.
+
   php: () =>
     import("@codemirror/lang-php").then(
       (m) => m.php({ plain: true }).language,
     ),
 };
 
-// StreamParser fallback for langs without a Lezer parser. Token names emitted
-// by legacy-modes (e.g. `keyword`, `string`, `comment`, `number`) line up with
-// our `tok-*` CSS by prefix, so the same stylesheet works for both paths.
 const streamLoaders: Record<string, StreamLoader> = {
   c: () =>
     import("@codemirror/legacy-modes/mode/clike").then(
@@ -124,7 +116,6 @@ const aliases: Record<string, string> = {
   py: "python",
   md: "markdown",
   htm: "html",
-  // Stream-mode aliases.
   "c++": "cpp",
   cxx: "cpp",
   cc: "cpp",
@@ -214,7 +205,6 @@ function highlightStream(
       } catch {
         tag = null;
       }
-      // Guard: token() must advance; force one char if it didn't.
       if (stream.pos === start) {
         stream.pos = start + 1;
       }
@@ -230,15 +220,11 @@ function highlightStream(
   return out;
 }
 
-// Legacy-mode `token()` returns space-separated tag names like
-// "keyword", "variable-2", "string-2", or "atom number". Map to our `tok-*`
-// classes that the stylesheet already paints.
 function mapStreamTag(raw: string): string {
   return raw
     .split(/\s+/)
     .filter(Boolean)
     .map((t) => {
-      // strip CodeMirror 5's "-2" / "-3" qualifiers
       const base = t.replace(/-\d+$/, "");
       switch (base) {
         case "variable":

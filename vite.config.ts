@@ -5,7 +5,6 @@ import { defineConfig } from "vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
-// https://vite.dev/config/
 export default defineConfig(async ({ mode }) => ({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -32,9 +31,6 @@ export default defineConfig(async ({ mode }) => ({
       output: {
         manualChunks(id: string) {
           if (!id.includes("node_modules")) return;
-
-          // Each AI provider SDK in its own chunk so unused providers
-          // don't bloat the initial load (lazy-imported in agent.ts).
           if (id.includes("@ai-sdk/anthropic")) return "ai-anthropic";
           if (id.includes("@ai-sdk/google")) return "ai-google";
           if (id.includes("@ai-sdk/openai-compatible"))

@@ -46,8 +46,6 @@ type Props = {
 export const SearchInline = forwardRef<SearchInlineHandle, Props>(
   function SearchInline({ target, compact }, ref) {
     const [q, setQ] = useState("");
-    // In compact mode the field is hidden behind an icon until activated.
-    // In normal mode the field is always present.
     const [openInCompact, setOpenInCompact] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const pendingFocusRef = useRef(false);
@@ -101,7 +99,6 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
       target.focus();
     }, [target]);
 
-    // Target switched (terminal ↔ editor) or removed → drop highlights.
     useEffect(() => clearTarget, [clearTarget]);
 
     const applyIncremental = (next: string) => {
@@ -130,7 +127,6 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
         if (forward) target.handle.findNext();
         else target.handle.findPrevious();
       }
-      // git-history: the list filters live; Enter has no next/prev semantics.
     };
 
     return (

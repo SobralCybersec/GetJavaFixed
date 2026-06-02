@@ -23,9 +23,6 @@ export type CompletionDeps = {
 };
 
 const MAX_OUTPUT_TOKENS_DEFAULT = 128;
-// Reasoning models burn output tokens on internal thought before producing
-// any visible content; with a tight cap they finish_reason="length" with
-// empty text. The trim step still caps visible output at MAX_LINES.
 const MAX_OUTPUT_TOKENS_REASONING = 1024;
 
 export async function requestCompletion(

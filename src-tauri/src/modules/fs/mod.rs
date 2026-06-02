@@ -7,8 +7,6 @@ pub mod watch;
 
 use std::path::Path;
 
-/// The single canonical-to-display conversion: forward slashes, Windows
-/// verbatim `\\?\` prefix stripped. Route every such conversion through here.
 pub fn to_canon(p: impl AsRef<Path>) -> String {
     let s = p.as_ref().to_string_lossy();
     #[cfg(windows)]
@@ -17,12 +15,10 @@ pub fn to_canon(p: impl AsRef<Path>) -> String {
     }
     #[cfg(not(windows))]
     {
-        // Backslashes are legal in Unix filenames; never rewrite them.
         s.into_owned()
     }
 }
 
-// Pure so it stays unit-testable on any host. `\\?\C:\x` -> `C:/x`.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn strip_verbatim(s: &str) -> String {
     let stripped = if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {

@@ -47,7 +47,7 @@ export function detectMonoFontFamily(): string {
         return detected;
       }
     } catch {
-      // Some browsers throw on invalid font shorthand; ignore.
+     
     }
   }
   detected = FALLBACK_CHAIN;

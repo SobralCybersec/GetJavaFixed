@@ -12,7 +12,6 @@ export function vimHandlersExtension(getHandlers: () => VimHandlers): Extension 
     handlers.set(view, getHandlers());
     return {
       update() {
-        // Keep handlers fresh in case the closure captured stale refs.
         handlers.set(view, getHandlers());
       },
       destroy() {
@@ -57,9 +56,6 @@ export function initVimGlobals(): void {
     h?.close();
   });
 
-  // Arrow keys are forwarded by the plugin to the editor scope handlers,
-  // which breaks operator-pending (d<Up>) and counts (15<Up>). Remap to
-  // hjkl so they stay inside the vim state machine.
   Vim.map("<Up>", "k", "normal");
   Vim.map("<Down>", "j", "normal");
   Vim.map("<Left>", "h", "normal");

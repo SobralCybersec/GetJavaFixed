@@ -5,16 +5,11 @@ import { search } from "@codemirror/search";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
-// Compartments allow runtime reconfiguration without rebuilding state.
 export const languageCompartment = new Compartment();
 export const readOnlyCompartment = new Compartment();
 export const wrapCompartment = new Compartment();
 export const vimCompartment = new Compartment();
 
-// Only what basicSetup doesn't already cover, to avoid duplicate extensions.
-// basicSetup gives us line numbers, fold gutter, history, indentOnInput,
-// bracketMatching, closeBrackets, autocompletion, highlightActiveLine,
-// highlightSelectionMatches and the search keymap.
 export function buildSharedExtensions(): Extension[] {
   return [
     indentUnit.of("  "),
@@ -68,7 +63,6 @@ export function buildSharedExtensions(): Extension[] {
       ".cm-cursor, .cm-dropCursor": {
         borderLeftColor: "var(--foreground)",
       },
-      // Vim normal-mode block cursor — translucent foreground, no rose hue.
       ".cm-fat-cursor": {
         background:
           "color-mix(in srgb, var(--foreground) 35%, transparent) !important",

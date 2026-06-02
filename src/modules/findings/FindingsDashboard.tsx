@@ -60,7 +60,6 @@ export function FindingsDashboard({
     selectFinding,
   } = useFindings(repo);
 
-  // Model config from existing settings infrastructure
   const selectedModelId = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const prefs = usePreferencesStore();
@@ -109,7 +108,6 @@ export function FindingsDashboard({
     void startAnalysis(autoStartScanPath);
   }, [autoStartScanPath, startAnalysis]);
 
-  // Reset refactor state when a different finding is selected
   const handleSelectFinding = (id: string) => {
     if (selectedFinding?.id !== id) resetRefactor();
     selectFinding(id);
@@ -398,7 +396,7 @@ export function FindingsDashboard({
   );
 }
 
-// Inline wrapper to avoid circular import with RefactorPreviewPanel
+
 import { RefactorPreviewPanel } from "@/modules/findings/RefactorPreviewPanel";
 import type { RefactorResult, RefactorStatus } from "@/modules/findings/lib/useRefactorGeneration";
 

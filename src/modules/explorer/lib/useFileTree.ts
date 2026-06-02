@@ -156,8 +156,6 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     }
   }, []);
 
-  // Root change → restore the cached expansion for this root, re-scope watches,
-  // and persist the outgoing root's expansion on the way out.
   useEffect(() => {
     if (!rootPath) {
       setNodes({});
@@ -216,10 +214,6 @@ export function useFileTree(rootPath: string | null, options?: Options) {
       .filter(([, state]) => state.status === "loaded")
       .map(([path]) => path);
     for (const path of loadedPaths) void fetchChildren(path);
-    // Re-list loaded directories when the visibility preference changes.
-    // `nodes` is intentionally omitted so ordinary tree edits don't refetch
-    // every expanded directory.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHidden, rootPath, fetchChildren]);
 
   const toggle = useCallback(
@@ -265,13 +259,10 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     [fetchChildren],
   );
 
-  // --- mutations ---
-
   const beginCreate = useCallback(
     (parentPath: string, kind: "file" | "dir") => {
       setRenaming(null);
       setPendingCreate({ parentPath, kind });
-      // Ensure the parent is expanded so the input row is visible.
       if (rootPath && parentPath !== rootPath) {
         setExpanded((curr) => {
           if (curr.has(parentPath)) return curr;

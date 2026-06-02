@@ -12,7 +12,6 @@ type Props = {
 export function AgentStatusPill({ onClick }: Props) {
   const meta = useChatStore((s) => s.agentMeta);
 
-  // awaiting-approval is surfaced by the notification + auto-opened mini window.
   if (meta.status === "awaiting-approval") return null;
   if (meta.status === "idle" && !meta.error) return null;
 
@@ -56,7 +55,7 @@ function describe(meta: AgentMeta): {
       label: meta.error ?? "Error",
     };
   }
-  // thinking | streaming
+
   return {
     tone:
       "border-border/60 bg-card text-muted-foreground hover:text-foreground",

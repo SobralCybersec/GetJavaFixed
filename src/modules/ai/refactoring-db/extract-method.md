@@ -11,13 +11,11 @@ Long methods are hard to read, maintain, and test. Extracting method fragments i
 public void printOwing() {
     printBanner();
 
-    // calculate outstanding
     double outstanding = 0.0;
     for (Order order : orders) {
         outstanding += order.getAmount();
     }
 
-    // print details
     System.out.println("name: " + name);
     System.out.println("amount: " + outstanding);
 }

@@ -6,11 +6,8 @@ const HOOK_EVENTS: [(&str, &str); 3] = [
     ("Stop", "finished"),
 ];
 
-// Includes the pre-v2.1.139 /dev/tty variant so re-running migrates it.
 const OWNED_MARKERS: [&str; 2] = ["notify;JavaRf;", "javarf;notify"];
 
-// Gated on JAVARF_TERMINAL; no-op outside JavaRf. Returns the sequence via
-// `terminalSequence` because hooks lost /dev/tty access in v2.1.139.
 fn hook_cmd(event: &str) -> String {
     format!(
         r#"[ -n "$JAVARF_TERMINAL" ] && printf '{{"terminalSequence":"\\u001b]777;notify;JavaRf;{event}\\u0007"}}' || true"#
@@ -30,8 +27,6 @@ fn is_ours(group: &Value) -> bool {
         })
 }
 
-// A group with no hooks is inert cruft (e.g. left behind when someone deletes
-// our command but not its wrapper). Drop it so the file stays clean.
 fn is_empty_group(group: &Value) -> bool {
     group
         .get("hooks")
@@ -95,8 +90,6 @@ pub fn agent_enable_claude_hooks() -> Result<(), String> {
     let merged = merge_hooks(existing);
     let out = serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())?;
 
-    // Write to a sibling temp file then rename so a crash mid-write can't leave
-    // a truncated settings.json.
     let tmp = path.with_extension("json.javarf-tmp");
     std::fs::write(&tmp, out).map_err(|e| format!("write {}: {e}", tmp.display()))?;
     std::fs::rename(&tmp, &path).map_err(|e| {

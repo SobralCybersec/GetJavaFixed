@@ -21,7 +21,6 @@ pub enum ReadResult {
     Binary {
         size: u64,
     },
-    /// File exceeds MAX_READ_BYTES. UI decides whether to offer "open anyway".
     TooLarge {
         size: u64,
         limit: u64,
@@ -65,8 +64,6 @@ pub fn fs_read_file(path: String, workspace: Option<WorkspaceEnv>) -> Result<Rea
         e.to_string()
     })?;
 
-    // Null-byte sniff on the first chunk. Not perfect (misses UTF-16 BOM
-    // cases) but catches the common "this is a PNG" mistake cheaply.
     let sniff_len = bytes.len().min(BINARY_SNIFF_BYTES);
     if bytes[..sniff_len].contains(&0) {
         return Ok(ReadResult::Binary { size });
@@ -85,8 +82,6 @@ struct FileWrittenEvent {
     source: Option<String>,
 }
 
-/// Atomic write via O_EXCL tempfile in the target's parent, then rename.
-/// The random suffix is what blocks pre-staged symlink attacks.
 fn write_atomic(target: &Path, content: &[u8]) -> std::io::Result<()> {
     let parent = target.parent().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no parent")
@@ -194,7 +189,6 @@ mod tests {
     fn read_file_detects_binary_via_invalid_utf8() {
         let dir = tempfile::tempdir().unwrap();
         let f = dir.path().join("a.bin");
-        // Invalid UTF-8 with no null byte: must still classify as binary.
         std::fs::write(&f, [0xff, 0xfe, 0xfd, 0xfc]).unwrap();
         assert!(matches!(
             fs_read_file(f.to_string_lossy().into_owned(), None).unwrap(),
@@ -220,14 +214,12 @@ mod tests {
         std::fs::write(&outside, b"untouched").unwrap();
 
         let target = dir.path().join("note.txt");
-        // Pre-stage a symlink at the legacy deterministic staging path.
         let legacy = dir.path().join(".note.txt.javarf.tmp");
         symlink(&outside, &legacy).unwrap();
 
         write_atomic(&target, b"payload").unwrap();
 
         assert_eq!(std::fs::read(&target).unwrap(), b"payload");
-        // The pre-staged symlink target must not have been written through.
         assert_eq!(std::fs::read(&outside).unwrap(), b"untouched");
     }
 }

@@ -20,7 +20,6 @@ export function useGlobalShortcuts(
   const latest = useRef({ handlers, options });
   latest.current = { handlers, options };
 
-  // Access the shortcuts from the store
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
 
   useEffect(() => {

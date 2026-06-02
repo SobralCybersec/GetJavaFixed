@@ -14,34 +14,14 @@ use super::shell_init;
 use crate::modules::workspace::WorkspaceEnv;
 
 const AGENT_EVENT: &str = "javarf:agent-signal";
-
-// Flusher coalesces a short window after first-byte arrival so we send chunks,
-// not single bytes. MAX_IDLE is only a safety net for missed signals.
 const FLUSH_COALESCE: Duration = Duration::from_millis(4);
 const FLUSH_MAX_IDLE: Duration = Duration::from_millis(50);
 const READ_BUF: usize = 16 * 1024;
-// Cap on buffered-but-not-yet-flushed bytes. On overflow we discard the
-// entire pending buffer and emit an SGR-reset + notice in its place.
-// Dropping a partial prefix would slice a CSI sequence in half and corrupt
-// xterm's screen state. 4 MiB is ~1000 full 80x24 screens.
 const MAX_PENDING: usize = 4 * 1024 * 1024;
-// Hard reset (ESC c) + dim notice. Written verbatim into the stream when
-// we're forced to discard backlog.
 const OVERFLOW_NOTICE: &[u8] =
     b"\x1bc\x1b[2m[javarf: dropped output due to backpressure]\x1b[0m\r\n";
 
 pub struct Session {
-    // Field drop order is intentional. Rust drops fields top-to-bottom:
-    //   1. `_job` — on Windows, closing the Job HANDLE fires
-    //      KILL_ON_JOB_CLOSE, terminating the pwsh tree before the master
-    //      pipe drops. Without this, ClosePseudoConsole in `master`'s Drop
-    //      can block waiting for conhost to drain pending output, freezing
-    //      the Tauri worker thread that triggered the close.
-    //   2. `killer` — best-effort kill (redundant on Windows once Job
-    //      closed, but harmless and required on Unix where there is no Job).
-    //   3. `writer` — closes the input side of the master pipe.
-    //   4. `master` — last; ClosePseudoConsole on Windows. By now the child
-    //      is dead and conhost has nothing left to drain.
     #[cfg(windows)]
     _job: Option<super::job::PtyJob>,
     pub killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
@@ -51,17 +31,13 @@ pub struct Session {
 
 impl Drop for Session {
     fn drop(&mut self) {
-        // If the session Arc is dropped without an explicit pty_close (e.g.
-        // frontend disconnected, window crashed, dev HMR), the reader/flusher
-        // threads would otherwise stay alive forever holding the child. Kill
-        // the child here so the reader hits EOF and the threads unwind.
         if let Ok(mut k) = self.killer.lock() {
             let _ = k.kill();
         }
     }
 }
-// Serializes ConPTY create and close: overlapping pseudoconsole lifecycle
-// calls corrupt the new console so its shell never pumps output (issue #356).
+
+
 #[cfg(windows)]
 static CONPTY_LIFECYCLE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -120,8 +96,6 @@ pub fn spawn(
     let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
 
-    // Kill the child if any of the pipe setup below fails so the spawned shell
-    // can't outlive an aborted pty_open.
     let mut guard = ChildKillGuard::new(child.clone_killer());
     let killer = child.clone_killer();
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
@@ -233,7 +207,6 @@ pub fn spawn(
                         g = next;
                     }
                 }
-                // Coalesce a short window so a burst flushes as one chunk.
                 thread::sleep(FLUSH_COALESCE);
                 let chunk = std::mem::take(&mut *lock.lock().unwrap());
                 if chunk.is_empty() {
@@ -260,8 +233,7 @@ pub fn spawn(
                     -1
                 }
             };
-            // Wait for the reader to hit EOF before taking a final snapshot of
-            // `pending`, so the last line of output never races the Exit event.
+            
             #[cfg(windows)]
             {
                 let deadline = Instant::now() + Duration::from_millis(50);

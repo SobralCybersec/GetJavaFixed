@@ -20,8 +20,6 @@ export function buildTerminalTools(ctx: ToolContext) {
       execute: async ({ command, explanation }) => {
         const safety = checkShellCommand(command);
         if (!safety.ok) return { error: safety.reason };
-        // Reject control bytes — the user inserts via click, but the rendered
-        // command must reflect exactly what will land at the prompt.
         if (/[\n\r\x00\x1b\x07]/.test(command)) {
           return { error: "command must be a single line without control bytes" };
         }

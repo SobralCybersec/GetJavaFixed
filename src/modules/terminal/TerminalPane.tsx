@@ -51,7 +51,6 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
     });
 
     useEffect(() => {
-      // Defer one frame so CSS-variable token resolution sees the new class.
       const id = requestAnimationFrame(() => session.applyTheme());
       return () => cancelAnimationFrame(id);
     }, [resolvedMode, themeId, customThemes, session]);

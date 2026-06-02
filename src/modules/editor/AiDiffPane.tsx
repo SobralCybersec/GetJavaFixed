@@ -30,38 +30,6 @@ const READONLY_EXT: Extension[] = [
 ];
 
 const DIFF_THEME = EditorView.theme({
-  // ".cm-changedLine": {
-  //   backgroundColor:
-  //     "color-mix(in srgb, #22c55e 10%, transparent) !important",
-  // },
-  // ".cm-merge-b .cm-changedText, .cm-merge-b ins.cm-insertedLine": {
-  //   background:
-  //     "color-mix(in srgb, #22c55e 28%, transparent) !important",
-  //   textDecoration: "none !important",
-  //   borderRadius: "2px",
-  // },
-  // ".cm-deletedChunk": {
-  //   backgroundColor:
-  //     "color-mix(in srgb, #ef4444 8%, transparent)",
-  //   paddingLeft: "6px",
-  //   paddingTop: "1px",
-  //   paddingBottom: "1px",
-  // },
-  // ".cm-deletedChunk .cm-deletedText, .cm-deletedLine del": {
-  //   background:
-  //     "color-mix(in srgb, #ef4444 26%, transparent) !important",
-  //   textDecoration: "none !important",
-  //   borderRadius: "2px",
-  // },
-  // ".cm-changeGutter": {
-  //   width: "3px",
-  // },
-  // ".cm-changedLineGutter": {
-  //   backgroundColor: "#22c55e",
-  // },
-  // ".cm-deletedLineGutter": {
-  //   backgroundColor: "#ef4444",
-  // },
   ".cm-changedText": {
     background: "#88ff881a !important",
   },
@@ -228,8 +196,6 @@ function computeLineStats(
 function countLines(doc: string, from: number, to: number): number {
   if (from === to) return 0;
   const slice = doc.slice(from, to);
-  // A change spanning N newlines touches N+1 lines, but a trailing newline
-  // means the final segment is empty — don't count that as a touched line.
   let n = 1;
   for (let i = 0; i < slice.length; i++) {
     if (slice.charCodeAt(i) === 10) n++;

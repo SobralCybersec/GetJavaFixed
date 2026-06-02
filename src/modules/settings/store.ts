@@ -211,10 +211,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
 
-// LazyStore.onChange only fires within the writing process. The settings
-// page lives in a separate webview, so writes there never reach the main
-// window's subscribers. Mirror every setter through a Tauri event so any
-// window can listen.
 const PREFS_CHANGED_EVENT = "javarf://prefs-changed";
 
 async function writePref<T>(key: string, value: T): Promise<void> {
@@ -224,8 +220,6 @@ async function writePref<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadPreferences(): Promise<Preferences> {
-  // Single IPC roundtrip — fetching keys individually fans out to one
-  // `plugin:store|get` per setting and is the dominant boot cost.
   const entries = await store.entries();
   const map = new Map<string, unknown>(entries);
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
@@ -643,8 +637,7 @@ export async function onPreferencesChange(
     [KEY_EDITOR_AUTO_SAVE]: "editorAutoSave",
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",
   };
-  // Same-process writes still fire onChange immediately; cross-window writes
-  // arrive via the Tauri event emitted by writePref().
+
   const unsubLocal = await store.onChange<unknown>((key, value) => {
     const mapped = map[key];
     if (mapped) cb(mapped, value);
@@ -662,8 +655,6 @@ export async function onPreferencesChange(
   };
 }
 
-// API key changes are stored in OS keychain (not the prefs store),
-// so we broadcast via a Tauri event for cross-window listeners.
 const KEYS_CHANGED_EVENT = "javarf://ai-keys-changed";
 
 export async function emitKeysChanged(): Promise<void> {

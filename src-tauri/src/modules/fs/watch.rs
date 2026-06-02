@@ -10,12 +10,9 @@ use tauri::{AppHandle, Emitter, State};
 use crate::modules::fs::to_canon;
 use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
-// Quiet-gap before a batch flushes; MAX_WINDOW caps latency under a long stream.
 const DEBOUNCE: Duration = Duration::from_millis(150);
 const MAX_WINDOW: Duration = Duration::from_millis(1000);
 
-// Matched on the final path component. Never watched even when expanded: large
-// or generated trees where live updates cost more than they're worth.
 const SKIP_DIRS: &[&str] = &[
     // VCS
     ".git",
@@ -96,8 +93,6 @@ pub struct FsWatchState {
 
 struct WatchInner {
     watcher: RecommendedWatcher,
-    // Explorer (expanded dirs) and editor (dirs of open files) can request the
-    // same dir; unwatch only when the last requester releases it.
     refcounts: HashMap<PathBuf, usize>,
 }
 
@@ -207,7 +202,6 @@ fn remove_paths(inner: &mut WatchInner, paths: Vec<PathBuf>) {
     }
 }
 
-// Canonical keys keep add/remove symmetric regardless of how the path was spelled.
 fn prepare_add(
     registry: &WorkspaceRegistry,
     workspace: &WorkspaceEnv,
@@ -254,8 +248,6 @@ pub fn fs_watch_remove(
     state: State<'_, FsWatchState>,
 ) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
-    // A removed/renamed dir no longer canonicalizes; fall back so the refcount
-    // entry is still released.
     let prepared: Vec<PathBuf> = paths
         .into_iter()
         .map(|raw| {

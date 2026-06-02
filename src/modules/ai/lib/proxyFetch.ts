@@ -45,7 +45,6 @@ async function bodyToBytes(
   }
   if (body instanceof Blob)
     return Array.from(new Uint8Array(await body.arrayBuffer()));
-  // FormData / URLSearchParams / ReadableStream — uncommon for AI SDK calls.
   const text = await new Response(body as BodyInit).text();
   return Array.from(new TextEncoder().encode(text));
 }
@@ -146,7 +145,7 @@ async function proxyFetchImpl(
       allowPrivateNetwork,
       onEvent: channel,
     }).catch((e) => {
-      if (resolved) return; // headers already arrived; chunk-side error wins
+      if (resolved) return;
       reject(e instanceof Error ? e : new Error(String(e)));
     });
   });

@@ -50,9 +50,6 @@ type Session = {
   searchQuery: string | null;
   dormantRing: DormantRing;
   hasSlot: boolean;
-  // True if the slot was in alt-screen mode (TUI like vim, htop, dofek)
-  // at the most recent release. Read once on the next bind to trigger a
-  // SIGWINCH-driven repaint instead of replaying dormant bytes.
   altScreenAtRelease: boolean;
 };
 
@@ -137,9 +134,6 @@ configureRendererPool({
       kickPty: (cols, rows) => {
         const pty = s.pty;
         if (!pty || cols <= 0 || rows <= 0) return;
-        // Linux only emits SIGWINCH when the winsize ioctl actually
-        // changes dims, so bump +1 row then restore. The TUI receives
-        // (possibly two) SIGWINCHes and repaints from scratch.
         pty
           .resize(cols, rows + 1)
           .then(() => pty.resize(cols, rows))
@@ -241,10 +235,6 @@ function bindLeafToSlot(leafId: number, s: Session): void {
     cols: s.cols,
     rows: s.rows,
     registerOsc: (term) => {
-      // Shared in-command flag — see osc-handlers.ts. The prompt tracker
-      // flips it on OSC 133 B/C/D/A; the cwd handler reads it to ignore OSC
-      // 7 emitted by untrusted command output (remote SSH, `cat` of an
-      // attacker file, etc.).
       const shellState = createShellIntegrationState();
       const prompt = registerPromptTracker(term, shellState);
       const cwd = registerCwdHandler(

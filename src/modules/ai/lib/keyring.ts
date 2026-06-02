@@ -59,7 +59,7 @@ export async function clearKey(provider: ProviderId): Promise<void> {
       account: getProvider(provider).keyringAccount,
     });
   } catch {
-    // already absent — fine
+    
   }
 }
 

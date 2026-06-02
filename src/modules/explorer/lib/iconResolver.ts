@@ -25,8 +25,6 @@ const DEFAULT_FOLDER_OPEN = "folder-open";
 
 const dataUrlCache = new Map<string, string>();
 
-// Catppuccin's manifest emits names like `folder_src`/`typescript-react`, but
-// the iconify export normalizes everything to hyphenated slugs.
 function toIconifySlug(name: string): string {
   return name.replace(/_/g, "-");
 }

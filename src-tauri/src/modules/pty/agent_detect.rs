@@ -7,7 +7,6 @@ const OSC_MAX: usize = 2048;
 
 const DEFAULT_AGENTS: &[&str] = &["claude", "codex"];
 
-// OSC 777 marker our Claude Code hooks emit via `terminalSequence`.
 const JAVARF_MARKER: &[u8] = b"notify;JavaRf;";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -77,9 +76,6 @@ impl AgentDetector {
         }
     }
 
-    /// Feed a chunk of raw PTY output. Transitions come only from OSC sequences
-    /// (`133` prompt boundaries, our `777` hook marker), never from raw output,
-    /// so a TUI agent that repaints continuously never flaps working/waiting.
     pub fn process<F: FnMut(Transition)>(&mut self, input: &[u8], mut emit: F) {
         if self.state == State::Ground && !input.contains(&ESC) {
             return;
@@ -130,8 +126,6 @@ impl AgentDetector {
         }
     }
 
-    /// Called when the underlying PTY closes. Reports the agent as exited so the
-    /// UI doesn't leave a stale entry if the shell died mid-command.
     pub fn finish<F: FnMut(Transition)>(&mut self, mut emit: F) {
         if self.armed {
             self.disarm();
@@ -152,7 +146,6 @@ impl AgentDetector {
         };
         match ps {
             b"133" => self.handle_osc133(pt, emit),
-            // OSC 9;4 is taskbar progress, not a notification.
             b"9" if !pt.starts_with(b"4;") && pt != b"4" => self.generic_attention(emit),
             b"777" => self.handle_osc777(pt, emit),
             _ => {}
@@ -161,8 +154,6 @@ impl AgentDetector {
 
     fn handle_osc777<F: FnMut(Transition)>(&mut self, pt: &[u8], emit: &mut F) {
         if let Some(event) = pt.strip_prefix(JAVARF_MARKER) {
-            // Self-arms so notifications work even when no shell preexec fired
-            // (bash, Windows, tmux, wrappers).
             match event {
                 b"working" => {
                     self.ensure_armed(emit);

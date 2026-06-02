@@ -13,7 +13,6 @@ import {
 } from "@/modules/terminal/lib/panes";
 import { disposeSession } from "@/modules/terminal/lib/useTerminalSession";
 
-// Matches the renderer slot pool size — over this we'd evict an active leaf.
 export const MAX_PANES_PER_TAB = 4;
 
 export type TerminalTab = {
@@ -227,7 +226,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     let targetId: number | null = null;
     setTabs((curr) => {
       if (pin) {
-        // Persistent open: find any existing editor tab, pin it if needed.
         const existing = curr.find(
           (t) => t.kind === "editor" && t.path === path,
         );
@@ -254,7 +252,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           } satisfies EditorTab,
         ];
       } else {
-        // Preview open: persistent tab for this path takes priority.
         const persistent = curr.find(
           (t) =>
             t.kind === "editor" && t.path === path && !(t as EditorTab).preview,
@@ -263,7 +260,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           targetId = persistent.id;
           return curr;
         }
-        // Reuse the slot if it already shows the same path.
         const existingPreview = curr.find(
           (t) =>
             t.kind === "editor" && t.path === path && (t as EditorTab).preview,
@@ -272,7 +268,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           targetId = existingPreview.id;
           return curr;
         }
-        // Replace the current preview slot, or append a new one.
         const previewIdx = curr.findIndex(
           (t) => t.kind === "editor" && (t as EditorTab).preview,
         );
@@ -603,7 +598,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             ...(patch.title !== undefined && { title: patch.title }),
           };
         }
-        // editor tab: auto-promote from preview the moment the file becomes dirty.
         const autoPin =
           patch.dirty === true && (x as EditorTab).preview
             ? { preview: false }

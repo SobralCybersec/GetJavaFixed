@@ -5,8 +5,6 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-// Short TTL keeps the auth-check TOCTOU window tight while still coalescing the
-// burst of canonicalize calls within a single panel refresh (~100ms).
 const CANONICAL_TTL: Duration = Duration::from_secs(1);
 const CANONICAL_CACHE_CAP: usize = 256;
 
@@ -69,8 +67,6 @@ impl WorkspaceRegistry {
     }
 }
 
-// `None` means "use bootstrapped default". `Some` is canonicalized to defeat
-// symlink/`..` traversal and must sit under an authorized root.
 pub fn authorize_spawn_cwd(
     registry: &WorkspaceRegistry,
     cwd: Option<&str>,
@@ -94,8 +90,6 @@ pub fn authorize_spawn_cwd(
     Ok(Some(canonical))
 }
 
-// User-initiated terminal spawn: canonicalize, require a real dir, and register
-// it as a root instead of rejecting paths outside existing roots.
 pub fn authorize_user_spawn_cwd(
     registry: &WorkspaceRegistry,
     cwd: Option<&str>,
@@ -142,8 +136,6 @@ pub async fn workspace_current_dir(
     Ok(crate::modules::fs::to_canon(&canonical))
 }
 
-// Snapshotted once at app startup so the live `current_dir()` drifting later
-// (file dialogs, plugin chdir) can't shift the value seen by IPC or spawn.
 static LAUNCH_CWD: OnceLock<Option<PathBuf>> = OnceLock::new();
 
 pub fn init_launch_cwd(cli_dir: Option<&str>) {
@@ -247,10 +239,6 @@ pub fn resolve_path(path: &str, _workspace: &WorkspaceEnv) -> PathBuf {
     PathBuf::from(path)
 }
 
-/// True for WSL distro names safe to splice into a UNC path. Real WSL distros
-/// are alphanumeric with `.`, `_`, `-` separators (e.g. `Ubuntu-22.04`). Reject
-/// anything that could traverse out of the `\\wsl.localhost\<distro>\` prefix
-/// (`..`, `\`, `/`, `:`, `?`, `*`, control bytes) or empty names.
 #[cfg(windows)]
 fn is_safe_distro_name(name: &str) -> bool {
     if name.is_empty() || name.len() > 255 {
@@ -296,12 +284,6 @@ fn wsl_drvfs_to_windows(path: &str) -> Option<PathBuf> {
 
 #[cfg(windows)]
 pub fn wsl_path_to_unc(distro: &str, path: &str) -> PathBuf {
-    // Defense-in-depth: refuse to construct a UNC path with a distro name that
-    // could escape the WSL share root via `..`, `\`, or other path metachars.
-    // Returns a clearly-invalid path that downstream `is_dir()`/`metadata()`
-    // checks will reject. The webview's distro list comes from `wsl.exe --list`
-    // and is normally trustworthy, but a locally-registered malicious distro
-    // can name itself with traversal characters; this filter blocks that.
     if !is_safe_distro_name(distro) {
         return PathBuf::from(r"\\wsl.localhost\__javarf_invalid_distro__");
     }
@@ -320,9 +302,6 @@ pub fn wsl_path_to_unc(distro: &str, path: &str) -> PathBuf {
 
 #[cfg(windows)]
 pub fn wsl_path_to_host(distro: &str, path: &str) -> PathBuf {
-    // `/mnt/<drive>` is drvfs-backed Windows storage. Accessing it through the
-    // WSL UNC share can return "Access is denied" on Windows even though the
-    // same path is readable inside WSL. Use the native drive path instead.
     wsl_drvfs_to_windows(path).unwrap_or_else(|| wsl_path_to_unc(distro, path))
 }
 
@@ -390,8 +369,6 @@ pub(crate) fn wsl_exec_capture(
 
 #[cfg(windows)]
 fn run_wsl_sh(distro: &str, script: &str) -> Result<String, String> {
-    // Probe helpers must avoid login-shell startup files. User `.profile`
-    // output on stdout would corrupt the parsed value (`$HOME`, login shell).
     wsl_exec_capture(distro, "sh", &["-c", script])
 }
 
@@ -552,8 +529,6 @@ mod tests {
 
     #[test]
     fn wsl_path_to_unc_blocks_traversal_distro() {
-        // Malicious distro name must produce a path that is_dir() will reject,
-        // never escape the WSL share root.
         let p = wsl_path_to_unc("..\\..\\..\\Windows", "/etc/passwd");
         let s = p.to_string_lossy();
         assert!(s.contains("__javarf_invalid_distro__"), "got: {s}");

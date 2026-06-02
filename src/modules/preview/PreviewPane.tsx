@@ -24,15 +24,10 @@ type Props = {
   onUrlChange: (url: string) => void;
 };
 
-// Tear the iframe down after this much invisibility — a background dev
-// server page can hold hundreds of MB inside the WebView.
 const SUSPEND_AFTER_MS = 30_000;
 
 export const PreviewPane = forwardRef<PreviewPaneHandle, Props>(
   function PreviewPane({ url, visible, onUrlChange }, ref) {
-    // `nonce` is part of the iframe `key`. Bumping it remounts the iframe,
-    // which is the only reliable cross-origin reload (calling
-    // contentWindow.location.reload() throws on cross-origin frames).
     const [nonce, setNonce] = useState(0);
     const [loaded, setLoaded] = useState(visible);
     const addressRef = useRef<PreviewAddressBarHandle>(null);
@@ -103,12 +98,6 @@ export const PreviewPane = forwardRef<PreviewPaneHandle, Props>(
                 src={url}
                 title="Preview"
                 className="h-full w-full border-0"
-                // sandbox grants the bare minimum for a dev preview: scripts,
-                // same-origin (cookies/storage for the previewed app), forms,
-                // popups for "open in new tab". Critically OMITS
-                // `allow-top-navigation*` — without it the iframe cannot
-                // navigate the parent Tauri webview to an attacker origin,
-                // which would otherwise expose `window.__TAURI__` IPC.
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
                 referrerPolicy="no-referrer"
                 allow="clipboard-read; clipboard-write; fullscreen"

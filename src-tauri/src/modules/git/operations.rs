@@ -524,13 +524,6 @@ pub fn log(
     }
     let stdout = std::str::from_utf8(&output.stdout).unwrap_or("");
     let mut entries: Vec<GitLogEntry> = Vec::with_capacity(bounded as usize);
-    // Lines we get back interleave:
-    //   <sha>\x1f<author>\x1f<email>\x1f<ts>\x1f<parents>\x1f<subject>
-    //   <blank>
-    //    5 files changed, 12 insertions(+), 3 deletions(-)
-    // Commits without diffstats (root commits, merges with no changes) just
-    // skip the shortstat line. Detect commit headers by the presence of
-    // the unit-separator we put in the format.
     for raw_line in stdout.lines() {
         let line = raw_line.trim_end_matches('\r');
         if line.is_empty() {
@@ -614,7 +607,6 @@ pub fn show_commit_diff(
 }
 
 fn parse_shortstat(tail: &str) -> (u32, u32, u32) {
-    // Looks for a line like " 5 files changed, 12 insertions(+), 3 deletions(-)"
     for line in tail.lines() {
         let trimmed = line.trim();
         if !(trimmed.contains("file changed") || trimmed.contains("files changed")) {
@@ -692,9 +684,6 @@ fn split_name_status_numstat(bytes: &[u8]) -> (&[u8], &[u8]) {
     for (idx, tok) in tokens.iter().enumerate() {
         if tok.1.contains('\t') {
             split_at = tok.0;
-            // Walk back: numstat for R/C with -z emits "<a>\t<r>" then two
-            // NUL-separated paths. The two trailing path tokens belong to the
-            // numstat block, not name-status.
             let _ = idx;
             break;
         }

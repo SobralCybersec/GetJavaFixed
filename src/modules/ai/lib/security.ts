@@ -29,10 +29,6 @@
  */
 
 const SECRET_BASENAME_PATTERNS: RegExp[] = [
-  // Match `.env` and `.env.<suffix>` with no required tail anchor — Windows
-  // strips trailing dots/spaces at open time and NTFS exposes alternate data
-  // streams via `name:stream`, both of which would otherwise slip past a `$`
-  // anchored pattern (`.env.`, `.env::$DATA`).
   /^\.env(\..+)?(?:[.\s:]|$)/i,
   /^.*\.pem(?:[.\s:]|$)/i,
   /^.*\.key(?:[.\s:]|$)/i, // private keys
@@ -42,8 +38,6 @@ const SECRET_BASENAME_PATTERNS: RegExp[] = [
   /^.*\.gpg(?:[.\s:]|$)/i,
   /^.*\.keystore(?:[.\s:]|$)/i,
   /^.*\.jks(?:[.\s:]|$)/i,
-  // Match `id_rsa`, `id_rsa.pub`, and common backup/copy patterns like
-  // `id_rsa.bak`, `id_rsa_old`, `id_rsa-backup`.
   /^id_(rsa|dsa|ecdsa|ed25519)([._-].*)?(?:[.\s:]|$)/i,
   /^known_hosts(?:[.\s:]|$)/i,
   /^authorized_keys(?:[.\s:]|$)/i,
@@ -73,16 +67,11 @@ const PROTECTED_DIRS = [
   "/.config/gh",
   "/.config/git",
   "/.config/gcloud",
-  "/.config/op", // 1Password CLI
-  "/.git", // git internals — refusing avoids tools mutating refs/objects
+  "/.config/op",
+  "/.git",
   "/.terraform.d",
   "/library/keychains",
   "/library/cookies",
-  // System dirs holding host secrets/PII/process state. Per-PID files under
-  // /proc leak env vars and command lines from other processes; /sys exposes
-  // kernel state and hardware identifiers. /etc and /private/etc hold global
-  // config that frequently contains credentials in basenames the regex won't
-  // match (passwd, shadow, master.passwd, *.cnf, *.conf with creds).
   "/etc",
   "/private/etc",
   "/proc",
@@ -91,21 +80,16 @@ const PROTECTED_DIRS = [
   "/var/root",
   "/private/var/db",
   "/private/var/root",
-  // Windows user profile equivalents (post drive-strip + lowercase).
   "/appdata/roaming/microsoft/credentials",
   "/appdata/local/microsoft/credentials",
   "/appdata/roaming/gcloud",
 ];
 
-/**
- * Write-only deny prefixes (system locations). Read access is *not* universally
- * blocked — reading `/etc/hosts` is fine; writing to it isn't.
- */
 const WRITE_DENY_PREFIXES = [
   "/etc/",
   "/var/db/",
   "/var/root/",
-  "/system/", // case-folded from /System/
+  "/system/",
   "/library/keychains/",
   "/library/launchagents/",
   "/library/launchdaemons/",
@@ -117,9 +101,6 @@ const WRITE_DENY_PREFIXES = [
   "/bin/",
   "/sbin/",
   "/boot/",
-  // Windows (post drive-strip + lowercase). Note: these block writes to the
-  // system drive's Windows / Program Files. Drives are stripped, so any
-  // /windows/... etc. matches regardless of drive letter.
   "/windows/",
   "/program files/",
   "/program files (x86)/",
@@ -133,30 +114,10 @@ function basename(p: string): string {
   return i >= 0 ? p.slice(i + 1) : p;
 }
 
-/**
- * Build a normalized *comparison surface* — never used as a real path:
- *  - back-slashes -> forward-slashes
- *  - strip Windows drive prefix (e.g. `C:`)
- *  - strip UNC prefix `//?/`
- *  - strip NTFS alternate-data-stream suffix (`name:stream` / `name::$DATA`)
- *    from each path segment — Windows reads `foo:stream` as `foo` for our
- *    purposes, so the comparison surface should too
- *  - strip trailing dots/spaces from each segment — Windows discards these
- *    at open time, so `.env.` and `.env ` open `.env`
- *  - collapse duplicate slashes
- *  - lowercase (so case variants match on case-insensitive filesystems)
- *  - drop trailing slash (except for root)
- */
 function comparisonForm(p: string): string {
   let s = p.replace(/\\/g, "/");
-  // UNC / extended-length prefix: \\?\C:\... or //?/C:/... → strip up to drive.
   s = s.replace(/^\/\/\?\//, "/");
-  // Drive prefix: C:/foo → /foo. Important: do this BEFORE lowercasing so we
-  // don't have to special-case "c:" vs "C:".
   s = s.replace(/^[a-zA-Z]:/, "");
-  // Strip NTFS alternate-data-stream syntax from each segment. `name:stream`
-  // and `name::$DATA` both read the same underlying file from `name`, so
-  // they must compare-equal to `name`.
   s = s
     .split("/")
     .map((seg) => {
@@ -164,34 +125,21 @@ function comparisonForm(p: string): string {
       return colon === -1 ? seg : seg.slice(0, colon);
     })
     .join("/");
-  // Strip trailing dots/spaces from each segment (Windows behavior).
   s = s
     .split("/")
     .map((seg) => seg.replace(/[.\s]+$/, ""))
     .join("/");
-  // Collapse duplicate slashes (//foo → /foo). Preserve a possible leading
-  // single slash.
   s = s.replace(/\/{2,}/g, "/");
   s = s.toLowerCase();
-  // Drop trailing slash so "/foo/" and "/foo" compare equal.
   if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
   return s;
 }
 
 function isUnderProtected(cmp: string, dir: string): boolean {
-  // Protected dirs (`/.ssh`, `/.config/gh`, …) live under the user's home or
-  // somewhere else in the tree — they are NOT root-anchored. Match the dir as
-  // a path-segment substring: append `/` to both sides so we don't match
-  // false positives like `/.sshx` against `/.ssh`.
-  //
-  //   "/users/me/.ssh/config" + "/" → contains "/.ssh/" ✓
-  //   "/users/me/.ssh"        + "/" → contains "/.ssh/" ✓
-  //   "/users/me/.sshx/file"  + "/" → does not contain "/.ssh/" ✓
   return (cmp + "/").includes(dir + "/");
 }
 
 function describeProtected(dir: string): string {
-  // "/.ssh" -> ".ssh", "/.config/gh" -> ".config/gh"
   return dir.replace(/^\//, "");
 }
 
@@ -199,8 +147,6 @@ export function checkReadable(path: string): SafetyResult {
   if (typeof path !== "string" || path.length === 0) {
     return { ok: false, reason: "Refused: empty path." };
   }
-  // Reject NUL and control bytes in paths — these are never legitimate and
-  // are a classic truncation/injection vector.
   if (/[\x00-\x1f]/.test(path)) {
     return { ok: false, reason: "Refused: path contains control bytes." };
   }
@@ -229,12 +175,10 @@ export function checkReadable(path: string): SafetyResult {
 }
 
 export function checkWritable(path: string): SafetyResult {
-  // Writes inherit all read restrictions, plus system-directory blocks.
   const r = checkReadable(path);
   if (!r.ok) return r;
 
   const cmp = comparisonForm(path);
-  // Ensure the comparison surface has a leading separator for prefix matching.
   const cmpForPrefix = cmp.startsWith("/") ? cmp : `/${cmp}`;
   for (const prefix of WRITE_DENY_PREFIXES) {
     if (cmpForPrefix.startsWith(prefix) || `${cmpForPrefix}/`.startsWith(prefix)) {
@@ -247,21 +191,6 @@ export function checkWritable(path: string): SafetyResult {
   return { ok: true };
 }
 
-/**
- * Lightweight heuristic for blocking obviously destructive shell commands
- * even after the user has approved them. The approval UI shows the command
- * verbatim, so the user is the primary gate; this just catches a couple of
- * patterns that almost certainly indicate the model went off the rails.
- */
-/**
- * Two-phase safety check that also defends against symlink traversal: first
- * checks the literal path, then (if it exists) canonicalizes it via the
- * native FS and re-checks the resolved path. A symlink at `./innocent.txt`
- * pointing into `~/.ssh/id_rsa` is caught on the second pass.
- *
- * Returns the canonical path on success so callers can use it for the actual
- * read — avoids TOCTOU between the safety check and the read.
- */
 export async function checkReadableCanonical(
   path: string,
   canonicalize: (p: string) => Promise<string>,
@@ -272,12 +201,9 @@ export async function checkReadableCanonical(
   try {
     canonical = await canonicalize(path);
   } catch {
-    // Path doesn't exist yet — fine for the read tool to surface ENOENT.
     return { ok: true, canonical: path };
   }
-  // Always recheck — even when canonicalize returns the same string, the
-  // checks themselves can have OS-specific gaps (NTFS streams, trailing
-  // dot/space) that warrant a second pass against the comparison form.
+
   const recheck = checkReadable(canonical);
   if (!recheck.ok) return recheck;
   return { ok: true, canonical };
@@ -294,16 +220,13 @@ export async function checkWritableCanonical(
 ): Promise<{ ok: true; canonical: string } | { ok: false; reason: string }> {
   const initial = checkWritable(path);
   if (!initial.ok) return initial;
-  // Try canonicalizing the target itself first.
+
   try {
     const canonical = await canonicalize(path);
-    // Always recheck the canonical form — same rationale as checkReadableCanonical.
     const recheck = checkWritable(canonical);
     if (!recheck.ok) return recheck;
     return { ok: true, canonical };
   } catch {
-    // Target doesn't exist — canonicalize the parent so we still catch a
-    // symlinked parent directory (`./project -> /Users/me/.ssh`).
     const lastSep = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     if (lastSep > 0) {
       const parent = path.slice(0, lastSep);
@@ -314,7 +237,6 @@ export async function checkWritableCanonical(
         if (!recheckParent.ok) return recheckParent;
         return { ok: true, canonical: canonParent + tail };
       } catch {
-        // Parent doesn't exist either — let the caller surface the actual error.
       }
     }
     return { ok: true, canonical: path };
@@ -326,8 +248,7 @@ export function checkShellCommand(cmd: string): SafetyResult {
   if (c.length === 0) {
     return { ok: false, reason: "Refused: empty command." };
   }
-  // Block C0 controls. CR/LF would let a second statement smuggle past the
-  // approval UI, which shows the command as one logical line.
+
   if (/[\x00-\x1f]/.test(c)) {
     return {
       ok: false,
@@ -335,17 +256,14 @@ export function checkShellCommand(cmd: string): SafetyResult {
         "Refused: command contains control characters (including CR/LF). Commands must be single-line.",
     };
   }
-  // Block Unicode bidi-override and invisible directional marks. These let an
-  // attacker craft a command whose visual order (in the approval UI's <pre>
-  // block) differs from its logical execution order — a Trojan Source attack.
-  // Legitimate shell commands do not need RTL overrides.
+
   if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F\u061C]/.test(c)) {
     return {
       ok: false,
       reason: "Refused: command contains Unicode bidirectional override characters.",
     };
   }
-  // rm -rf / (and variants with quoted /, --no-preserve-root, etc.)
+
   if (
     /\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--recursive\s+--force|--force\s+--recursive)\s+(['"]?\/['"]?\s*($|;|&|\|))/.test(
       c,
@@ -357,7 +275,6 @@ export function checkShellCommand(cmd: string): SafetyResult {
         "Refused: command attempts to recursively delete the filesystem root.",
     };
   }
-  // rm -rf ~ / $HOME — wiping the user's home dir
   if (
     /\brm\s+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*\s+(['"]?(~|\$HOME)['"]?)(\s|$|;|&|\|)/.test(
       c,
@@ -371,11 +288,11 @@ export function checkShellCommand(cmd: string): SafetyResult {
   if (/--no-preserve-root/.test(c)) {
     return { ok: false, reason: "Refused: --no-preserve-root is not allowed." };
   }
-  // dd to a raw disk device
+
   if (/\bdd\b[^|]*\bof=\/dev\/(disk|sd|nvme|hd)/i.test(c)) {
     return { ok: false, reason: "Refused: dd to a block device is not allowed." };
   }
-  // mkfs / fdisk / diskutil eraseDisk / parted
+
   if (
     /\b(mkfs(\.[a-z0-9]+)?|fdisk|parted)\b/.test(c) ||
     /\bdiskutil\s+erase/i.test(c)
@@ -385,12 +302,11 @@ export function checkShellCommand(cmd: string): SafetyResult {
       reason: "Refused: disk-formatting commands are not allowed.",
     };
   }
-  // Fork bomb
+
   if (/:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/.test(c)) {
     return { ok: false, reason: "Refused: fork-bomb pattern detected." };
   }
-  // Pipe-to-shell from network. The user already approves the command, but
-  // this combo is overwhelmingly malicious-payload-shaped and worth flagging.
+
   if (/\b(curl|wget)\b[^|;&]*\|\s*(ba|z|k|d|fi|c)?sh\b/.test(c)) {
     return {
       ok: false,

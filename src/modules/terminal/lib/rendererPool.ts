@@ -28,10 +28,6 @@ export type SlotAdapter = {
 export type LeafBridge = {
   writeToPty(data: string): void;
   resizePty(cols: number, rows: number): void;
-  // Force a SIGWINCH on the underlying PTY at the given dims. Implemented
-  // as a +1 row / restore bump because the Linux kernel suppresses winsize
-  // ioctls that don't actually change the size. Used to make alt-screen
-  // TUIs repaint from scratch after they were dormant.
   kickPty(cols: number, rows: number): void;
 };
 
@@ -260,9 +256,6 @@ export type AcquireParams = {
   leafId: number;
   container: HTMLDivElement;
   snapshot: string | null;
-  // True if the slot was in alt-screen mode (TUI like vim, htop, dofek)
-  // at the time it was released. When set, bindSlot skips ring replay
-  // and kicks SIGWINCH so the TUI repaints from scratch.
   altScreen: boolean;
   drainRing: (write: (bytes: Uint8Array) => void) => void;
   shellExited: boolean;
@@ -327,9 +320,6 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
     }
   }
   if (p.altScreen) {
-    // Discard the dormant ring. TUI output is incremental cursor-positioned
-    // updates that can't be replayed coherently on top of a stale snapshot
-    // — see the SIGWINCH kick below, which makes the TUI redraw from scratch.
     p.drainRing(() => {});
   } else {
     p.drainRing((bytes) => slot.term.write(bytes));
@@ -352,7 +342,6 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
   slot.lastW = p.container.clientWidth;
   slot.lastH = p.container.clientHeight;
   if (slot.lastCols !== p.cols || slot.lastRows !== p.rows) {
-    // resizePty updates session.cols/rows + pty backend; no separate scope call.
     adapter?.resolveLeaf(p.leafId)?.resizePty(slot.lastCols, slot.lastRows);
   }
 
@@ -513,8 +502,6 @@ function detachSlotFromLeaf(slot: Slot): void {
 }
 
 const WEBGL_RECOVERY_DELAY_MS = 250;
-// Below this a re-shown slot is fresh enough to trust; above it, repaint on
-// unhide to defeat silent GPU/context staleness.
 const SLOT_STALE_MS = 10_000;
 
 function attachWebgl(slot: Slot): void {
@@ -535,9 +522,6 @@ function attachWebgl(slot: Slot): void {
       try {
         webgl.dispose();
       } catch {}
-      // Recovery: WebKit may transiently lose contexts on sleep/wake or GPU
-      // reset; without re-attach the slot would silently fall back to DOM
-      // forever. Defer past WebKit's reset window before retrying.
       setTimeout(() => {
         if (slot.webglAddon) return;
         if (!usePreferencesStore.getState().terminalWebglEnabled) return;

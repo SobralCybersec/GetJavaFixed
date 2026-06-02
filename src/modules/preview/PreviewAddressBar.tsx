@@ -27,7 +27,6 @@ type PortPreset = {
   hint: string;
 };
 
-// Curated dev-server ports. Ordered by frontend frequency, then backend.
 const PORT_PRESETS: readonly PortPreset[] = [
   { port: 5173, label: "Vite", hint: "vite, sveltekit" },
   { port: 5174, label: "Vite (alt)", hint: "second vite instance" },
@@ -62,8 +61,6 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
     const [draft, setDraft] = useState(url);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Keep draft in sync when the parent updates the URL externally
-    // (AI tool, detected localhost chip, etc.).
     useEffect(() => {
       setDraft(url);
     }, [url]);

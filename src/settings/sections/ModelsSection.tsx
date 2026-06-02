@@ -734,7 +734,6 @@ function AutocompleteRow({
   const modelId = usePreferencesStore((s) => s.autocompleteModelId);
   const eligible = useMemo(() => getAutocompleteEligibleModels(), []);
 
-  // Fast cloud tiers + any configured local provider (one model id each).
   const items = useMemo(() => {
     const local = PROVIDERS.filter(
       (p) => isLocalProvider(p.id) && configuredIds.has(p.id),

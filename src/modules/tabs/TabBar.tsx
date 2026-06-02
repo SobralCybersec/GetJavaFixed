@@ -54,7 +54,6 @@ export function TabBar({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Horizontal wheel scroll without holding shift.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -68,7 +67,6 @@ export function TabBar({
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // Keep the active tab visible after selection / open.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;

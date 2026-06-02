@@ -37,7 +37,6 @@ export function ShortcutsSection() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const filteredShortcuts = useMemo(() => {
-    // Filter out internal/non-overridable shortcuts like tab.selectByIndex.
     const base = SHORTCUTS.filter((s) => s.id !== "tab.selectByIndex");
     if (!search) return base;
     const lower = search.toLowerCase();
@@ -282,11 +281,8 @@ function Recorder({
         return;
       }
 
-      // Require at least one primary modifier (Ctrl, Alt, Meta).
-      // Reject Shift‑only shortcuts that would insert a character.
       const hasPrimaryModifier = e.ctrlKey || e.altKey || e.metaKey;
-      const isCharacterKey = e.key.length === 1; // anything that types a glyph
-      // this blocks shortcuts such as Shift+2 which would be "@" and Shift+, which would be "<" on many layouts
+      const isCharacterKey = e.key.length === 1; 
       if (!hasPrimaryModifier && (!e.shiftKey || isCharacterKey)) {
         return;
       }

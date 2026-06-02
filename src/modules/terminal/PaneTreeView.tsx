@@ -38,8 +38,6 @@ export function PaneTreeView({
         onMouseDownCapture={() => {
           if (!focused) onFocusLeaf(node.id);
         }}
-        // Catches focus from Tab, programmatic focus, or any path that
-        // skips mousedown — keeps activeLeafId in sync with DOM focus.
         onFocus={() => {
           if (!focused) onFocusLeaf(node.id);
         }}

@@ -47,7 +47,6 @@ import {
 } from "./lib/remoteWebUrl";
 
 const RAIL_RESERVED_PX = railWidth(MAX_VISIBLE_LANES);
-// rail | sha | subject(capped) | spacer(absorbs slack) | author(hugs) | date | changes
 const GRID_TEMPLATE = `${RAIL_RESERVED_PX + 4}px 60px minmax(0, 560px) minmax(12px, 1fr) minmax(140px, max-content) 96px 116px`;
 
 const PAGE_SIZE = 30;
@@ -125,14 +124,14 @@ function authorInitials(name: string): string {
 }
 
 const AUTHOR_TINTS = [
-  "#7aa2f7", // soft blue
-  "#bb9af7", // soft purple
-  "#9ece6a", // soft green
-  "#e0af68", // soft amber
-  "#f7768e", // soft rose
-  "#73daca", // soft teal
-  "#ff9e64", // soft orange
-  "#b4f9f8", // pale cyan
+  "#7aa2f7", 
+  "#bb9af7", 
+  "#9ece6a", 
+  "#e0af68", 
+  "#f7768e",
+  "#73daca", 
+  "#ff9e64", 
+  "#b4f9f8",
 ];
 
 function authorTint(key: string): string {
@@ -200,8 +199,6 @@ export function GitHistoryPane({
   const [endReached, setEndReached] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const deferredSearch = useDeferredValue(searchInput.trim());
-  // Require at least 2 characters before filtering to avoid noisy single-char
-  // matches and pointless full-list scans on every keystroke.
   const activeSearch = deferredSearch.length >= 2 ? deferredSearch : "";
 
   useEffect(() => {
@@ -397,9 +394,6 @@ export function GitHistoryPane({
     }
   }, [activeSearch, loadMore]);
 
-  // Auto-fill: if the list doesn't fill the viewport (no scroll possible)
-  // after a load, keep pulling pages until it does or the end is reached.
-  // Scheduled async so we don't fight ongoing state transitions.
   useEffect(() => {
     if (loadStatus !== "idle") return;
     if (endReached) return;
@@ -456,8 +450,7 @@ export function GitHistoryPane({
         setOpenAnchor(null);
         return;
       }
-      // Anchor at the cursor so the popover opens where the user clicked,
-      // but clamp X so it never gets pushed off-screen on the right.
+
       const POPOVER_WIDTH = 420;
       const PADDING = 16;
       const maxLeft = window.innerWidth - POPOVER_WIDTH - PADDING;

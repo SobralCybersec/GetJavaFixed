@@ -34,14 +34,12 @@ fn ip_kind(ip: IpAddr) -> IpKind {
     match ip {
         IpAddr::V4(v) => {
             let o = v.octets();
-            // Cloud metadata IPv4: 169.254.169.254
             if v.is_link_local() {
                 return IpKind::BlockedMetadata;
             }
             if v.is_loopback() || v.is_unspecified() || v.is_broadcast() || v.is_multicast() {
                 return IpKind::Loopback;
             }
-            // RFC1918 + CGNAT + benchmarking + IETF
             if o[0] == 10
                 || (o[0] == 172 && (16..=31).contains(&o[1]))
                 || (o[0] == 192 && o[1] == 168)
@@ -56,16 +54,16 @@ fn ip_kind(ip: IpAddr) -> IpKind {
             if v.is_loopback() || v.is_unspecified() || v.is_multicast() {
                 return IpKind::Loopback;
             }
-            // Cloud metadata IPv6 (AWS): fd00:ec2::254
+
             let segs = v.segments();
             if segs[0] == 0xfd00 && segs[1] == 0xec2 {
                 return IpKind::BlockedMetadata;
             }
-            // fe80::/10 link-local
+
             if segs[0] & 0xffc0 == 0xfe80 {
                 return IpKind::BlockedMetadata;
             }
-            // fc00::/7 unique-local (private)
+  
             if segs[0] & 0xfe00 == 0xfc00 {
                 return IpKind::Private;
             }
@@ -82,11 +80,7 @@ enum IpKind {
     BlockedMetadata,
 }
 
-/// Resolve `host` once and return both its safety classification and the
-/// concrete IPs we resolved. Callers can pin reqwest to these IPs to defeat
-/// DNS rebinding (where a second lookup returns a different address).
 async fn resolve_and_classify(host: &str) -> Result<(IpKind, Vec<IpAddr>), String> {
-    // Direct literal? Skip DNS.
     if let Ok(ip) = host.parse::<IpAddr>() {
         return Ok((ip_kind(ip), vec![ip]));
     }
@@ -133,14 +127,11 @@ fn validate_url(url: &str, allow_private: bool) -> Result<reqwest::Url, String> 
     if is_blocked_host_name(host) {
         return Err(format!("host not allowed: {host}"));
     }
-    // The actual IP classification has to be async — caller does it.
+
     let _ = allow_private;
     Ok(parsed)
 }
 
-/// Classify the host AND return safe IPs to pin reqwest's resolver to.
-/// Defeats DNS rebinding (second-lookup-returns-different-IP) by reusing
-/// exactly the addresses that passed `ip_kind`.
 async fn classify_and_collect_safe_ips(
     host: &str,
     allow_private: bool,
@@ -177,7 +168,7 @@ fn sanitize_headers(headers: Option<HashMap<String, String>>) -> Result<HeaderMa
         if HEADER_BLOCKLIST.contains(&lower.as_str()) {
             return Err(format!("header not allowed: {k}"));
         }
-        // CRLF injection: header value must not contain CR / LF / NUL.
+
         if v.as_bytes().iter().any(|b| matches!(b, 0 | b'\r' | b'\n')) {
             return Err(format!("header value contains control bytes: {k}"));
         }
@@ -215,8 +206,6 @@ pub async fn lm_ping(base_url: String) -> Result<u16, String> {
         .map(|r| r.status().as_u16())
         .map_err(|e| e.to_string())
 }
-// AI HTTP proxy — bypasses webview CORS / Mixed-Content / PNA so local-network
-// model servers (LM Studio, Ollama, vLLM) work in the production bundle.
 
 #[derive(Debug, Serialize)]
 pub struct HttpResponse {
@@ -248,11 +237,7 @@ fn build_safe_client(
 ) -> Result<reqwest::Client, String> {
     let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10));
-    // Pin reqwest's resolver to the IPs we just classified. Without this,
-    // reqwest's own DNS lookup could return a different (private/metadata) IP
-    // for the same hostname between classify and connect — classic DNS
-    // rebinding attack. We pin port 0 because reqwest fills in the actual
-    // port from the URL when wiring up the override map.
+
     for (host, ips) in pinned {
         let addrs: Vec<SocketAddr> = ips.iter().map(|ip| SocketAddr::new(*ip, 0)).collect();
         if !addrs.is_empty() {
@@ -417,7 +402,6 @@ pub async fn ai_http_stream(
                     })
                     .is_err()
                 {
-                    // Channel dropped (frontend aborted) — stop streaming.
                     return Ok(());
                 }
             }
@@ -441,22 +425,21 @@ mod tests {
 
     #[test]
     fn metadata_ips_classified_as_blocked() {
-        // AWS / Google / Azure all share the IPv4 169.254.169.254 link-local.
         assert_eq!(
             ip_kind(IpAddr::V4(Ipv4Addr::new(169, 254, 169, 254))),
             IpKind::BlockedMetadata
         );
-        // AWS IPv6 metadata
+
         assert_eq!(
             ip_kind("fd00:ec2::254".parse().unwrap()),
             IpKind::BlockedMetadata
         );
-        // Any link-local IPv4 (169.254/16) — same network range, still blocked.
+    
         assert_eq!(
             ip_kind(IpAddr::V4(Ipv4Addr::new(169, 254, 1, 1))),
             IpKind::BlockedMetadata
         );
-        // IPv6 link-local fe80::/10
+   
         assert_eq!(
             ip_kind("fe80::1".parse().unwrap()),
             IpKind::BlockedMetadata
@@ -477,7 +460,7 @@ mod tests {
             ip_kind(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1))),
             IpKind::Private
         );
-        // CGNAT 100.64/10
+
         assert_eq!(
             ip_kind(IpAddr::V4(Ipv4Addr::new(100, 64, 0, 1))),
             IpKind::Private
@@ -507,9 +490,7 @@ mod tests {
 
     #[test]
     fn validate_url_blocks_userinfo_and_metadata_hostnames() {
-        // URLs with userinfo can confuse browsers / leak creds in redirects.
         assert!(validate_url("http://user:pass@example.com/", true).is_err());
-        // Cloud metadata-by-name.
         assert!(validate_url("http://metadata.google.internal/", true).is_err());
         assert!(validate_url("http://metadata/", true).is_err());
         assert!(validate_url("http://metadata.azure.com/", true).is_err());

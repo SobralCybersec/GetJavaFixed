@@ -45,7 +45,6 @@ function basename(path: string): string {
 }
 
 export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
-  // File mode: dir segments navigate; filename is the terminal leaf.
   if (filePath) {
     const dir = dirname(filePath);
     const name = basename(filePath);

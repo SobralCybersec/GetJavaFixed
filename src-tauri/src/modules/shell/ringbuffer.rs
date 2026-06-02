@@ -1,18 +1,9 @@
 use std::collections::VecDeque;
 
-/// Byte-oriented bounded ring buffer with monotonic offsets.
-///
-/// Callers tail the buffer using `since_offset`: each `push` advances
-/// `next_offset` by the number of bytes appended, even when older bytes are
-/// dropped to fit the cap. `read_from(since)` returns the slice of bytes from
-/// the requested offset (clamped to whatever is still resident) plus the new
-/// offset for the next call.
 pub struct BoundedRingBuffer {
     buf: VecDeque<u8>,
     cap: usize,
     next_offset: u64,
-    /// Bytes that were dropped to keep the buffer ≤ cap. Helps the caller
-    /// detect overflow ("you missed N bytes").
     dropped: u64,
 }
 
@@ -29,7 +20,6 @@ impl BoundedRingBuffer {
     pub fn push(&mut self, data: &[u8]) {
         self.next_offset = self.next_offset.saturating_add(data.len() as u64);
         if data.len() >= self.cap {
-            // Incoming chunk alone exceeds cap: keep only its tail.
             let keep_from = data.len() - self.cap;
             self.dropped = self
                 .dropped

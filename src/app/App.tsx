@@ -187,7 +187,7 @@ function readSidebarView(): SidebarViewId {
     const stored = window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY);
     if (stored === "explorer" || stored === "source-control") return stored;
   } catch {
-    // ignore
+
   }
   return "explorer";
 }
@@ -226,8 +226,7 @@ export default function App() {
     resetWorkspace,
   } = useTabs(getLaunchDir() ? { cwd: getLaunchDir() } : undefined);
 
-  // Mirror `tabs` into a ref so callbacks scheduled with `setTimeout`
-  // (e.g. cdInNewTab) read the latest pane state instead of a stale closure.
+
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
 
@@ -261,7 +260,7 @@ export default function App() {
     try {
       window.localStorage.setItem(SIDEBAR_VIEW_STORAGE_KEY, view);
     } catch {
-      // storage may fail in private mode
+      
     }
   }, []);
   const toggleSidebar = useCallback(() => {
@@ -297,7 +296,7 @@ export default function App() {
       try {
         window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(next));
       } catch {
-        // ignore
+        
       }
     }, 200);
   }, []);
@@ -358,7 +357,7 @@ export default function App() {
         try {
           await native.workspaceAuthorize(normalized);
         } catch {
-          // Bootstrap already authorizes home from Rust; ignore.
+          
         }
       })
       .catch(() => setHome(null));
@@ -405,7 +404,7 @@ export default function App() {
         try {
           await native.workspaceAuthorize(nextHome);
         } catch {
-          // Non-fatal — git panel will surface "not authorized" if needed.
+          
         }
       }
       resetWorkspace(nextHome ?? undefined);
@@ -450,7 +449,7 @@ export default function App() {
         try {
           await native.workspaceAuthorize(normalizedPath);
         } catch {
-          // Findings flow will surface any real auth errors later.
+
         }
         setJavaRepoHomeState({
           kind: "supported",
@@ -639,8 +638,6 @@ export default function App() {
     };
   }, [setApiKeys]);
 
-  // Hydrate the cross-window preference store and mirror the default model
-  // into chatStore so the dropdown reflects what the user picked in Settings.
   const initPrefs = usePreferencesStore((s) => s.init);
   const prefDefaultModel = usePreferencesStore((s) => s.defaultModelId);
   const prefsHydrated = usePreferencesStore((s) => s.hydrated);
@@ -700,10 +697,6 @@ export default function App() {
     activeTab?.kind === "git-diff" || activeTab?.kind === "git-commit-file";
   const isGitHistoryTab = activeTab?.kind === "git-history";
 
-  // When an AI diff is approved (write_file applied to disk), reload any
-  // open editor tabs for that path so the user sees the new content. We
-  // track which approvalIds we've already handled to fire the reload only
-  // once per applied diff.
   const appliedDiffsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const t of tabs) {
@@ -773,8 +766,6 @@ export default function App() {
     };
   }, []);
 
-  // Theme editing: a custom theme is materialized to a real file and edited in
-  // the code editor. Saving it re-ingests into the runtime store + applies live.
   useEffect(() => {
     type FileWrittenPayload = { path: string; source?: string };
     const unlistenPromise = getCurrentWebviewWindow().listen<FileWrittenPayload>(
@@ -858,9 +849,6 @@ export default function App() {
 
   const disposeTab = useCallback(
     (id: number) => {
-      // Terminal-leaf-keyed maps (terminalRefs/searchAddons) are pruned by
-      // the effect below as the pane tree changes; only the tab-id-keyed
-      // handles need explicit cleanup here.
       editorRefs.current.delete(id);
       previewRefs.current.delete(id);
       closeTab(id);
@@ -868,8 +856,6 @@ export default function App() {
     [closeTab],
   );
 
-  // Drives session disposal off the pane tree, not React lifecycles —
-  // split/unsplit re-mount components but the leaf is still live.
   const liveLeavesRef = useRef<Set<number>>(new Set());
   useEffect(() => {
     const live = new Set<number>();
@@ -955,8 +941,6 @@ export default function App() {
         void openSettingsWindow("models");
         return;
       }
-      // Dispatch a window event the composer listens for. Same pattern as
-      // selections — keeps file-explorer decoupled from the AI module.
       window.dispatchEvent(
         new CustomEvent<string>("javarf:ai-attach-file", { detail: path }),
       );
@@ -1011,7 +995,7 @@ export default function App() {
       const el = e.target as HTMLElement | null;
       const inContentArea = el?.closest?.(".xterm, .cm-editor");
       if (!inContentArea) return;
-      // Defer one tick so xterm/CodeMirror finalize the selection.
+
       setTimeout(() => {
         const text = captureActiveSelection();
         if (text && text.trim().length > 0) {
@@ -1071,8 +1055,6 @@ export default function App() {
 
   const handleOpenFile = useCallback(
     (path: string, pin?: boolean) => {
-      // Explorer defaults to preview (pin=false); explicit actions like
-      // context-menu "Open" pass pin=true for a persistent tab.
       openFileTab(path, pin ?? false);
       const normalizedPath = path.replace(/\\/g, "/");
       const activeJavaRepo =
@@ -1198,9 +1180,6 @@ export default function App() {
   );
   const sourceControlActive =
     hasOpenGitTab || sidebarView === "source-control";
-  // Stable per-session path so switching tabs / cd-ing in a shell does NOT
-  // re-fire git IPC for the badge. The active panel resolves the current
-  // context path on its own when the user actually opens git.
   const badgeContextPath = workspaceFallbackPath;
   const sourceControlPath = sourceControlActive
     ? sourceControlContextPath
@@ -1239,7 +1218,6 @@ export default function App() {
   const openPreviewTab = useCallback(
     (url: string) => {
       const id = newPreviewTab(url);
-      // Focus the address bar if the URL is empty so the user can type.
       if (!url) {
         setTimeout(() => previewRefs.current.get(id)?.focusAddressBar(), 0);
       }
@@ -1341,8 +1319,6 @@ export default function App() {
         return !sel || !sel.trim();
       }
       if (id === "terminal.clear") {
-        // Only intercept ⌘K while a terminal is focused; elsewhere let the key
-        // fall through (we never preventDefault when disabled).
         const target =
           (e.target as HTMLElement | null) ?? document.activeElement;
         return !(target as HTMLElement | null)?.closest?.(".xterm");

@@ -19,7 +19,6 @@ export async function openPty(
   handlers: PtyHandlers,
   cwd?: string,
 ): Promise<PtySession> {
-  // Raw bytes — no base64/JSON round-trip; messages arrive as ArrayBuffer.
   const onData = new Channel<ArrayBuffer>();
   const onExit = new Channel<number>();
 

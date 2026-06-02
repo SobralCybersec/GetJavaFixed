@@ -177,7 +177,6 @@ where
     }
 }
 
-/// Run git, returning multiple stdout lines (UTF-8). Empty trailing lines stripped.
 pub fn git_stdout_lines<I, S>(workspace: &WorkspaceEnv, cwd: &str, args: I) -> Result<Vec<String>>
 where
     I: IntoIterator<Item = S>,
@@ -444,7 +443,6 @@ mod tests {
         assert!(version_meets_minimum("3.0.0", "2.23"));
         assert!(!version_meets_minimum("2.22.0", "2.23"));
         assert!(!version_meets_minimum("1.9.5", "2.23"));
-        // patch component must not regress the comparison
         assert!(version_meets_minimum("2.23.5", "2.23.4"));
         assert!(!version_meets_minimum("2.23.3", "2.23.4"));
     }

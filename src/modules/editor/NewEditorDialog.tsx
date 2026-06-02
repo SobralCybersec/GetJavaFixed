@@ -40,8 +40,6 @@ export function NewEditorDialog({
     if (!open) return;
     setName("untitled.txt");
     setError(null);
-    // Pre-select the basename so the user can quickly retype the filename
-    // while keeping the extension handy.
     setTimeout(() => {
       const el = inputRef.current;
       if (!el) return;

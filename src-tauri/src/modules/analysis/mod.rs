@@ -14,8 +14,6 @@ use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 const JAVA_FILE_LIMIT: usize = 8_000;
 const ENTRY_LIMIT: usize = 100_000;
 
-// ── Safety snapshot ──────────────────────────────────────────────────────────
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SafetyKind {
@@ -45,7 +43,6 @@ pub fn java_safety_snapshot(
 }
 
 pub fn compute_safety_snapshot(root: &Path) -> JavaSafetySnapshot {
-    // Walk up to find a .git directory — same logic as git rev-parse --show-toplevel
     let mut cur = root.to_path_buf();
     loop {
         if cur.join(".git").exists() {
@@ -321,7 +318,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
         let line_count = content.lines().count();
 
-        // ── Safe refactor findings (ANLY-01) ─────────────────────────────────
         if content.contains("System.out.println") {
             findings.push(Phase1Finding {
                 id: format!("println:{rel}"),
@@ -349,7 +345,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             });
         }
 
-        // Catch-all empty catch blocks — safe to flag, risky to leave
         if content.contains("catch (") {
             let mut in_catch = false;
             let mut brace_depth = 0i32;
@@ -371,14 +366,13 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
                         } else if ch == '}' {
                             brace_depth -= 1;
                             if brace_depth == 0 && catch_body_start {
-                                // empty catch: only whitespace/braces between { }
                                 in_catch = false;
                             }
                         }
                     }
                 }
             }
-            // Simpler heuristic: look for `catch (` followed by `}` with nothing between
+
             let lines_vec: Vec<&str> = content.lines().collect();
             for i in 0..lines_vec.len().saturating_sub(1) {
                 let l = lines_vec[i].trim();
@@ -401,7 +395,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             }
         }
 
-        // ── Performance findings (ANLY-02) ───────────────────────────────────
         if line_count > 180 {
             findings.push(Phase1Finding {
                 id: format!("long-file:{rel}"),
@@ -416,7 +409,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             });
         }
 
-        // String concatenation inside loops is a classic performance issue
         {
             let mut in_loop = false;
             for line in content.lines() {
@@ -446,7 +438,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             }
         }
 
-        // Repeated calls to size() in loop condition
         if content.contains(".size()") {
             for line in content.lines() {
                 let t = line.trim();
@@ -467,7 +458,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             }
         }
 
-        // ── Modernization findings (ANLY-03) ─────────────────────────────────
         if content.contains("Vector<")
             || content.contains("Hashtable<")
             || content.contains("Enumeration<")
@@ -483,7 +473,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             });
         }
 
-        // Raw types (pre-generics)
         if content.contains("List ") && !content.contains("List<") {
             findings.push(Phase1Finding {
                 id: format!("raw-type:{rel}"),
@@ -496,7 +485,6 @@ fn scan_findings_in_scope(repo_root: &Path, scan_root: &Path) -> Result<ScanFind
             });
         }
 
-        // instanceof without pattern matching (Java 16+)
         if content.contains("instanceof ") && !content.contains("instanceof (") {
             let has_old_instanceof = content.lines().any(|line| {
                 let t = line.trim();

@@ -30,7 +30,7 @@ function loadGeom(): Geom | null {
       return { x: p.x, y: p.y, w: p.w, h: p.h };
     }
   } catch {
-    // corrupt entry — fall back to default placement
+
   }
   return null;
 }
@@ -39,7 +39,7 @@ function saveGeom(g: Geom) {
   try {
     window.localStorage.setItem(STORE_KEY, JSON.stringify(g));
   } catch {
-    // private mode / quota — geometry just won't persist
+    
   }
 }
 
@@ -84,8 +84,7 @@ export function useMiniWindowGeometry() {
       el.style.width = `${g.w}px`;
       el.style.height = `${g.h}px`;
     }
-    // Reclamp into the new viewport; persistence is left to the next gesture
-    // since loadGeom re-clamps on startup anyway.
+
     const onResize = () => write(clampGeom(geom.current, viewport()));
     window.addEventListener("resize", onResize);
     return () => {
@@ -101,9 +100,6 @@ export function useMiniWindowGeometry() {
       const startX = e.clientX;
       const startY = e.clientY;
       const start = geom.current;
-      // Don't capture the pointer or call preventDefault until the gesture
-      // actually moves past the threshold, so a plain click on the header
-      // still reaches its buttons, dropdowns and focus handlers.
       let armed = threshold <= 0;
       if (armed) {
         e.preventDefault();

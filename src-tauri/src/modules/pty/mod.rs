@@ -19,8 +19,6 @@ use session::Session;
 
 pub struct PtyState {
     sessions: RwLock<HashMap<u32, Arc<Session>>>,
-    // Starts at 1 so freshly-handed-out ids are never 0, which the frontend
-    // sometimes treats as "unset". Increments monotonically; never reused.
     next_id: AtomicU32,
 }
 
@@ -81,15 +79,12 @@ pub fn pty_write(state: tauri::State<PtyState>, id: u32, data: String) -> Result
             log::warn!("pty_write: unknown id={id}");
             "no session".to_string()
         })?;
-    // Bind to a local so the MutexGuard temporary drops before `session` —
-    // see rustc note on tail-expression temporary drop order.
     let result = session
         .writer
         .lock()
         .unwrap()
         .write_all(data.as_bytes())
         .map_err(|e| {
-            // EPIPE is expected if the child already exited.
             log::debug!("pty_write id={id} failed: {e}");
             e.to_string()
         });
@@ -135,13 +130,9 @@ pub fn pty_close(state: tauri::State<PtyState>, id: u32) -> Result<(), String> {
     let session = state.sessions.write().unwrap().remove(&id);
     if let Some(s) = session {
         if let Err(e) = s.killer.lock().unwrap().kill() {
-            // Non-fatal: the child may already have exited on its own (e.g. the
-            // user ran `exit`). Log so this isn't invisible during debugging.
             log::debug!("pty_close: kill id={id} returned {e}");
         }
         log::info!("pty closed id={id}");
-        // Detached: on Windows `ClosePseudoConsole` can block until conhost
-        // drains, which would freeze this Tauri worker thread and stall IPC.
         thread::Builder::new()
             .name(format!("javarf-pty-drop-{id}"))
             .spawn(move || {
@@ -159,8 +150,6 @@ pub fn pty_close(state: tauri::State<PtyState>, id: u32) -> Result<(), String> {
     Ok(())
 }
 
-// A fresh webview load orphans the previous frontend's sessions in this still
-// running process; reap them on boot before any new tab spawns.
 #[tauri::command]
 pub fn pty_close_all(state: tauri::State<PtyState>) -> Result<usize, String> {
     let drained: Vec<(u32, Arc<Session>)> = {

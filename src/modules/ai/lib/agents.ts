@@ -91,7 +91,6 @@ export type LoadedAgents = {
 };
 
 export async function loadAgents(): Promise<LoadedAgents> {
-  // One IPC roundtrip via entries() instead of two sequential get()s.
   const entries = await store.entries();
   let custom: Agent[] | undefined;
   let activeId: string | undefined;

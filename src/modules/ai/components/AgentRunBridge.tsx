@@ -68,8 +68,6 @@ function Bridge({
   const persistMessages = useChatStore((s) => s.persistMessages);
   const setApprovalResponder = useChatStore((s) => s.setApprovalResponder);
 
-  // Expose the approval responder so the diff tab can resolve approvals.
-  // We keep it in a ref-stable closure so identity is stable per render.
   useEffect(() => {
     setApprovalResponder((id, approved) =>
       addToolApprovalResponse({ id, approved }),
@@ -81,8 +79,7 @@ function Bridge({
     persistMessages(sessionId, messages);
   }, [sessionId, messages, persistMessages]);
 
-  // Flush the debounced write whenever the chat goes idle (or errors),
-  // and on unmount, so a closed app or session-switch never loses the tail.
+
   useEffect(() => {
     if (status !== "submitted" && status !== "streaming") {
       flushPersist(sessionId);
@@ -124,9 +121,6 @@ function Bridge({
     if (approvalsPending > 0) openMini();
   }, [approvalsPending, openMini]);
 
-  // ---- AI diff tab management ----------------------------------------------
-  // We track which approvalIds have already opened a tab so re-renders don't
-  // open duplicates. Reset when the session changes.
   const openedRef = useRef<Set<string>>(new Set());
   const fileMutationFingerprintRef = useRef<string>("");
   useEffect(() => {
@@ -134,9 +128,6 @@ function Bridge({
     fileMutationFingerprintRef.current = "";
   }, [sessionId]);
 
-  // Cheap fingerprint of file-mutation tool parts only. The diff-tab effect
-  // is the most expensive thing on the streaming path, so we skip it when
-  // only text/reasoning tokens have arrived (the common case).
   const fileMutationFingerprint = useMemo(() => {
     let fp = "";
     for (const m of messages) {
@@ -211,7 +202,7 @@ function Bridge({
       const cwd = useChatStore.getState().live.getCwd();
       for (const p of pending) {
         if (cancelled) return;
-        // Mark as opened up-front so a re-render mid-await doesn't double-open.
+  
         openedRef.current.add(p.approvalId);
         let abs: string;
         try {
@@ -227,8 +218,6 @@ function Bridge({
         } else {
           const r = applyEditsLocally(original.content, p.derive.edits);
           if (!r.ok) {
-            // Edit precondition failed (string not found / not unique).
-            // Skip opening the tab; the approval modal will surface the error.
             continue;
           }
           proposed = r.content;
@@ -352,15 +341,11 @@ function applyEditsLocally(
 async function readOriginal(
   abs: string,
 ): Promise<{ content: string; isNewFile: boolean }> {
-  // The fs guard rejects sensitive paths even on read; mirror that here so
-  // the user sees an empty "before" rather than an error tab.
   const safety = checkReadable(abs);
   if (!safety.ok) return { content: "", isNewFile: false };
   try {
     const r = await native.readFile(abs);
     if (r.kind === "text") return { content: r.content, isNewFile: false };
-    // Binary or oversized — we can't render the original sensibly. Show the
-    // proposed content as a "new" view; the user can still cancel.
     return { content: "", isNewFile: false };
   } catch (e) {
     const msg = String(e).toLowerCase();

@@ -326,8 +326,6 @@ const RenderedMessage = memo(function RenderedMessage({
   onApproval: (id: string, approved: boolean) => void;
   streaming: boolean;
 }) {
-  // Index of the trailing text part — only that one is "live" mid-stream.
-  // Earlier text parts (separated by tool calls) are already finalized.
   let lastTextIdx = -1;
   for (let i = message.parts.length - 1; i >= 0; i -= 1) {
     if (message.parts[i]?.type === "text") {

@@ -65,7 +65,7 @@ export function UpdaterDialog() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // ignore
+   
     }
   };
   const progress =

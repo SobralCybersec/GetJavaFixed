@@ -21,9 +21,6 @@ export type LoadedSessions = {
 };
 
 export async function loadAll(): Promise<LoadedSessions> {
-  // One IPC roundtrip via entries() rather than two parallel get()s. Per-
-  // session messages are loaded lazily via `loadMessages` only when a
-  // session is opened, so cold boot stays at a single store call.
   const entries = await store.entries();
   let sessions: SessionMeta[] | undefined;
   let activeId: string | null | undefined;

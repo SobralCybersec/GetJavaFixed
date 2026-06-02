@@ -129,8 +129,6 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const waitingCount =
     active.filter((s) => s.status === "waiting").length +
     (localAgent?.status === "waiting" ? 1 : 0);
-  // attention maps to an active waiting session, so only completed events add
-  // to the badge to avoid double-counting.
   const unreadDone = notifications.filter(
     (n) => !n.read && n.kind !== "attention",
   ).length;

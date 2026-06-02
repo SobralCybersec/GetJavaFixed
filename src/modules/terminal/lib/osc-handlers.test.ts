@@ -34,9 +34,6 @@ describe("OSC 7 cwd handler — gated by OSC 133 in-command state", () => {
     const onCwd = vi.fn();
     registerPromptTracker(term, state);
     registerCwdHandler(term, onCwd, state);
-
-    // OSC 133 A means "new prompt is about to be drawn" — we're between
-    // commands and OSC 7 from the shell is legitimate here.
     handlers.get(133)?.("A");
     handlers.get(7)?.("file://host/home/me/project");
 
@@ -49,12 +46,9 @@ describe("OSC 7 cwd handler — gated by OSC 133 in-command state", () => {
     const onCwd = vi.fn();
     registerPromptTracker(term, state);
     registerCwdHandler(term, onCwd, state);
-
-    // Simulate: user runs `ssh attacker.host`, which prints attacker bytes
-    // including an OSC 7 trying to silently move the AI's cwd into /etc.
-    handlers.get(133)?.("A"); // prompt drawn
-    handlers.get(133)?.("B"); // command begins (user hit enter)
-    handlers.get(7)?.("file://host/etc"); // attacker injection
+    handlers.get(133)?.("A"); 
+    handlers.get(133)?.("B");
+    handlers.get(7)?.("file://host/etc"); 
 
     expect(onCwd).not.toHaveBeenCalled();
   });
@@ -67,18 +61,16 @@ describe("OSC 7 cwd handler — gated by OSC 133 in-command state", () => {
     registerCwdHandler(term, onCwd, state);
 
     handlers.get(133)?.("A");
-    handlers.get(133)?.("B"); // running
-    handlers.get(7)?.("file://host/etc"); // blocked
-    handlers.get(133)?.("D;0"); // command exited
-    handlers.get(7)?.("file://host/home/me/new-cwd"); // legitimate post-cmd OSC 7
+    handlers.get(133)?.("B"); 
+    handlers.get(7)?.("file://host/etc"); 
+    handlers.get(133)?.("D;0"); 
+    handlers.get(7)?.("file://host/home/me/new-cwd"); 
 
     expect(onCwd).toHaveBeenCalledTimes(1);
     expect(onCwd).toHaveBeenCalledWith("/home/me/new-cwd");
   });
 
   it("works without state for backwards compatibility (legacy callers)", () => {
-    // The state parameter is optional — when omitted, OSC 7 is always
-    // honored (legacy behavior). Tests must confirm we didn't break this.
     const { term, handlers } = makeFakeTerm();
     const onCwd = vi.fn();
     registerCwdHandler(term, onCwd);

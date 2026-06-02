@@ -121,11 +121,6 @@ export type ToolProps = ComponentProps<typeof Collapsible> & {
   errorText?: string;
 };
 
-// Tools whose `input` carries large/streaming content (file bodies, sub-
-// agent prompts, todo lists). The AI diff tab is the canonical place to
-// view file changes; for the rest, the header summary + final output is
-// enough. Re-rendering streamed input on every token both stalls the UI
-// and duplicates information.
 const HEAVY_CONTENT_TOOLS = new Set([
   "write_file",
   "edit",
@@ -151,8 +146,6 @@ const ToolImpl = ({
   const isError = state === "output-error";
   const open = defaultOpen ?? isError;
   const isHeavy = HEAVY_CONTENT_TOOLS.has(toolName);
-  // For heavy tools, only show details on error — never the streamed input
-  // body, which is huge and re-renders per token.
   const showInputBody = !isHeavy && Boolean(input);
   const showOutputBody = !isHeavy && output !== undefined;
   const hasDetails =
@@ -220,9 +213,6 @@ const ToolImpl = ({
   );
 };
 
-// For heavy tools, the only thing that should trigger a re-render is a
-// state transition or the path summary changing — NOT every input-content
-// token. We compare the cheap derived summary instead of the input ref.
 export const Tool = memo(ToolImpl, (a, b) => {
   if (a.toolName !== b.toolName || a.state !== b.state) return false;
   if (a.errorText !== b.errorText) return false;
@@ -691,9 +681,6 @@ function formatBytes(n: number): string {
 }
 
 function CodeBlockMini({ code }: { code: string; language: string }) {
-  // Tool input/output is debug-grade detail — JSON arrives pre-formatted and
-  // file content is shown in the editor diff tab. Highlighting here is not
-  // worth the parser hop.
   return (
     <pre className="max-h-60 overflow-auto rounded bg-muted/40 p-2 font-mono text-[11px] leading-relaxed text-foreground whitespace-pre-wrap">
       {code}
@@ -749,9 +736,6 @@ function SuggestCommandCard({
   );
 }
 
-// Compatibility re-exports — the previous API exposed these subcomponents,
-// but the new compact <Tool /> takes everything via props. Kept as no-ops
-// to avoid breaking accidental imports.
 export const ToolHeader = () => null;
 export const ToolContent = ({ children }: { children?: ReactNode }) => (
   <>{children}</>

@@ -178,8 +178,6 @@ mod unix {
                         log::warn!("zsh shell integration disabled: {e}");
                     }
                 }
-                // Login shell so /etc/zprofile runs path_helper on macOS — without
-                // this, GUI-launched apps get a minimal PATH missing Homebrew.
                 cmd.arg("-l");
             }
             Shell::Bash => {
@@ -192,8 +190,6 @@ mod unix {
                         log::warn!("bash shell integration disabled: {e}");
                     }
                 }
-                // bash ignores --rcfile under -l, so we use -i and source
-                // /etc/profile from inside our rcfile to emulate login init.
                 cmd.arg("-i");
             }
             Shell::Fish => {

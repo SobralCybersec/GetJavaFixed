@@ -34,12 +34,8 @@ public class App {
     );
 
     let findings = scan_findings(&fx.root).expect("scan_findings");
-
-    // Should have safe findings (println, wildcard import, empty catch)
     assert!(category_count(&findings, "safe") >= 1, "Expected at least one safe finding");
-    // Should have performance findings (string concat in loop, size in loop)
     assert!(category_count(&findings, "performance") >= 1, "Expected at least one performance finding");
-    // Should have modernization findings (legacy collections)
     assert!(category_count(&findings, "modernization") >= 1, "Expected at least one modernization finding");
 }
 

@@ -6,11 +6,8 @@ use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 #[derive(Serialize)]
 pub struct SearchHit {
-    /// Absolute path of the matched file.
     pub path: String,
-    /// Path relative to the search root, for display.
     pub rel: String,
-    /// File name only.
     pub name: String,
     pub is_dir: bool,
 }
@@ -18,17 +15,12 @@ pub struct SearchHit {
 #[derive(Serialize)]
 pub struct SearchResult {
     pub hits: Vec<SearchHit>,
-    /// True if the scan stopped early (entry budget or hit cap reached).
     pub truncated: bool,
 }
 
-/// Hard cap on entries the walker is allowed to visit before bailing. Protects
-/// against pathological roots like $HOME where there's no .gitignore and the
-/// tree is effectively unbounded.
+
 const MAX_SCANNED: usize = 50_000;
 
-/// Directory names pruned unconditionally — they're rarely useful in a
-/// file-explorer search and they dominate scan time when present.
 const PRUNE_DIRS: &[&str] = &[
     "node_modules",
     ".git",
@@ -78,8 +70,6 @@ pub fn fs_search(
         .parents(true)
         .follow_links(false)
         .filter_entry(|dent| {
-            // Prune known-heavy dirs even when no .gitignore is present (e.g.
-            // searching from $HOME).
             if dent.depth() == 0 {
                 return true;
             }
@@ -124,7 +114,6 @@ pub fn fs_search(
         });
     }
 
-    // Rank: filename matches first, then shorter relative paths.
     out.sort_by(|a, b| {
         let an = a.name.to_lowercase().contains(&q);
         let bn = b.name.to_lowercase().contains(&q);

@@ -99,10 +99,6 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       };
     }, []);
     const themeExt = EDITOR_THEME_EXT[editorThemeId] ?? EDITOR_THEME_EXT.atomone;
-
-    // Stabilize save + onSaved via refs so the extensions array never changes
-    // identity — a new identity makes @uiw/react-codemirror reconfigure the
-    // whole state, wiping the language compartment.
     const saveRef = useRef(save);
     saveRef.current = save;
     const onSavedRef = useRef(onSaved);
@@ -115,8 +111,6 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
 
     const extensions = useMemo(
       () => [
-        // basicSetup is added before user extensions by @uiw/react-codemirror,
-        // so we must elevate vim's precedence to win the keymap.
         vimCompartment.of(
           usePreferencesStore.getState().vimMode ? Prec.highest(vim()) : [],
         ),

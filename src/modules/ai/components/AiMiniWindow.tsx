@@ -504,7 +504,6 @@ function SessionRow({
   return (
     <DropdownMenuItem
       onSelect={(e) => {
-        // Don't dismiss if user clicked the trash icon — handle below.
         const target = e.target as HTMLElement | null;
         if (target?.closest("[data-session-delete]")) {
           e.preventDefault();

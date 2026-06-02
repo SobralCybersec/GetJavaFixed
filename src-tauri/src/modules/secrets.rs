@@ -1,22 +1,3 @@
-//! Secret storage with platform-appropriate backends.
-//!
-//! - macOS: macOS Keychain (via `keyring` crate)
-//! - Windows: Credential Manager (via `keyring` crate)
-//! - Linux: a file in the app's local data dir, mode 0600. The default
-//!   `keyring` backend on Linux is the Secret Service over D-Bus, which
-//!   silently fails on systems without gnome-keyring/kwallet (and on the
-//!   "login" collection not being created). For an open-source desktop
-//!   app shipped via AppImage/deb/rpm, we cannot assume a keyring daemon
-//!   exists. The file backend is the same approach Brave/Chromium fall
-//!   back to in that scenario; user-only file permissions provide the
-//!   isolation the secret-service collection would have otherwise.
-//!
-//! The frontend talks to `secrets_get`, `secrets_set`, `secrets_delete`,
-//! and `secrets_get_all` — no platform branching in JS.
-//!
-//! All commands take `&AppHandle` so we can resolve the data directory
-//! once via Tauri's path API.
-
 use std::sync::Mutex;
 
 use tauri::AppHandle;
@@ -80,7 +61,6 @@ pub(crate) fn write_store_at(
     let tmp = path.with_extension("json.tmp");
     let bytes = serde_json::to_vec(map).map_err(|e| e.to_string())?;
 
-    // 0600: only the owning user can read or write the secrets file.
     let mut f = fs::OpenOptions::new()
         .write(true)
         .create(true)
@@ -121,7 +101,7 @@ pub async fn secrets_get(
 ) -> Result<Option<String>, String> {
     #[cfg(target_os = "linux")]
     {
-        let _ = state; // capture
+        let _ = state; 
         let key = key(&service, &account);
         with_store(&app, &state, |m| m.get(&key).cloned())
     }
@@ -275,7 +255,6 @@ mod tests {
     }
 }
 
-/// Batch read — single IPC roundtrip for the cold-boot fan-out.
 #[tauri::command]
 pub async fn secrets_get_all(
     app: AppHandle,

@@ -15,9 +15,6 @@ import { createContext, memo, useContext, useEffect, useRef, useState } from "re
 import { Shimmer } from "./shimmer";
 import { highlight, isHighlightable, type HighlightedNode } from "./chat-code-lezer";
 
-// True while the parent message is still streaming from the model. We hide
-// fenced-code contents during this phase: parsing partial code is wasted
-// work and a flashing skeleton is calmer UI than text that grows char-by-char.
 const StreamingCtx = createContext(false);
 export const ChatStreamingProvider = StreamingCtx.Provider;
 

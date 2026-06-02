@@ -4,9 +4,6 @@ import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore
 import { writeToSession } from "@/modules/terminal";
 import type { ToolContext } from "./context";
 
-// Claude Code's TUI treats a trailing CR in the same write chunk as the text
-// as a literal newline, not a submit. Send the Enter as a separate chunk once
-// the input has rendered so it registers as a standalone keypress.
 const SUBMIT_DELAY_MS = 90;
 
 function hasControlChars(s: string): boolean {

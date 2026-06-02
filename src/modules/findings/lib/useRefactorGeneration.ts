@@ -35,8 +35,6 @@ export type UseRefactorGenerationResult = {
   reset: () => void;
 };
 
-// Inline refactoring-db rules — loaded at build time so no async file reads needed.
-// Maps finding id prefixes → rule guidance injected into the system prompt.
 const REFACTORING_RULES: Record<string, string> = {
   "println:": `Replace System.out.println with a proper logger (SLF4J/Log4j2).
 Example: System.out.println("msg") → logger.info("msg")

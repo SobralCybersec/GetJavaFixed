@@ -136,9 +136,6 @@ export const SHORTCUTS: Shortcut[] = [
     id: "terminal.clear",
     label: "Clear terminal",
     group: "Terminal",
-    // macOS Terminal's ⌘K (clear scrollback, keep the prompt). Default only on
-    // macOS — on other platforms Ctrl+K is readline's kill-line, so we leave it
-    // unbound and let users assign their own in settings.
     defaultBindings: IS_MAC ? [{ meta: true, key: "k" }] : [],
   },
   {
@@ -221,11 +218,6 @@ export const SHORTCUTS: Shortcut[] = [
     group: "View",
     defaultBindings: [{ [MOD_PROP]: true, key: "0" }],
   },
-  // Editor entries are display-only: CodeMirror's historyKeymap binds these
-  // keys natively. We register them here so the shortcuts dialog can surface
-  // them — they don't have App-level handlers, so `useGlobalShortcuts` falls
-  // through without `preventDefault`, leaving CodeMirror to handle the event.
-  // Also excluded from the customization UI in ShortcutsSection.
   {
     id: "editor.undo",
     label: "Undo",
@@ -262,7 +254,6 @@ export function matchBinding(
   const eventKey = e.key.toLowerCase();
   const bindingKey = binding.key.toLowerCase();
 
-  // Special case for Jump to Tab 1-9
   if (id === "tab.selectByIndex") {
     if (!/^[1-9]$/.test(e.key)) return false;
   } else if (eventKey !== bindingKey) {

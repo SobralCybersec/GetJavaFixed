@@ -29,8 +29,6 @@ pub struct SessionRunOutput {
     pub cwd_after: String,
 }
 
-// Sentinel is randomized per session so untrusted command stdout can't spoof a
-// cwd update by emitting the marker literal.
 static SENTINEL_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn generate_sentinel() -> String {

@@ -171,7 +171,6 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     if (repo) {
       setPanelState("empty");
       setMessage("Start full analysis to build the ranked refactor findings queue.");
-      // Load safety snapshot eagerly when repo changes
       invoke<unknown>("java_safety_snapshot", {
         path: repo.path,
         workspace: currentWorkspaceEnv(),

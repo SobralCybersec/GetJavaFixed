@@ -301,9 +301,6 @@ function buildStableSystem(
   return `${base}${memoryBlock}${personaBlock}${customBlock}`;
 }
 
-// OpenAI / Gemini / DeepSeek apply prefix caching automatically; only
-// Anthropic needs explicit breakpoints. Mark the stable system prefix and
-// the rotating conversation tail.
 function applyCacheBreakpoints(
   messages: ModelMessage[],
   provider: ProviderId,

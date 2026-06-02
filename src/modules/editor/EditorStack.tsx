@@ -20,10 +20,6 @@ export function EditorStack({
 }: Props) {
   const editors = tabs.filter((t): t is EditorTab => t.kind === "editor");
 
-  // Stable per-tab callbacks. Inline arrows in `ref` and `onDirtyChange`
-  // change identity every render, which makes React detach+reattach the ref
-  // callback and re-invoke `onDirtyChange`, triggering setState loops in
-  // the parent. Memoizing per id keeps each callback's identity stable.
   const registerRef = useRef(registerHandle);
   const dirtyRef = useRef(onDirtyChange);
   const closeRef = useRef(onCloseTab);
@@ -68,7 +64,6 @@ export function EditorStack({
     return cb;
   };
 
-  // Drop callback entries for closed tabs to avoid unbounded growth.
   useEffect(() => {
     const live = new Set(editors.map((t) => t.id));
     for (const id of refCallbacks.current.keys()) {

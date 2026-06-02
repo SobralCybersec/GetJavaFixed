@@ -100,7 +100,6 @@ export function AiComposerProvider({ children }: ProviderProps) {
     }
   }, [focusSignal, pendingPrefill, consumePrefill]);
 
-  // Re-focus the textarea whenever the agent finishes a response
   const prevIsBusyRef = useRef(false);
   useEffect(() => {
     if (prevIsBusyRef.current && !isBusy) {
@@ -109,7 +108,6 @@ export function AiComposerProvider({ children }: ProviderProps) {
     prevIsBusyRef.current = isBusy;
   }, [isBusy, textareaRef]);
 
-  // Listen for explorer's "Attach to Agent" event.
   useEffect(() => {
     const onAttach = (e: Event) => {
       const path = (e as CustomEvent<string>).detail;
@@ -119,8 +117,6 @@ export function AiComposerProvider({ children }: ProviderProps) {
     };
     window.addEventListener("javarf:ai-attach-file", onAttach);
     return () => window.removeEventListener("javarf:ai-attach-file", onAttach);
-    // attachFileByPath is stable for our purposes (closes over setFiles only)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -194,7 +190,6 @@ export function AiComposerProvider({ children }: ProviderProps) {
         workspace: currentWorkspaceEnv(),
       });
       if (result.kind !== "text") {
-        // Binary/oversize files: skip (could surface a toast in future).
         console.warn("attachFileByPath: skipped non-text file", path, result);
         return;
       }
@@ -212,7 +207,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
         };
         return [...prev, att];
       });
-      // Open the AI panel & focus the input so the user sees the chip.
+  
       useChatStore.getState().focusInput();
     } catch (e) {
       console.error("attachFileByPath failed:", e);
@@ -326,7 +321,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
     setFiles([]);
     setPickedSnippets([]);
     setPickedCommands([]);
-    // Re-focus immediately after submit so the user can type a follow-up
+
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 

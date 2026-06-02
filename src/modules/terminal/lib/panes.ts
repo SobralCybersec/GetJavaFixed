@@ -129,10 +129,6 @@ export function nextLeafId(
   return ids[(idx + delta + ids.length) % ids.length];
 }
 
-// Closest neighbor of `leafId` within its enclosing split — prefer the
-// next sibling, fall back to the previous. Used to pick the new focus
-// when a pane closes (so focus stays in the same neighborhood instead of
-// snapping to the first pane in the tree).
 export function siblingLeafOf(
   tree: PaneNode,
   leafId: PaneId,

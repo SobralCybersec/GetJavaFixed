@@ -1,6 +1,5 @@
 use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
-/// Creates a new empty file. Fails if the file already exists.
 #[tauri::command]
 pub fn fs_create_file(path: String, workspace: Option<WorkspaceEnv>) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
@@ -14,9 +13,6 @@ pub fn fs_create_file(path: String, workspace: Option<WorkspaceEnv>) -> Result<(
     })
 }
 
-/// Creates a new directory. Fails if the directory already exists.
-/// Parents are created as needed — matches the common "new folder" UX
-/// where typing "a/b/c" creates the full chain.
 #[tauri::command]
 pub fn fs_create_dir(path: String, workspace: Option<WorkspaceEnv>) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
@@ -30,7 +26,6 @@ pub fn fs_create_dir(path: String, workspace: Option<WorkspaceEnv>) -> Result<()
     })
 }
 
-/// Renames (or moves) a path. Refuses to overwrite an existing target.
 #[tauri::command]
 pub fn fs_rename(from: String, to: String, workspace: Option<WorkspaceEnv>) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
@@ -52,8 +47,6 @@ pub fn fs_rename(from: String, to: String, workspace: Option<WorkspaceEnv>) -> R
     })
 }
 
-/// Deletes a file or directory (recursively for dirs). Callers are
-/// responsible for confirming destructive operations with the user.
 #[tauri::command]
 pub fn fs_delete(path: String, workspace: Option<WorkspaceEnv>) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
@@ -91,7 +84,6 @@ mod tests {
         assert!(f.exists());
         assert_eq!(std::fs::read(&f).unwrap(), b"");
 
-        // A second create must error, not truncate existing content.
         std::fs::write(&f, b"data").unwrap();
         let err = fs_create_file(s(f.clone()), None).unwrap_err();
         assert!(err.contains("already exists"), "got: {err}");
@@ -119,11 +111,9 @@ mod tests {
         assert!(!from.exists());
         assert_eq!(std::fs::read(&to).unwrap(), b"payload");
 
-        // Missing source is reported, not silently ignored.
         let err = fs_rename(s(from), s(dir.path().join("c.txt")), None).unwrap_err();
         assert!(err.contains("not found"), "got: {err}");
 
-        // Refusing to overwrite an existing target is the data-loss guard.
         let occupied = dir.path().join("keep.txt");
         std::fs::write(&occupied, b"keep").unwrap();
         let err = fs_rename(s(to.clone()), s(occupied.clone()), None).unwrap_err();
@@ -150,8 +140,6 @@ mod tests {
         assert!(!err.is_empty());
     }
 
-    // Deleting a symlink that points at a directory must remove only the link,
-    // never recurse through it and wipe the target's contents.
     #[cfg(unix)]
     #[test]
     fn delete_does_not_follow_symlink_into_target() {

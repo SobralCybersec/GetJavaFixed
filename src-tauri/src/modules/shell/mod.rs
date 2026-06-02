@@ -34,10 +34,7 @@ pub struct CommandOutput {
     pub truncated: bool,
 }
 
-/// Runs a one-shot command via the user's login shell. Output is capped and
-/// the process is force-killed on timeout. We deliberately do NOT pipe into
-/// the user's interactive PTY — that would fight their input. AI tool calls
-/// are presented in chat as their own structured result.
+
 #[tauri::command]
 pub async fn shell_run_command(
     command: String,
@@ -65,8 +62,6 @@ pub async fn shell_run_command(
             .clamp(1, MAX_TIMEOUT_SECS),
     );
 
-    // The blocking spawn + wait runs on a worker thread so the Tauri async
-    // runtime stays unblocked.
     let (tx, rx) = mpsc::channel::<Result<CommandOutput, String>>();
     thread::spawn(move || {
         let _ = tx.send(run_blocking(trimmed, cwd_path, workspace, dur));
@@ -145,10 +140,6 @@ fn run_blocking(
         truncated: stdout_truncated || stderr_truncated,
     })
 }
-
-// ──────────────────────────────────────────────────────────────────────────
-// Persistent agent shell state + background process state.
-// ──────────────────────────────────────────────────────────────────────────
 
 pub struct ShellState {
     sessions: RwLock<HashMap<u32, Arc<ShellSession>>>,

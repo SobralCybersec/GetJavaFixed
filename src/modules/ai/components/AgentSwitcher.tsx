@@ -33,13 +33,12 @@ const ICONS: Record<AgentIconId, typeof CodeIcon> = {
 };
 
 export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
-  // Subscribe to customAgents + activeId so the trigger updates live.
   const customAgents = useAgentsStore((s) => s.customAgents);
   const activeId = useAgentsStore((s) => s.activeId);
   const setActiveId = useAgentsStore((s) => s.setActiveId);
 
   const list = useAgentsStore.getState().all();
-  void customAgents; // keeps the store subscription alive
+  void customAgents;
 
   const active = list.find((a) => a.id === activeId) ?? list[0];
   const builtIn = list.filter((a) => a.builtIn);
