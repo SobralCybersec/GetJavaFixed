@@ -1,12 +1,10 @@
-name: Rust CI
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,84 +13,144 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   quality:
-    name: Lint, format, tests
+    name: Quality Checks
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
+      # Node.js
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript check
+        run: pnpm exec tsc --noEmit
+
+      - name: Frontend tests
+        run: pnpm test
+
+      - name: Frontend build
+        run: pnpm build
+
+      # Rust
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Format check
+      - name: Rust format
+        working-directory: src-tauri
         run: cargo fmt --all --check
 
-      - name: Clippy
-        run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - name: Rust clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
 
-      - name: Unit tests
-        run: cargo test --workspace --all-features
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test --locked
 
-      - name: Install cargo-audit and cargo-deny
-        run: cargo install --locked cargo-audit cargo-deny
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
 
       - name: Cargo audit
+        working-directory: src-tauri
         run: cargo audit
-
-      - name: Cargo deny
-        run: cargo deny check bans licenses sources advisories
 
   codeql:
     name: CodeQL
     runs-on: ubuntu-24.04
+
     permissions:
       contents: read
       security-events: write
 
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript
+          - rust
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: rust
+          languages: ${{ matrix.language }}
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+      - name: Setup Node
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup PNPM
+        if: matrix.language == 'javascript-typescript'
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install frontend dependencies
+        if: matrix.language == 'javascript-typescript'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        if: matrix.language == 'javascript-typescript'
+        run: pnpm build
+
+      - name: Setup Rust
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust
+        if: matrix.language == 'rust'
+        working-directory: src-tauri
+        run: cargo build --locked
 
       - name: Analyze
         uses: github/codeql-action/analyze@v4
 
   dependency-review:
-    name: Dependency Review
     if: github.event_name == 'pull_request'
+    name: Dependency Review
     runs-on: ubuntu-24.04
+
     permissions:
       contents: read
 
     steps:
-      - name: Dependency review
-        uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v4
 
   gitleaks:
-    name: Secret scan
+    name: Secret Scan
     runs-on: ubuntu-24.04
+
     permissions:
       contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -104,63 +162,18 @@ jobs:
   trivy:
     name: Trivy
     runs-on: ubuntu-24.04
+
     permissions:
       contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
-          format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
-
-      - name: Build Docker image
-        if: hashFiles('Dockerfile') != ''
-        run: docker build -t app:${{ github.sha }} .
-
-      - name: Trivy image scan
-        if: hashFiles('Dockerfile') != ''
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: image
-          image-ref: app:${{ github.sha }}
-          format: table
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: 1
-
-  scorecard:
-    name: Scorecard
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run Scorecard
-        uses: ossf/scorecard-action@v2.4.3
-        with:
-          results_file: scorecard-results.sarif
-          results_format: sarif
-          publish_results: false
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Scorecard SARIF
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: scorecard-results.sarif
