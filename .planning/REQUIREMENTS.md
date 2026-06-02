@@ -7,20 +7,20 @@
 
 ### Repository Intake
 
-- [ ] **REPO-01**: User can open a plain Java repository that uses Maven or Gradle.
-- [ ] **REPO-02**: User can see whether the repository was recognized as Maven, Gradle, or unsupported.
-- [ ] **REPO-03**: User can trigger repository indexing and analysis from the app.
+- [x] **REPO-01**: User can open a plain Java repository that uses Maven or Gradle.
+- [x] **REPO-02**: User can see whether the repository was recognized as Maven, Gradle, or unsupported.
+- [x] **REPO-03**: User can trigger repository indexing and analysis from the app.
 
 ### Analysis
 
 - [ ] **ANLY-01**: User can run a repo-wide scan for safe refactor opportunities.
 - [ ] **ANLY-02**: User can run a repo-wide scan for performance-focused refactor opportunities.
 - [ ] **ANLY-03**: User can run a repo-wide scan for modernization-focused refactor opportunities.
-- [ ] **ANLY-04**: User can see findings explained in terms of principles like DRY, KISS, SOLID, Clean Code, or YAGNI.
+- [x] **ANLY-04**: User can see findings explained in terms of principles like DRY, KISS, SOLID, Clean Code, or YAGNI.
 
 ### Findings & Planning
 
-- [ ] **PLAN-01**: User can view a prioritized list of refactor findings across the repository.
+- [x] **PLAN-01**: User can view a prioritized list of refactor findings across the repository.
 - [ ] **PLAN-02**: User can open a finding and see affected files, rationale, and proposed changes.
 - [ ] **PLAN-03**: User can group selected findings into a refactor plan for review.
 
@@ -74,14 +74,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REPO-01 | Phase 1 | Pending |
-| REPO-02 | Phase 1 | Pending |
-| REPO-03 | Phase 1 | Pending |
+| REPO-01 | Phase 1 | Complete |
+| REPO-02 | Phase 1 | Complete |
+| REPO-03 | Phase 1 | Complete |
 | ANLY-01 | Phase 2 | Pending |
 | ANLY-02 | Phase 2 | Pending |
 | ANLY-03 | Phase 2 | Pending |
-| ANLY-04 | Phase 1 | Pending |
-| PLAN-01 | Phase 1 | Pending |
+| ANLY-04 | Phase 1 | Complete |
+| PLAN-01 | Phase 1 | Complete |
 | PLAN-02 | Phase 2 | Pending |
 | PLAN-03 | Phase 2 | Pending |
 | TOOL-01 | Phase 3 | Pending |
@@ -104,4 +104,4 @@
 
 ---
 *Requirements defined: 2026-06-01*
-*Last updated: 2026-06-01 after initial definition*
+*Last updated: 2026-06-01 after Phase 1 verification*

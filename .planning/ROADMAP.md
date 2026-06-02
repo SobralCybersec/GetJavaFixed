@@ -10,7 +10,7 @@ This roadmap transforms the existing Terax workspace into a focused Java refacto
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Java Repo Intake & Findings Shell** - Reframe the product around Java repository import, indexing, and prioritized findings
+- [x] **Phase 1: Java Repo Intake & Findings Shell** - Reframe the product around Java repository import, indexing, and prioritized findings
 - [ ] **Phase 2: Trusted Analysis & Safety Workflow** - Make analysis credible and applying changes safe with backups and rollback
 - [ ] **Phase 3: Structured Refactors, Tool Hub & CI** - Execute structured refactors with MCP-backed context and repository validation automation
 - [ ] **Phase 4: Guided Automation & Hardening** - Add opt-in autonomous flows and production-grade trust controls
@@ -28,12 +28,13 @@ This roadmap transforms the existing Terax workspace into a focused Java refacto
 2. User can start repository indexing and analysis from the app without using generic terminal-first flows.
 3. User can see a prioritized findings view with principle-aware rationale for each issue.
 4. The main UI feels like a Java refactor assistant, not a general-purpose terminal product.
-**Plans:** 3 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] 01-01: Rework workspace intake for Java Maven/Gradle repositories and project-type detection
-- [ ] 01-02: Build the minimal findings-first shell and repository analysis entry flow
-- [ ] 01-03: Introduce the initial findings model, prioritization, and principle-aware explanations
+- [ ] 01-01-PLAN.md — Native selected-root readiness contract and strict Maven/Gradle detection
+- [ ] 01-02-PLAN.md — Intake-first repo home, folder picker, and dashboard entry shell
+- [ ] 01-03-PLAN.md — Watch-only analysis trigger, progress loop, and persistent repo header
+- [ ] 01-04-PLAN.md — Ranked findings queue, right-side detail panel, and principle-aware explanations
 
 ### Phase 2: Trusted Analysis & Safety Workflow
 **Goal:** Deliver trustworthy repository analysis plus safe review and rollback workflows that users can rely on before any automated write path is widened.
@@ -92,7 +93,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Java Repo Intake & Findings Shell | 0/3 | Not started | - |
+| 1. Java Repo Intake & Findings Shell | 4/4 | Complete | 2026-06-01 |
 | 2. Trusted Analysis & Safety Workflow | 0/3 | Not started | - |
 | 3. Structured Refactors, Tool Hub & CI | 0/3 | Not started | - |
 | 4. Guided Automation & Hardening | 0/2 | Not started | - |

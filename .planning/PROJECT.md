@@ -19,12 +19,13 @@ A Java developer can safely refactor a real repository faster with AI, while kee
 - ✓ AI chat/tooling foundation exists with approval-gated file and command actions in `src/modules/ai/` — existing
 - ✓ Multi-pane editor, terminal, preview, and settings infrastructure already exists and can be repurposed instead of rebuilt — existing
 - ✓ Local secret storage, updater support, and desktop notification plumbing are already in place — existing
+- ✓ User can open a plain Java Maven or Gradle repository as the primary workspace — validated in Phase 1
+- ✓ User can trigger repo-wide analysis from the app entry flow without terminal-first fallback — validated in Phase 1
+- ✓ User can get principle-aware prioritized findings in a dedicated Java-first shell — validated in Phase 1
 
 ### Active
 
-- [ ] User can open a plain Java Maven or Gradle repository as the primary workspace
 - [ ] User can trigger repo-wide analysis for performance, modernization, and safe refactor opportunities
-- [ ] User can get findings grounded in DRY, KISS, SOLID, Clean Code, and YAGNI principles
 - [ ] User can use local code intelligence to understand repository structure, issues, and candidate refactor targets
 - [ ] User can enrich analysis with MCP-connected tools such as Exa web search, Context7, and other approved integrations
 - [ ] User can review a prioritized refactor plan in a minimal custom UI before any changes are applied
@@ -79,6 +80,10 @@ Repository automation is also part of the product direction. The app should help
 
 ## Evolution
 
+## Current State
+
+Phase 1 is complete. App now opens into a dedicated Java intake flow, validates Maven or Gradle roots through native readiness checks, and routes supported repositories into a findings-first dashboard with watch-only analysis progress and right-side detail review.
+
 This document evolves at phase transitions and milestone boundaries.
 
 **After each phase transition** (via `$gsd-transition`):
@@ -95,4 +100,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-01 after initialization*
+*Last updated: 2026-06-01 after Phase 1 completion*
