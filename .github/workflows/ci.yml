@@ -134,6 +134,19 @@ jobs:
         if: matrix.language == 'javascript-typescript'
         run: pnpm build
 
+      - name: Install Tauri system dependencies
+        if: matrix.language == 'rust'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            pkg-config \
+            build-essential
+            
       - name: Setup Rust
         if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
