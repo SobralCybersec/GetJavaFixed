@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "replace-system-out-println-with-logger",
+      "title": "Replace System.out.println with logger",
+      "category": "safe",
+      "principles": ["CleanCode", "KISS"],
+      "triggerPrefixes": ["println:"],
+      "defaultGuidance": "Replace direct console printing with the project's logging style using the smallest safe change.",
+      "tags": ["logging", "cleanup"],
+      "file": "replace-system-out-println-with-logger.md"
+    },
+    {
+      "id": "replace-empty-catch-with-handling",
+      "title": "Replace empty catch with handling",
+      "category": "safe",
+      "principles": ["CleanCode", "SOLID"],
+      "triggerPrefixes": ["empty-catch:"],
+      "defaultGuidance": "Replace the empty catch block with minimal safe handling, usually logging with exception context.",
+      "tags": ["exceptions", "safety"],
+      "file": "replace-empty-catch-with-handling.md"
+    },
+    {
+      "id": "replace-loop-string-concat-with-string-builder",
+      "title": "Replace loop string concat with StringBuilder",
+      "category": "performance",
+      "principles": ["KISS", "CleanCode"],
+      "triggerPrefixes": ["string-concat-loop:"],
+      "defaultGuidance": "Replace repeated string concatenation inside loops with StringBuilder while preserving exact output semantics.",
+      "tags": ["allocation", "loops"],
+      "file": "replace-loop-string-concat-with-string-builder.md"
+    },
+    {
+      "id": "replace-temp-with-query",
+      "title": "Replace temp with query",
+      "category": "performance",
+      "principles": ["KISS", "YAGNI"],
+      "triggerPrefixes": [],
+      "defaultGuidance": "Inline or remove temporary values only when doing so keeps the code clearer and behavior-preserving.",
+      "tags": ["queries", "cleanup"],
+      "file": "replace-temp-with-query.md"
+    },
+    {
+      "id": "cache-collection-size-before-loop",
+      "title": "Cache collection size before loop",
+      "category": "performance",
+      "principles": ["KISS", "YAGNI"],
+      "triggerPrefixes": ["size-in-loop:"],
+      "defaultGuidance": "Cache collection size before the loop only when doing so preserves loop semantics exactly.",
+      "tags": ["loops", "collection"],
+      "file": "cache-collection-size-before-loop.md"
+    },
+    {
+      "id": "replace-legacy-collections",
+      "title": "Replace legacy collections",
+      "category": "modernization",
+      "principles": ["YAGNI", "CleanCode"],
+      "triggerPrefixes": ["legacy-collections:"],
+      "defaultGuidance": "Modernize legacy collections conservatively and preserve thread-safety intent when present.",
+      "tags": ["collections", "modernization"],
+      "file": "replace-legacy-collections.md"
+    },
+    {
+      "id": "add-generics-to-raw-types",
+      "title": "Add generics to raw types",
+      "category": "modernization",
+      "principles": ["CleanCode", "SOLID"],
+      "triggerPrefixes": ["raw-type:"],
+      "defaultGuidance": "Add the narrowest safe generic type parameters supported by local code evidence.",
+      "tags": ["types", "generics"],
+      "file": "add-generics-to-raw-types.md"
+    },
+    {
+      "id": "replace-wildcard-imports",
+      "title": "Replace wildcard imports",
+      "category": "safe",
+      "principles": ["DRY", "CleanCode"],
+      "triggerPrefixes": ["wildcard-import:"],
+      "defaultGuidance": "Replace wildcard imports with the explicit classes actually used in the file.",
+      "tags": ["imports", "cleanup"],
+      "file": "replace-wildcard-imports.md"
+    },
+    {
+      "id": "extract-method",
+      "title": "Extract method",
+      "category": "maintainability",
+      "principles": ["KISS", "SOLID"],
+      "triggerPrefixes": ["long-file:"],
+      "defaultGuidance": "Use conservative Extract Method style refactors that improve readability without redesigning the class.",
+      "tags": ["methods", "readability"],
+      "file": "extract-method.md"
+    },
+    {
+      "id": "introduce-parameter-object",
+      "title": "Introduce parameter object",
+      "category": "maintainability",
+      "principles": ["SOLID", "CleanCode"],
+      "triggerPrefixes": [],
+      "defaultGuidance": "Introduce a tiny parameter object only when multiple related arguments clearly travel together.",
+      "tags": ["parameters", "design"],
+      "file": "introduce-parameter-object.md"
+    },
+    {
+      "id": "modernize-instanceof-pattern-matching",
+      "title": "Modernize instanceof pattern matching",
+      "category": "modernization",
+      "principles": ["CleanCode", "YAGNI"],
+      "triggerPrefixes": ["instanceof-pattern:"],
+      "defaultGuidance": "Modernize eligible instanceof checks to pattern matching while preserving control flow and meaning.",
+      "tags": ["java16", "patterns"],
+      "file": "modernize-instanceof-pattern-matching.md"
+    },
+    {
+      "id": "refactor-switch-to-pattern-matching",
+      "title": "Refactor switch to pattern matching",
+      "category": "modernization",
+      "principles": ["CleanCode", "YAGNI"],
+      "triggerPrefixes": [],
+      "defaultGuidance": "Use modern switch and pattern matching forms only when the surrounding code already fits them cleanly.",
+      "tags": ["switch", "patterns"],
+      "file": "refactor-switch-to-pattern-matching.md"
+    },
+    {
+      "id": "replace-nested-conditional-with-guard-clauses",
+      "title": "Replace nested conditional with guard clauses",
+      "category": "maintainability",
+      "principles": ["KISS", "CleanCode"],
+      "triggerPrefixes": ["deep-nesting:"],
+      "defaultGuidance": "Flatten the most obvious nested branch with guard clauses or one tiny helper, preserving exact behavior.",
+      "tags": ["conditionals", "guard-clauses"],
+      "file": "replace-nested-conditional-with-guard-clauses.md"
+    },
+    {
+      "id": "extract-duplicate-logic",
+      "title": "Extract duplicate logic",
+      "category": "maintainability",
+      "principles": ["DRY", "CleanCode"],
+      "triggerPrefixes": ["duplicate-code:"],
+      "defaultGuidance": "Extract the repeated local logic into the smallest clear helper or shared branch.",
+      "tags": ["duplication", "extraction"],
+      "file": "extract-duplicate-logic.md"
+    },
+    {
+      "id": "harden-null-sensitive-calls",
+      "title": "Harden null-sensitive calls",
+      "category": "safe",
+      "principles": ["SOLID", "CleanCode"],
+      "triggerPrefixes": ["potential-null:"],
+      "defaultGuidance": "Make null-sensitive dereferences safe with the smallest guard or null-safe call order change.",
+      "tags": ["null-safety", "defensive"],
+      "file": "harden-null-sensitive-calls.md"
+    },
+    {
+      "id": "cache-repeated-method-calls",
+      "title": "Cache repeated method calls",
+      "category": "performance",
+      "principles": ["KISS", "YAGNI"],
+      "triggerPrefixes": ["repeated-call-cache:"],
+      "defaultGuidance": "Cache the repeated method or property lookup in a narrow local variable when semantics are stable.",
+      "tags": ["caching", "calls"],
+      "file": "cache-repeated-method-calls.md"
+    },
+    {
+      "id": "tell-dont-ask",
+      "title": "Tell don't ask",
+      "category": "maintainability",
+      "principles": ["SOLID", "CleanCode"],
+      "triggerPrefixes": ["tell-dont-ask:"],
+      "defaultGuidance": "Move decision-making closer to the object that owns the state, favoring a tiny behavior-preserving helper over external state peeking.",
+      "tags": ["oop", "encapsulation"],
+      "file": "tell-dont-ask.md"
+    },
+    {
+      "id": "single-responsibility-extraction",
+      "title": "Single responsibility extraction",
+      "category": "maintainability",
+      "principles": ["SOLID", "CleanCode"],
+      "triggerPrefixes": [],
+      "defaultGuidance": "Extract one cohesive responsibility at a time instead of broad redesign.",
+      "tags": ["solid", "responsibility"],
+      "file": "single-responsibility-extraction.md"
+    },
+    {
+      "id": "replace-conditional-with-polymorphism",
+      "title": "Replace conditional with polymorphism",
+      "category": "maintainability",
+      "principles": ["SOLID", "YAGNI"],
+      "triggerPrefixes": [],
+      "defaultGuidance": "Prefer polymorphism only when repeated branching is stable and object boundaries are already present.",
+      "tags": ["polymorphism", "design"],
+      "file": "replace-conditional-with-polymorphism.md"
+    },
+    {
+      "id": "avoid-unneeded-abstractions",
+      "title": "Avoid unneeded abstractions",
+      "category": "maintainability",
+      "principles": ["YAGNI", "KISS"],
+      "triggerPrefixes": [],
+      "defaultGuidance": "Avoid introducing new abstractions unless they directly simplify the target change.",
+      "tags": ["yagni", "simplicity"],
+      "file": "avoid-unneeded-abstractions.md"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "builder-pattern",
+      "title": "Builder pattern guidance gap",
+      "category": "design-pattern",
+      "principles": ["CleanCode", "SOLID"],
+      "tags": ["builder", "construction"],
+      "notes": "Pattern requested in roadmap but no dedicated rule prompt yet."
+    },
+    {
+      "id": "factory-pattern",
+      "title": "Factory pattern guidance gap",
+      "category": "design-pattern",
+      "principles": ["SOLID", "YAGNI"],
+      "tags": ["factory", "creation"],
+      "notes": "Pattern requested in roadmap but no dedicated rule prompt yet."
+    },
+    {
+      "id": "raii-typestate-newtype",
+      "title": "Rust ownership pattern guidance gap",
+      "category": "rust-pattern",
+      "principles": ["CleanCode"],
+      "tags": ["raii", "typestate", "newtype"],
+      "notes": "Tracked for future AI guidance beyond current Java-centric rule set."
+    }
+  ]
+}

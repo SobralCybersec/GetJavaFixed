@@ -1,41 +1,27 @@
 /**
  * useRefactorGeneration - AI-powered before/after refactor for a finding.
  *
- * Flow:
- *  1. Read the affected file(s) via native fs
- *  2. Load matching refactoring-db guidance as prompt context
- *  3. Call the configured LLM with optional MCP tools
- *  4. Try streaming first for SSE-only local proxies, then fall back to
- *     non-stream generation if the model returns no effective change
- *  5. Expose { original, proposed, status } for the diff preview panel
+ * Performance notes:
+ * - Read each target file once per request
+ * - Reuse prompt fragments across retries
+ * - Limit to one transport fallback and one semantic fallback
+ * - Cache guidance/hotspot analysis briefly for repeated open-close-preview cycles
  */
 
 import { generateText, streamText, type ToolSet } from "ai";
-import { useCallback, useState } from "react";
-import { getModel } from "@/modules/ai/config";
-import { buildConfiguredLanguageModel } from "@/modules/ai/lib/agent";
+import { useCallback, useRef, useState } from "react";
+import { getModel, type ModelId, type ProviderId } from "@/modules/ai/config";
+import {
+  buildConfiguredLanguageModel,
+  chooseRefactorPreviewModelId,
+} from "@/modules/ai/lib/agent";
 import { createRefactorMcpTools, type McpConfig } from "@/modules/ai/lib/mcpClient";
 import { native } from "@/modules/ai/lib/native";
-import addGenericsToRawTypesRule from "@/modules/ai/refactoring-db/add-generics-to-raw-types.md?raw";
-import cacheCollectionSizeBeforeLoopRule from "@/modules/ai/refactoring-db/cache-collection-size-before-loop.md?raw";
-import cacheRepeatedMethodCallsRule from "@/modules/ai/refactoring-db/cache-repeated-method-calls.md?raw";
-import extractMethodRule from "@/modules/ai/refactoring-db/extract-method.md?raw";
-import extractDuplicateLogicRule from "@/modules/ai/refactoring-db/extract-duplicate-logic.md?raw";
-import hardenNullSensitiveCallsRule from "@/modules/ai/refactoring-db/harden-null-sensitive-calls.md?raw";
-import introduceParameterObjectRule from "@/modules/ai/refactoring-db/introduce-parameter-object.md?raw";
-import modernizeInstanceofPatternMatchingRule from "@/modules/ai/refactoring-db/modernize-instanceof-pattern-matching.md?raw";
-import avoidUnneededAbstractionsRule from "@/modules/ai/refactoring-db/avoid-unneeded-abstractions.md?raw";
-import replaceNestedConditionalWithGuardClausesRule from "@/modules/ai/refactoring-db/replace-nested-conditional-with-guard-clauses.md?raw";
-import replaceConditionalWithPolymorphismRule from "@/modules/ai/refactoring-db/replace-conditional-with-polymorphism.md?raw";
-import replaceEmptyCatchWithHandlingRule from "@/modules/ai/refactoring-db/replace-empty-catch-with-handling.md?raw";
-import replaceLegacyCollectionsRule from "@/modules/ai/refactoring-db/replace-legacy-collections.md?raw";
-import replaceLoopStringConcatWithStringBuilderRule from "@/modules/ai/refactoring-db/replace-loop-string-concat-with-string-builder.md?raw";
-import replaceSystemOutPrintlnWithLoggerRule from "@/modules/ai/refactoring-db/replace-system-out-println-with-logger.md?raw";
-import replaceTempWithQueryRule from "@/modules/ai/refactoring-db/replace-temp-with-query.md?raw";
-import replaceWildcardImportsRule from "@/modules/ai/refactoring-db/replace-wildcard-imports.md?raw";
-import refactorSwitchToPatternMatchingRule from "@/modules/ai/refactoring-db/refactor-switch-to-pattern-matching.md?raw";
-import singleResponsibilityExtractionRule from "@/modules/ai/refactoring-db/single-responsibility-extraction.md?raw";
-import tellDontAskRule from "@/modules/ai/refactoring-db/tell-dont-ask.md?raw";
+import {
+  loadRefactorRegistry,
+  type RefactorRuleManifestEntry,
+  type RuntimeRefactorRule,
+} from "@/modules/ai/refactoring-db";
 import type { Phase1Finding } from "./useFindings";
 
 export type RefactorStatus = "idle" | "generating" | "ready" | "error";
@@ -65,101 +51,71 @@ type RefactorPromptParts = {
   prompt: string;
 };
 
-function uniqueReferences(values: string[]): string[] {
-  return Array.from(new Set(values));
+type RefactorProviderOptions = NonNullable<
+  Parameters<typeof generateText>[0]["providerOptions"]
+>;
+
+type PreparedRefactorContext = {
+  absolutePath: string;
+  originalContent: string;
+  hotspotExcerpt: string | null;
+  basePrompt: string;
+  fileGuidancePrompt: string | null;
+  baseRuleGuidance: RefactorRuleSpec;
+  fileFallbackRuleGuidance: RefactorRuleSpec | null;
+  emptyChangeMessage: string;
+};
+
+type GenerationAttemptOutput = {
+  text: string;
+  fallbackReason: string | null;
+  finishReason: string | null;
+  rawFinishReason: string | null;
+};
+
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const CACHE_TTL_MS = 30_000;
+const MAX_REFERENCE_BLOCKS = 3;
+const MAX_HOTSPOT_LINES = 12;
+const LARGE_FILE_DIFF_THRESHOLD = 160_000;
+
+const ruleGuidanceCache = new Map<string, CacheEntry<RefactorRuleSpec>>();
+const fileGuidanceCache = new Map<string, CacheEntry<ReturnType<typeof buildFileRefactorGuidance>>>();
+const hotspotCache = new Map<string, CacheEntry<string | null>>();
+
+function cacheGet<T>(map: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  return entry.value;
 }
 
-const REFACTORING_RULES: Record<string, RefactorRuleSpec> = {
-  "println:": {
-    guidance:
-      "Replace direct console printing with the project's logging style using the smallest safe change.",
-    references: [replaceSystemOutPrintlnWithLoggerRule],
-  },
-  "empty-catch:": {
-    guidance:
-      "Replace the empty catch block with minimal safe handling, usually logging with exception context.",
-    references: [replaceEmptyCatchWithHandlingRule],
-  },
-  "string-concat-loop:": {
-    guidance:
-      "Replace repeated string concatenation inside loops with StringBuilder while preserving exact output semantics.",
-    references: [
-      replaceLoopStringConcatWithStringBuilderRule,
-      replaceTempWithQueryRule,
-    ],
-  },
-  "size-in-loop:": {
-    guidance:
-      "Cache collection size before the loop only when doing so preserves loop semantics exactly.",
-    references: [cacheCollectionSizeBeforeLoopRule],
-  },
-  "legacy-collections:": {
-    guidance:
-      "Modernize legacy collections conservatively and preserve thread-safety intent when present.",
-    references: [replaceLegacyCollectionsRule],
-  },
-  "raw-type:": {
-    guidance:
-      "Add the narrowest safe generic type parameters supported by local code evidence.",
-    references: [addGenericsToRawTypesRule],
-  },
-  "wildcard-import:": {
-    guidance:
-      "Replace wildcard imports with the explicit classes actually used in the file.",
-    references: [replaceWildcardImportsRule],
-  },
-  "long-file:": {
-    guidance:
-      "Use conservative Extract Method style refactors that improve readability without redesigning the class.",
-    references: [extractMethodRule, introduceParameterObjectRule],
-  },
-  "instanceof-pattern:": {
-    guidance:
-      "Modernize eligible instanceof checks to pattern matching while preserving control flow and meaning.",
-    references: [
-      modernizeInstanceofPatternMatchingRule,
-      refactorSwitchToPatternMatchingRule,
-    ],
-  },
-  "deep-nesting:": {
-    guidance:
-      "Flatten the most obvious nested branch with guard clauses or one tiny helper, preserving exact behavior.",
-    references: [
-      replaceNestedConditionalWithGuardClausesRule,
-      extractMethodRule,
-    ],
-  },
-  "duplicate-code:": {
-    guidance:
-      "Extract the repeated local logic into the smallest clear helper or shared branch.",
-    references: [extractDuplicateLogicRule, extractMethodRule],
-  },
-  "potential-null:": {
-    guidance:
-      "Make null-sensitive dereferences safe with the smallest guard or null-safe call order change.",
-    references: [hardenNullSensitiveCallsRule],
-  },
-  "repeated-call-cache:": {
-    guidance:
-      "Cache the repeated method or property lookup in a narrow local variable when semantics are stable.",
-    references: [cacheRepeatedMethodCallsRule, cacheCollectionSizeBeforeLoopRule],
-  },
-  "tell-dont-ask:": {
-    guidance:
-      "Move decision-making closer to the object that owns the state, favoring a tiny behavior-preserving helper over external state peeking.",
-    references: [tellDontAskRule, singleResponsibilityExtractionRule],
-  },
-};
+function cacheSet<T>(map: Map<string, CacheEntry<T>>, key: string, value: T): T {
+  map.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+  return value;
+}
+
+function debugRefactorPerf(label: string, payload?: Record<string, unknown>) {
+  if (!import.meta.env.DEV) return;
+  const suffix = payload ? ` ${JSON.stringify(payload)}` : "";
+  console.info(`[javarf][refactor] ${label}${suffix}`);
+}
+
+function uniqueReferences(values: string[]): string[] {
+  return Array.from(new Set(values)).slice(0, MAX_REFERENCE_BLOCKS);
+}
 
 const DEFAULT_RULE_GUIDANCE: RefactorRuleSpec = {
   guidance:
     "Apply the minimal safe refactoring that addresses the finding without changing behavior.",
-  references: [
-    extractMethodRule,
-    replaceTempWithQueryRule,
-    replaceConditionalWithPolymorphismRule,
-    avoidUnneededAbstractionsRule,
-  ],
+  references: [],
 };
 
 const REFACTOR_SYSTEM = `You are a Java refactoring engine. Your ONLY output is the complete refactored file content - no explanation, no markdown fences, no commentary. Output the raw Java source code only.
@@ -180,6 +136,13 @@ Requirements:
 - Prefer one focused refactor over multiple broad edits.
 - Touch only the code necessary to resolve the finding.
 - Return the full final Java file content only.`;
+
+const REFACTOR_COMPLETENESS_APPENDIX = `The output must be the complete file content.
+
+Requirements:
+- Do not emit markdown fences, explanations, or partial snippets.
+- Preserve the full file structure from package declaration through final closing brace.
+- If you cannot safely complete the file, return the original file unchanged rather than truncating it.`;
 
 const GENERIC_FILE_GUIDANCE = `Review this Java file for safe, behavior-preserving refactors.
 Prioritize:
@@ -207,15 +170,123 @@ const STREAM_FIRST_PROVIDERS = new Set([
   "ollama",
 ]);
 
-function getRuleGuidance(findingId: string): RefactorRuleSpec {
-  for (const [prefix, rule] of Object.entries(REFACTORING_RULES)) {
-    if (findingId.startsWith(prefix)) return rule;
+function estimateOutputTokensFromContent(content: string): number {
+  const estimated = Math.ceil(content.length / 3.2) + 768;
+  return Math.max(4096, Math.min(24_576, estimated));
+}
+
+function getRefactorMaxOutputTokens(provider: ProviderId, originalContent: string): number {
+  const requested = estimateOutputTokensFromContent(originalContent);
+  if (
+    provider === "openai-compatible" ||
+    provider === "lmstudio" ||
+    provider === "mlx" ||
+    provider === "ollama"
+  ) {
+    return Math.min(16_384, requested);
   }
-  return DEFAULT_RULE_GUIDANCE;
+  return requested;
+}
+
+function buildRefactorProviderOptions(
+  provider: ProviderId,
+): RefactorProviderOptions | undefined {
+  switch (provider) {
+    case "openai":
+      return {
+        openai: { reasoningEffort: "minimal", textVerbosity: "low" },
+      } as RefactorProviderOptions;
+    case "cerebras":
+      return { cerebras: { reasoningEffort: "low" } } as RefactorProviderOptions;
+    case "groq":
+      return { groq: { reasoningEffort: "low" } } as RefactorProviderOptions;
+    default:
+      return undefined;
+  }
+}
+
+function isLengthFinishReason(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  return (
+    normalized === "length" ||
+    normalized === "max_tokens" ||
+    normalized === "max_output_tokens" ||
+    normalized === "model_context_window_exceeded"
+  );
+}
+
+function scoreRelatedRule(
+  rule: RefactorRuleManifestEntry,
+  matched: RuntimeRefactorRule,
+): number {
+  let score = 0;
+  if (rule.category === matched.category) score += 2;
+  score += rule.principles.filter((value) => matched.principles.includes(value)).length;
+  score += rule.tags.filter((value) => matched.tags.includes(value)).length;
+  return score;
+}
+
+async function getRuleGuidance(findingId: string): Promise<RefactorRuleSpec> {
+  const cached = cacheGet(ruleGuidanceCache, findingId);
+  if (cached) return cached;
+  try {
+    const registry = await loadRefactorRegistry();
+    const rule =
+      registry.rules.find((entry) =>
+        entry.triggerPrefixes.some((prefix) => findingId.startsWith(prefix)),
+      ) ?? null;
+    if (!rule) return cacheSet(ruleGuidanceCache, findingId, DEFAULT_RULE_GUIDANCE);
+    const relatedRules = registry.rules
+      .filter((entry) => entry.id !== rule.id)
+      .map((entry) => ({ entry, score: scoreRelatedRule(entry, rule) }))
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 2)
+      .map((entry) => entry.entry.references)
+      .flat();
+    return cacheSet(ruleGuidanceCache, findingId, {
+      guidance: rule.defaultGuidance,
+      references: uniqueReferences([...rule.references, ...relatedRules]),
+    });
+  } catch {
+    return cacheSet(ruleGuidanceCache, findingId, DEFAULT_RULE_GUIDANCE);
+  }
 }
 
 function normalizeComparableContent(value: string): string {
   return value.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").trim();
+}
+
+function stripCodeFences(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("```")) return trimmed;
+  const lines = trimmed.split("\n");
+  if (lines.length < 3) return trimmed;
+  const first = lines[0].trim();
+  const last = lines[lines.length - 1].trim();
+  if (!first.startsWith("```") || last !== "```") return trimmed;
+  return lines.slice(1, -1).join("\n").trim();
+}
+
+export function isLikelyCompleteJavaFile(original: string, proposed: string): boolean {
+  const text = stripCodeFences(proposed);
+  if (!text) return false;
+  if (text.includes("```")) return false;
+  if (/^#+\s/m.test(text)) return false;
+  if (text.length < Math.min(64, original.length / 4)) return false;
+
+  const braceBalance = [...text].reduce((balance, char) => {
+    if (char === "{") return balance + 1;
+    if (char === "}") return balance - 1;
+    return balance;
+  }, 0);
+  if (braceBalance !== 0) return false;
+  if (text.includes("class ") || text.includes("interface ") || text.includes("record ")) {
+    if (!text.trimEnd().endsWith("}")) return false;
+  }
+  if (text.includes("package ") && !text.includes(";")) return false;
+  return true;
 }
 
 function hasMeaningfulChange(original: string, proposed: string): boolean {
@@ -244,10 +315,10 @@ ${ruleGuidance.guidance}
 Reference playbook:
 ${ruleGuidance.references.join("\n\n---\n\n")}
 
-${hotspotExcerpt ? `Hotspot excerpt:
-${hotspotExcerpt}
-
-` : ""}${retryForNoChange ? REFACTOR_FORCE_CHANGE_APPENDIX : ""}
+${hotspotExcerpt ? `Hotspot excerpt:\n${hotspotExcerpt}\n\n` : ""}${
+    retryForNoChange ? REFACTOR_FORCE_CHANGE_APPENDIX : ""
+  }
+${REFACTOR_COMPLETENESS_APPENDIX}
 
 Current file content:
 ${originalContent}`;
@@ -269,10 +340,7 @@ function buildRefactorPromptParts({
   retryForNoChange?: boolean;
 }): RefactorPromptParts {
   const customInstructions = refactorCustomInstructions?.trim()
-    ? `Refactor-specific user instructions:
-${refactorCustomInstructions.trim()}
-
-`
+    ? `Refactor-specific user instructions:\n${refactorCustomInstructions.trim()}\n\n`
     : "";
 
   return {
@@ -332,15 +400,11 @@ function buildFileRefactorGuidance(content: string): {
 } {
   const signals = analyzeJavaFileForRefactor(content);
   const bullets: string[] = [];
-  const references = [
-    ...DEFAULT_RULE_GUIDANCE.references,
-  ];
 
   if (signals.lineCount >= 220) {
     bullets.push(
       "This is a large file. Prefer one or two small Extract Method style improvements that reduce local complexity without redesigning the class.",
     );
-    references.push(extractMethodRule, introduceParameterObjectRule);
   }
   if (signals.longMethodCount > 0) {
     bullets.push(
@@ -349,23 +413,18 @@ function buildFileRefactorGuidance(content: string): {
   }
   if (signals.hasWildcardImport) {
     bullets.push("Replace wildcard imports with explicit imports if doing so is low-risk.");
-    references.push(replaceWildcardImportsRule);
   }
   if (signals.hasSystemOutPrintln) {
     bullets.push("Replace direct System.out.println calls with the file's logging style if available.");
-    references.push(replaceSystemOutPrintlnWithLoggerRule);
   }
   if (signals.hasEmptyCatch) {
     bullets.push("Replace empty catch blocks with minimal safe handling.");
-    references.push(replaceEmptyCatchWithHandlingRule);
   }
   if (signals.hasStringConcatLoop) {
     bullets.push("Replace loop string concatenation with StringBuilder where clearly appropriate.");
-    references.push(replaceLoopStringConcatWithStringBuilderRule);
   }
   if (signals.hasRawTypes) {
     bullets.push("Add missing generics when the correct type can be inferred confidently from local usage.");
-      references.push(addGenericsToRawTypesRule);
   }
   if (bullets.length === 0) {
     bullets.push(
@@ -390,7 +449,7 @@ ${GENERIC_FILE_GUIDANCE}`,
     ruleGuidance: {
       guidance:
         "Produce at least one small, behavior-preserving maintainability improvement when the file has any reasonable local smell or cleanup opportunity.",
-      references,
+      references: [],
     },
   };
 }
@@ -406,6 +465,10 @@ async function collectTextStream(
 }
 
 function buildHotspotExcerpt(content: string, findingId?: string): string | null {
+  const cacheKey = `${findingId ?? "file"}:${content.length}:${content.slice(0, 120)}`;
+  const cached = cacheGet(hotspotCache, cacheKey);
+  if (cached !== null) return cached;
+
   const lines = content.split(/\r?\n/);
   const patterns: Array<[string, RegExp]> = [
     ["println:", /System\.out\.println/],
@@ -422,15 +485,248 @@ function buildHotspotExcerpt(content: string, findingId?: string): string | null
     ["tell-dont-ask:", /get[A-Z][A-Za-z0-9_]*\(\)|is[A-Z][A-Za-z0-9_]*\(\)/],
   ];
   const pattern = patterns.find(([prefix]) => findingId?.startsWith(prefix))?.[1];
-  if (!pattern) return null;
+  if (!pattern) return cacheSet(hotspotCache, cacheKey, null);
   const index = lines.findIndex((line) => pattern.test(line));
-  if (index < 0) return null;
-  const start = Math.max(0, index - 6);
-  const end = Math.min(lines.length, index + 10);
-  return lines
-    .slice(start, end)
-    .map((line, offset) => `${start + offset + 1}: ${line}`)
-    .join("\n");
+  if (index < 0) return cacheSet(hotspotCache, cacheKey, null);
+  const start = Math.max(0, index - Math.floor(MAX_HOTSPOT_LINES / 2));
+  const end = Math.min(lines.length, start + MAX_HOTSPOT_LINES);
+  return cacheSet(
+    hotspotCache,
+    cacheKey,
+    lines
+      .slice(start, end)
+      .map((line, offset) => `${start + offset + 1}: ${line}`)
+      .join("\n"),
+  );
+}
+
+function finalizeGeneratedJava(originalContent: string, generated: string): string | null {
+  const normalized = stripCodeFences(generated).trim();
+  if (!isLikelyCompleteJavaFile(originalContent, normalized)) return null;
+  return normalized;
+}
+
+async function readFileText(absolutePath: string): Promise<string> {
+  const readResult = await native.readFile(absolutePath);
+  if (readResult.kind !== "text") {
+    throw new Error(
+      readResult.kind === "binary"
+        ? "File is binary - cannot refactor."
+        : `File is too large to refactor (${readResult.kind}).`,
+    );
+  }
+  return readResult.content;
+}
+
+function buildFileGuidanceCacheKey(absolutePath: string, originalContent: string): string {
+  return `${absolutePath}:${originalContent.length}:${originalContent.slice(0, 120)}`;
+}
+
+function getCachedFileGuidance(absolutePath: string, originalContent: string) {
+  const key = buildFileGuidanceCacheKey(absolutePath, originalContent);
+  const cached = cacheGet(fileGuidanceCache, key);
+  if (cached) return cached;
+  return cacheSet(fileGuidanceCache, key, buildFileRefactorGuidance(originalContent));
+}
+
+async function prepareRefactorContext(params: {
+  absolutePath: string;
+  originalContent?: string;
+  prompt: string;
+  emptyChangeMessage: string;
+  ruleGuidance: RefactorRuleSpec;
+  findingId?: string;
+  hotspotExcerpt?: string | null;
+}): Promise<PreparedRefactorContext> {
+  const t0 = performance.now();
+  const originalContent =
+    params.originalContent ?? (await readFileText(params.absolutePath));
+  const fileGuidance = getCachedFileGuidance(params.absolutePath, originalContent);
+  const hotspotExcerpt =
+    params.hotspotExcerpt ?? buildHotspotExcerpt(originalContent, params.findingId);
+
+  const fileFallbackRuleGuidance: RefactorRuleSpec | null = params.findingId
+    ? {
+        guidance: `${params.ruleGuidance.guidance}
+
+If the exact finding cannot be improved directly, make the smallest behavior-preserving refactor in the same area that clearly improves KISS, DRY, YAGNI, SOLID, Tell Don't Ask, or Clean Code.`,
+        references: uniqueReferences([
+          ...params.ruleGuidance.references,
+          ...fileGuidance.ruleGuidance.references,
+        ]),
+      }
+    : null;
+
+  debugRefactorPerf("prepared-context", {
+    ms: Math.round(performance.now() - t0),
+    fileBytes: originalContent.length,
+    hotspot: hotspotExcerpt ? hotspotExcerpt.split("\n").length : 0,
+  });
+
+  return {
+    absolutePath: params.absolutePath,
+    originalContent,
+    hotspotExcerpt,
+    basePrompt: params.prompt,
+    fileGuidancePrompt: params.findingId
+      ? `${params.prompt}
+
+The finding-specific attempt returned the original file unchanged.
+Use the same hotspot or nearby code and make one small concrete refactor that is clearly justified by the file's local smells.
+
+Additional file-driven guidance:
+${fileGuidance.prompt}`
+      : null,
+    baseRuleGuidance: params.ruleGuidance,
+    fileFallbackRuleGuidance,
+    emptyChangeMessage: params.emptyChangeMessage,
+  };
+}
+
+async function executeAttempt({
+  model,
+  promptParts,
+  tools,
+  preferStreaming,
+  maxOutputTokens,
+  providerOptions,
+}: {
+  model: Awaited<ReturnType<typeof buildConfiguredLanguageModel>>;
+  promptParts: RefactorPromptParts;
+  tools?: ToolSet;
+  preferStreaming: boolean;
+  maxOutputTokens: number;
+  providerOptions?: RefactorProviderOptions;
+}): Promise<{
+  text: string;
+  finishReason: string | null;
+  rawFinishReason: string | null;
+}> {
+  if (preferStreaming) {
+    const generation = streamText({
+      model,
+      system: promptParts.system,
+      prompt: promptParts.prompt,
+      tools,
+      maxOutputTokens,
+      maxRetries: 0,
+      ...(providerOptions ? { providerOptions } : {}),
+    });
+    const text = await collectTextStream(generation);
+    return {
+      text,
+      finishReason: (await generation.finishReason) ?? null,
+      rawFinishReason: (await generation.rawFinishReason) ?? null,
+    };
+  }
+  const generation = await generateText({
+    model,
+    system: promptParts.system,
+    prompt: promptParts.prompt,
+    tools,
+    maxOutputTokens,
+    maxRetries: 0,
+    ...(providerOptions ? { providerOptions } : {}),
+  });
+  return {
+    text: generation.text,
+    finishReason: generation.finishReason ?? null,
+    rawFinishReason: generation.rawFinishReason ?? null,
+  };
+}
+
+async function runRefactorAttempt({
+  model,
+  originalContent,
+  prompt,
+  ruleGuidance,
+  hotspotExcerpt,
+  refactorCustomInstructions,
+  preferStreaming,
+  tools,
+  provider,
+}: {
+  model: Awaited<ReturnType<typeof buildConfiguredLanguageModel>>;
+  originalContent: string;
+  prompt: string;
+  ruleGuidance: RefactorRuleSpec;
+  hotspotExcerpt: string | null;
+  refactorCustomInstructions?: string;
+  preferStreaming: boolean;
+  tools?: ToolSet;
+  provider: ProviderId;
+}): Promise<GenerationAttemptOutput> {
+  const maxOutputTokens = getRefactorMaxOutputTokens(provider, originalContent);
+  const providerOptions = buildRefactorProviderOptions(provider);
+  const firstPrompt = buildRefactorPromptParts({
+    prompt,
+    originalContent,
+    ruleGuidance,
+    hotspotExcerpt,
+    refactorCustomInstructions,
+  });
+
+  try {
+    const firstAttempt = await executeAttempt({
+      model,
+      promptParts: firstPrompt,
+      tools,
+      preferStreaming,
+      maxOutputTokens,
+      providerOptions,
+    });
+    const finalized = finalizeGeneratedJava(originalContent, firstAttempt.text);
+    if (finalized && hasMeaningfulChange(originalContent, finalized)) {
+      return {
+        text: finalized,
+        fallbackReason: null,
+        finishReason: firstAttempt.finishReason,
+        rawFinishReason: firstAttempt.rawFinishReason,
+      };
+    }
+    if (isLengthFinishReason(firstAttempt.finishReason ?? firstAttempt.rawFinishReason)) {
+      debugRefactorPerf("attempt-truncated", {
+        stage: "first",
+        finishReason: firstAttempt.finishReason,
+        rawFinishReason: firstAttempt.rawFinishReason,
+        maxOutputTokens,
+      });
+    }
+  } catch (cause) {
+    debugRefactorPerf("attempt-failed", { stage: "first", error: String(cause) });
+  }
+
+  const retryPrompt = buildRefactorPromptParts({
+    prompt,
+    originalContent,
+    ruleGuidance,
+    hotspotExcerpt,
+    refactorCustomInstructions,
+    retryForNoChange: true,
+  });
+  const retryAttempt = await executeAttempt({
+    model,
+    promptParts: retryPrompt,
+    tools,
+    preferStreaming: !preferStreaming,
+    maxOutputTokens: Math.min(32_768, Math.ceil(maxOutputTokens * 1.5)),
+    providerOptions,
+  });
+  const finalized = finalizeGeneratedJava(originalContent, retryAttempt.text);
+  if (!finalized) {
+    if (isLengthFinishReason(retryAttempt.finishReason ?? retryAttempt.rawFinishReason)) {
+      throw new Error(
+        "Refactor output was truncated by the model token limit. Try a smaller file or a model/provider with a larger completion budget.",
+      );
+    }
+    throw new Error("Refactor output appears truncated or incomplete.");
+  }
+  return {
+    text: finalized,
+    fallbackReason: "transport-or-invalid-output",
+    finishReason: retryAttempt.finishReason,
+    rawFinishReason: retryAttempt.rawFinishReason,
+  };
 }
 
 export function useRefactorGeneration(
@@ -453,10 +749,12 @@ export function useRefactorGeneration(
   const [status, setStatus] = useState<RefactorStatus>("idle");
   const [result, setResult] = useState<RefactorResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const requestSeq = useRef(0);
 
   const generateInternal = useCallback(
     async ({
       absolutePath,
+      originalContent,
       prompt,
       emptyChangeMessage,
       ruleGuidance,
@@ -464,35 +762,39 @@ export function useRefactorGeneration(
       hotspotExcerpt,
     }: {
       absolutePath: string;
+      originalContent?: string;
       prompt: string;
       emptyChangeMessage: string;
       ruleGuidance: RefactorRuleSpec;
       findingId?: string;
       hotspotExcerpt?: string | null;
     }) => {
+      const requestId = ++requestSeq.current;
+      const startedAt = performance.now();
       setStatus("generating");
       setError(null);
       setResult(null);
 
       try {
-        const readResult = await native.readFile(absolutePath);
-        if (readResult.kind !== "text") {
-          throw new Error(
-            readResult.kind === "binary"
-              ? "File is binary - cannot refactor."
-              : `File is too large to refactor (${readResult.kind}).`,
-          );
-        }
-        const originalContent = readResult.content;
-        const resolvedHotspotExcerpt =
-          hotspotExcerpt ?? buildHotspotExcerpt(originalContent, findingId);
         const readinessError = getRefactorModelReadinessError(modelConfig);
-        if (readinessError) {
-          throw new Error(readinessError);
-        }
+        if (readinessError) throw new Error(readinessError);
 
+        const context = await prepareRefactorContext({
+          absolutePath,
+          originalContent,
+          prompt,
+          emptyChangeMessage,
+          ruleGuidance,
+          findingId,
+          hotspotExcerpt,
+        });
+        if (requestId !== requestSeq.current) return;
+
+        const effectiveModelId = chooseRefactorPreviewModelId(
+          (modelConfig.modelId ?? "gpt-5.4-mini") as ModelId,
+        );
         const model = await buildConfiguredLanguageModel(
-          (modelConfig.modelId ?? "gpt-5.4-mini") as Parameters<typeof buildConfiguredLanguageModel>[0],
+          effectiveModelId,
           modelConfig.keys as Parameters<typeof buildConfiguredLanguageModel>[1],
           {
             lmstudioBaseURL: modelConfig.lmstudioBaseURL,
@@ -506,151 +808,92 @@ export function useRefactorGeneration(
             openrouterModelId: modelConfig.openrouterModelId,
           },
         );
-        const selectedModel = getModel(
-          (modelConfig.modelId ?? "gpt-5.4-mini") as Parameters<typeof getModel>[0],
-        );
-        const preferStreamingFallback = STREAM_FIRST_PROVIDERS.has(
-          selectedModel.provider,
-        );
+        const selectedModel = getModel(effectiveModelId);
+        const provider = selectedModel.provider;
+        const preferStreaming = STREAM_FIRST_PROVIDERS.has(provider);
 
-        const runGeneration = async (
-          withMcp: boolean,
-          attemptPrompt = prompt,
-          attemptRuleGuidance = ruleGuidance,
-        ) => {
+        const runGeneration = async (withMcp: boolean) => {
           const mcp = withMcp && mcpConfig ? await createRefactorMcpTools(mcpConfig) : null;
-          const tools = mcp && Object.keys(mcp.tools).length > 0
-            ? (mcp.tools as ToolSet)
-            : undefined;
-
+          const tools =
+            mcp && Object.keys(mcp.tools).length > 0 ? (mcp.tools as ToolSet) : undefined;
           try {
-            const firstPrompt = buildRefactorPromptParts({
-              prompt: attemptPrompt,
-              originalContent,
-              ruleGuidance: attemptRuleGuidance,
-              hotspotExcerpt: resolvedHotspotExcerpt,
+            return await runRefactorAttempt({
+              model,
+              originalContent: context.originalContent,
+              prompt: context.basePrompt,
+              ruleGuidance: context.baseRuleGuidance,
+              hotspotExcerpt: context.hotspotExcerpt,
               refactorCustomInstructions: modelConfig.refactorCustomInstructions,
+              preferStreaming,
+              tools,
+              provider,
             });
-            let streamError: unknown = null;
-
-            try {
-              const streamGeneration = streamText({
-                model,
-                system: firstPrompt.system,
-                prompt: firstPrompt.prompt,
-                tools,
-              });
-              const streamedText = await collectTextStream(streamGeneration);
-              if (hasMeaningfulChange(originalContent, streamedText)) {
-                return { text: streamedText };
-              }
-              console.warn(
-                "[javarf] Refactor stream returned no effective change, retrying with generateText",
-              );
-            } catch (cause) {
-              streamError = cause;
-              console.warn(
-                "[javarf] Refactor streamText failed, retrying with generateText",
-                cause,
-              );
-            }
-
-            const retryPrompt = buildRefactorPromptParts({
-              prompt: attemptPrompt,
-              originalContent,
-              ruleGuidance: attemptRuleGuidance,
-              hotspotExcerpt: resolvedHotspotExcerpt,
-              refactorCustomInstructions: modelConfig.refactorCustomInstructions,
-              retryForNoChange: true,
-            });
-
-            try {
-              if (preferStreamingFallback) {
-                const retryStreamGeneration = streamText({
-                  model,
-                  system: retryPrompt.system,
-                  prompt: retryPrompt.prompt,
-                  tools,
-                });
-                return { text: await collectTextStream(retryStreamGeneration) };
-              }
-              const fallbackGeneration = await generateText({
-                model,
-                system: retryPrompt.system,
-                prompt: retryPrompt.prompt,
-                tools,
-              });
-              return { text: fallbackGeneration.text };
-            } catch (generateError) {
-              if (streamError) {
-                throw new Error(
-                  `streamText failed and generateText fallback also failed. Stream error: ${String(streamError)}. Generate error: ${String(generateError)}`,
-                );
-              }
-              throw generateError;
-            }
           } finally {
             await mcp?.close();
           }
         };
 
-        let generation;
+        let generation: GenerationAttemptOutput;
         try {
           generation = await runGeneration(true);
         } catch (mcpError) {
           if (!shouldRetryWithoutMcp(mcpError)) throw mcpError;
-          console.warn(
-            "[javarf] MCP refactor generation failed, retrying without MCP tools",
-            mcpError,
-          );
+          debugRefactorPerf("retry-without-mcp", { error: String(mcpError) });
           generation = await runGeneration(false);
         }
 
         let proposedContent = generation.text.trim();
-        if (!hasMeaningfulChange(originalContent, proposedContent) && findingId) {
-          console.warn(
-            "[javarf] Finding-specific refactor returned no change, retrying with file-guided fallback",
-          );
-          const fileGuidance = buildFileRefactorGuidance(originalContent);
-          const fallbackRuleGuidance: RefactorRuleSpec = {
-            guidance: `${ruleGuidance.guidance}
+        let fallbackReason = generation.fallbackReason;
 
-If the exact finding cannot be improved directly, make the smallest behavior-preserving refactor in the same area that clearly improves KISS, DRY, YAGNI, SOLID, Tell Don't Ask, or Clean Code.`,
-            references: uniqueReferences([
-              ...ruleGuidance.references,
-              ...fileGuidance.ruleGuidance.references,
-            ]),
-          };
-          const fallbackPrompt = `${prompt}
-
-The finding-specific attempt returned the original file unchanged.
-Use the same hotspot or nearby code and make one small concrete refactor that is clearly justified by the file's local smells.
-
-Additional file-driven guidance:
-${fileGuidance.prompt}`;
-          const fallbackGeneration = await runGeneration(
-            false,
-            fallbackPrompt,
-            fallbackRuleGuidance,
-          );
-          proposedContent = fallbackGeneration.text.trim();
+        if (
+          !hasMeaningfulChange(context.originalContent, proposedContent) &&
+          context.fileGuidancePrompt &&
+          context.fileFallbackRuleGuidance
+        ) {
+          const semanticFallback = await runRefactorAttempt({
+            model,
+            originalContent: context.originalContent,
+            prompt: context.fileGuidancePrompt,
+            ruleGuidance: context.fileFallbackRuleGuidance,
+            hotspotExcerpt: context.hotspotExcerpt,
+            refactorCustomInstructions: modelConfig.refactorCustomInstructions,
+            preferStreaming,
+            provider,
+          });
+          proposedContent = semanticFallback.text.trim();
+          fallbackReason = semanticFallback.fallbackReason ?? "semantic-no-change";
         }
-        if (!hasMeaningfulChange(originalContent, proposedContent)) {
-          throw new Error(emptyChangeMessage);
+
+        if (!hasMeaningfulChange(context.originalContent, proposedContent)) {
+          throw new Error(context.emptyChangeMessage);
         }
+        if (requestId !== requestSeq.current) return;
+
+        debugRefactorPerf("completed", {
+          ms: Math.round(performance.now() - startedAt),
+          fileBytes: context.originalContent.length,
+          resultBytes: proposedContent.length,
+          fallbackReason,
+          largeDiff: context.originalContent.length >= LARGE_FILE_DIFF_THRESHOLD,
+        });
 
         setResult({
-          filePath: absolutePath,
-          originalContent,
+          filePath: context.absolutePath,
+          originalContent: context.originalContent,
           proposedContent,
         });
         setStatus("ready");
       } catch (err) {
+        if (requestId !== requestSeq.current) return;
+        debugRefactorPerf("failed", {
+          ms: Math.round(performance.now() - startedAt),
+          error: err instanceof Error ? err.message : String(err),
+        });
         setError(err instanceof Error ? err.message : String(err));
         setStatus("error");
       }
     },
-    [modelConfig, mcpConfig],
+    [mcpConfig, modelConfig],
   );
 
   const generate = useCallback(
@@ -667,7 +910,7 @@ ${fileGuidance.prompt}`;
         ? `${repoPath}${targetRelPath}`
         : `${repoPath}${sep}${targetRelPath}`;
 
-      const ruleGuidance = getRuleGuidance(finding.id);
+      const ruleGuidance = await getRuleGuidance(finding.id);
       await generateInternal({
         absolutePath,
         emptyChangeMessage: "AI returned no changes for this finding.",
@@ -695,23 +938,15 @@ ${ruleGuidance.guidance}`,
         ? normalizedFilePath.slice(normalizedRepoPath.length + 1)
         : normalizedFilePath.split("/").pop() ?? normalizedFilePath;
 
-      const readResult = await native.readFile(filePath);
-      if (readResult.kind !== "text") {
-        setError(
-          readResult.kind === "binary"
-            ? "File is binary - cannot refactor."
-            : `File is too large to refactor (${readResult.kind}).`,
-        );
-        setStatus("error");
-        return;
-      }
-      const fileGuidance = buildFileRefactorGuidance(readResult.content);
+      const originalContent = await readFileText(filePath);
+      const fileGuidance = getCachedFileGuidance(filePath, originalContent);
 
       await generateInternal({
         absolutePath: filePath,
+        originalContent,
         emptyChangeMessage: "AI returned no refactor changes for this Java file.",
         ruleGuidance: fileGuidance.ruleGuidance,
-        hotspotExcerpt: buildHotspotExcerpt(readResult.content),
+        hotspotExcerpt: buildHotspotExcerpt(originalContent),
         prompt: `${fileGuidance.prompt}
 Target file: ${targetRelPath}`,
       });
@@ -720,6 +955,7 @@ Target file: ${targetRelPath}`,
   );
 
   const reset = useCallback(() => {
+    requestSeq.current++;
     setStatus("idle");
     setResult(null);
     setError(null);

@@ -47,6 +47,7 @@ import {
   GitHistoryStack,
   type GitHistorySearchHandle,
 } from "@/modules/git-history";
+import { HomeDashboard } from "@/app/HomeDashboard";
 import { FindingsDashboard, JavaRefactorPreviewPane } from "@/modules/findings";
 import { useRefactorGeneration } from "@/modules/findings";
 import {
@@ -250,11 +251,16 @@ export default function App() {
   const { zoomIn, zoomOut, zoomReset } = useZoom();
   const explorerRef = useRef<FileExplorerHandle>(null);
   const explorerReturnFocusRef = useRef<HTMLElement | null>(null);
+  const hasWorkspaceRef = useRef(false);
 
   const sidebarRef = useRef<PanelImperativeHandle | null>(null);
   const sidebarWidthRef = useRef(readSidebarWidth());
   const sidebarWidthWriteTimerRef = useRef(0);
   const [sidebarView, setSidebarViewState] = useState<SidebarViewId>(readSidebarView);
+  const [statusBarHover, setStatusBarHover] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
+  const hoverCloseTimerRef = useRef(0);
+  const zenSidebarPinnedRef = useRef(false);
   const persistSidebarView = useCallback((view: SidebarViewId) => {
     setSidebarViewState(view);
     try {
@@ -309,6 +315,7 @@ export default function App() {
   }, []);
 
   const toggleExplorerFocus = useCallback(() => {
+    if (!hasWorkspaceRef.current) return;
     const explorer = explorerRef.current;
     const panel = sidebarRef.current;
     const collapsed = panel ? panel.getSize().asPercentage <= 0 : false;
@@ -340,6 +347,52 @@ export default function App() {
     explorer.focus();
   }, [persistSidebarView, sidebarView]);
 
+  useEffect(() => {
+    const panel = sidebarRef.current;
+    if (!panel || !hasWorkspaceRef.current) return;
+    if (!zenMode) return;
+    if (statusBarHover) {
+      if (panel.getSize().asPercentage <= 0) {
+        panel.resize(`${sidebarWidthRef.current}px`);
+      }
+      if (sidebarView !== "explorer") persistSidebarView("explorer");
+      return;
+    }
+    if (panel.getSize().asPercentage > 0 && !zenSidebarPinnedRef.current) {
+      panel.collapse();
+    }
+  }, [persistSidebarView, sidebarView, statusBarHover, zenMode]);
+
+  useEffect(() => {
+    return () => {
+      if (hoverCloseTimerRef.current) window.clearTimeout(hoverCloseTimerRef.current);
+    };
+  }, []);
+
+  const handleStatusBarHoverChange = useCallback((next: boolean) => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = 0;
+    }
+    if (next) {
+      setStatusBarHover(true);
+      return;
+    }
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      hoverCloseTimerRef.current = 0;
+      setStatusBarHover(false);
+    }, 180);
+  }, []);
+  const handleZenModeToggle = useCallback(() => {
+    setZenMode((current) => {
+      const next = !current;
+      if (!next) {
+        zenSidebarPinnedRef.current = false;
+        setStatusBarHover(false);
+      }
+      return next;
+    });
+  }, []);
   const [home, setHome] = useState<string | null>(null);
   const [pendingCloseTab, setPendingCloseTab] = useState<number | null>(null);
   const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
@@ -831,6 +884,21 @@ export default function App() {
     launchCwd ?? home,
     javaWorkspaceRoot,
   );
+  const hasWorkspace = !!explorerRoot;
+  hasWorkspaceRef.current = hasWorkspace;
+
+  useEffect(() => {
+    const panel = sidebarRef.current;
+    if (!panel) return;
+    const collapsed = panel.getSize().asPercentage <= 0;
+    if (!hasWorkspace && !collapsed) {
+      panel.collapse();
+      return;
+    }
+    if (hasWorkspace && collapsed) {
+      panel.resize(`${sidebarWidthRef.current}px`);
+    }
+  }, [hasWorkspace]);
 
   useEffect(() => {
     setActiveSearchAddon(
@@ -1695,6 +1763,16 @@ export default function App() {
     workspaceSurface
   );
 
+  const homeSurface = (
+    <HomeDashboard
+      hasModelAccess={hasComposer}
+      onOpenWorkspace={() => {
+        void handleChooseJavaRepo();
+      }}
+      onOpenJavaRefactor={handleOpenJavaRefactor}
+    />
+  );
+
   const shell = (
     <ThemeProvider>
       <TooltipProvider>
@@ -1721,6 +1799,8 @@ export default function App() {
             onOpenSettings={() => void openSettingsWindow()}
             searchTarget={searchTarget}
             searchRef={searchInlineRef}
+            zenMode={zenMode}
+            onToggleZenMode={handleZenModeToggle}
           />
 
           <main className="zoom-content flex min-h-0 flex-1 flex-col">
@@ -1731,7 +1811,7 @@ export default function App() {
               <ResizablePanel
                 id="sidebar"
                 panelRef={sidebarRef}
-                defaultSize={`${sidebarWidthRef.current}px`}
+                defaultSize={hasWorkspace ? `${sidebarWidthRef.current}px` : 0}
                 minSize={`${SIDEBAR_MIN_WIDTH}px`}
                 maxSize={`${SIDEBAR_MAX_WIDTH}px`}
                 collapsible
@@ -1740,51 +1820,89 @@ export default function App() {
                   if (size.inPixels > 0) persistSidebarWidth(size.inPixels);
                 }}
               >
-                <div className="flex h-full min-h-0 flex-col border-r border-border/60 bg-card">
-                  <div className="min-h-0 flex-1">
-                    {sidebarView === "explorer" ? (
-                      <FileExplorer
-                        ref={explorerRef}
-                        rootPath={explorerRoot}
-                        onOpenFile={handleOpenFile}
-                        onPathRenamed={handlePathRenamed}
-                        onPathDeleted={handlePathDeleted}
-                        onRevealInTerminal={cdInNewTab}
-                        onSelectDirectory={handleSelectAnalysisFolder}
-                        onAnalyzeFolder={handleAnalyzeFolder}
-                        onAttachToAgent={handleAttachFileToAgent}
-                        onOpenMarkdownPreview={openMarkdownPreview}
+                <div
+                  className={cn(
+                    "flex h-full min-h-0 flex-col border-r border-border/60 bg-card/96 transition-[opacity,border-color,background-color] duration-150 ease-out",
+                    zenMode ? "opacity-96" : "opacity-100",
+                  )}
+                  onMouseEnter={() => {
+                    if (!zenMode) return;
+                    zenSidebarPinnedRef.current = true;
+                    handleStatusBarHoverChange(true);
+                  }}
+                  onMouseLeave={() => {
+                    if (!zenMode) return;
+                    zenSidebarPinnedRef.current = false;
+                    handleStatusBarHoverChange(false);
+                  }}
+                  onFocusCapture={() => {
+                    if (!zenMode) return;
+                    zenSidebarPinnedRef.current = true;
+                    handleStatusBarHoverChange(true);
+                  }}
+                  onBlurCapture={(event) => {
+                    if (!zenMode) return;
+                    const nextTarget = event.relatedTarget;
+                    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+                      return;
+                    }
+                    zenSidebarPinnedRef.current = false;
+                    handleStatusBarHoverChange(false);
+                  }}
+                >
+                  {hasWorkspace ? (
+                    <>
+                      <div className="min-h-0 flex-1">
+                        {sidebarView === "explorer" ? (
+                          <FileExplorer
+                            ref={explorerRef}
+                            rootPath={explorerRoot}
+                            onOpenFile={handleOpenFile}
+                            onPathRenamed={handlePathRenamed}
+                            onPathDeleted={handlePathDeleted}
+                            onRevealInTerminal={cdInNewTab}
+                            onSelectDirectory={handleSelectAnalysisFolder}
+                            onAnalyzeFolder={handleAnalyzeFolder}
+                            onAttachToAgent={handleAttachFileToAgent}
+                            onOpenMarkdownPreview={openMarkdownPreview}
+                          />
+                        ) : (
+                          <SourceControlPanel
+                            open
+                            sourceControl={sourceControl}
+                            onOpenDiff={openGitDiffTab}
+                            onOpenGitGraph={openGitGraphFromContext}
+                          />
+                        )}
+                      </div>
+                      <div className="border-t border-border/60 px-2 py-2">
+                        <Button
+                          size="sm"
+                          variant={phase1Mode === "hidden" ? "outline" : "secondary"}
+                          className="w-full justify-start"
+                          onClick={handleOpenJavaRefactor}
+                        >
+                          Java refactor
+                        </Button>
+                      </div>
+                      <SidebarRail
+                        activeView={sidebarView}
+                        onSelectView={persistSidebarView}
+                        changedCount={sourceControl.changedCount}
                       />
-                    ) : (
-                      <SourceControlPanel
-                        open
-                        sourceControl={sourceControl}
-                        onOpenDiff={openGitDiffTab}
-                        onOpenGitGraph={openGitGraphFromContext}
-                      />
-                    )}
-                  </div>
-                  <div className="border-t border-border/60 px-2 py-2">
-                    <Button
-                      size="sm"
-                      variant={phase1Mode === "hidden" ? "outline" : "secondary"}
-                      className="w-full justify-start"
-                      onClick={handleOpenJavaRefactor}
-                    >
-                      Java refactor
-                    </Button>
-                  </div>
-                  <SidebarRail
-                    activeView={sidebarView}
-                    onSelectView={persistSidebarView}
-                    changedCount={sourceControl.changedCount}
-                  />
+                    </>
+                  ) : null}
                 </div>
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
                 <div className="flex h-full min-h-0 flex-col">
-                  <div className="relative min-h-0 flex-1">
+                  <div
+                    className={cn(
+                      "relative min-h-0 flex-1 transition-opacity duration-150 ease-out",
+                      zenMode ? "opacity-[0.985]" : "opacity-100",
+                    )}
+                  >
                     {showFirstRunSetup ? (
                       <JavaFirstRunSetup
                         hasModelAccess={hasComposer}
@@ -1798,6 +1916,8 @@ export default function App() {
                         onChooseRepo={handleChooseJavaRepo}
                         onContinue={handleCompleteFirstRunSetup}
                       />
+                    ) : !hasWorkspace ? (
+                      homeSurface
                     ) : phase1Mode === "hidden" ? (
                       previewWorkspaceSurface
                     ) : javaPreviewActive ? (
@@ -1814,9 +1934,13 @@ export default function App() {
                       animate={{
                         height: panelOpen ? "auto" : 0,
                         opacity: panelOpen ? 1 : 0,
+                        y: panelOpen ? 0 : -2,
                       }}
-                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="overflow-hidden"
+                      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+                      className={cn(
+                        "overflow-hidden transition-all duration-150",
+                        zenMode && "opacity-40 hover:opacity-100",
+                      )}
                       aria-hidden={!panelOpen}
                     >
                       {hasComposer ? (
@@ -1841,9 +1965,11 @@ export default function App() {
             onWorkspaceChange={switchWorkspace}
             onOpenMini={openMini}
             hasComposer={hasComposer}
+            zenMode={zenMode}
             privateActive={
               activeTab?.kind === "terminal" && activeTab.private === true
             }
+            onHoverChange={handleStatusBarHoverChange}
           />
 
           <AgentNotificationsBridge
@@ -1965,36 +2091,70 @@ function JavaRefactorPreviewShell({
 }) {
   const selectedModelId = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
-  const prefs = usePreferencesStore();
+  const lmstudioBaseURL = usePreferencesStore((s) => s.lmstudioBaseURL);
+  const lmstudioModelId = usePreferencesStore((s) => s.lmstudioModelId);
+  const mlxBaseURL = usePreferencesStore((s) => s.mlxBaseURL);
+  const mlxModelId = usePreferencesStore((s) => s.mlxModelId);
+  const ollamaBaseURL = usePreferencesStore((s) => s.ollamaBaseURL);
+  const ollamaModelId = usePreferencesStore((s) => s.ollamaModelId);
+  const openaiCompatibleBaseURL = usePreferencesStore((s) => s.openaiCompatibleBaseURL);
+  const openaiCompatibleModelId = usePreferencesStore((s) => s.openaiCompatibleModelId);
+  const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
+  const refactorCustomInstructions = usePreferencesStore((s) => s.refactorCustomInstructions);
+  const refactorMcpEnabled = usePreferencesStore((s) => s.refactorMcpEnabled);
+  const context7Url = usePreferencesStore((s) => s.context7Url);
 
-  const refactor = useRefactorGeneration(
-    {
+  const refactorModelConfig = useMemo(
+    () => ({
       modelId: selectedModelId,
       keys: apiKeys as Record<string, string>,
-      lmstudioBaseURL: prefs.lmstudioBaseURL,
-      lmstudioModelId: prefs.lmstudioModelId,
-      mlxBaseURL: prefs.mlxBaseURL,
-      mlxModelId: prefs.mlxModelId,
-      ollamaBaseURL: prefs.ollamaBaseURL,
-      ollamaModelId: prefs.ollamaModelId,
-      openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
-      openaiCompatibleModelId: prefs.openaiCompatibleModelId,
-      openrouterModelId: prefs.openrouterModelId,
-      refactorCustomInstructions: prefs.refactorCustomInstructions,
-    },
-    {
-      exaEnabled: prefs.refactorMcpEnabled,
-      context7Enabled: prefs.refactorMcpEnabled,
-      context7Url: prefs.context7Url,
-    },
+      lmstudioBaseURL,
+      lmstudioModelId,
+      mlxBaseURL,
+      mlxModelId,
+      ollamaBaseURL,
+      ollamaModelId,
+      openaiCompatibleBaseURL,
+      openaiCompatibleModelId,
+      openrouterModelId,
+      refactorCustomInstructions,
+    }),
+    [
+      apiKeys,
+      lmstudioBaseURL,
+      lmstudioModelId,
+      mlxBaseURL,
+      mlxModelId,
+      ollamaBaseURL,
+      ollamaModelId,
+      openaiCompatibleBaseURL,
+      openaiCompatibleModelId,
+      openrouterModelId,
+      refactorCustomInstructions,
+      selectedModelId,
+    ],
   );
+
+  const refactorMcpConfig = useMemo(
+    () => ({
+      exaEnabled: refactorMcpEnabled,
+      context7Enabled: refactorMcpEnabled,
+      context7Url,
+    }),
+    [context7Url, refactorMcpEnabled],
+  );
+
+  const refactor = useRefactorGeneration(refactorModelConfig, refactorMcpConfig);
   const { generateForFile, reset } = refactor;
+  const repoPath = repo?.path ?? null;
 
   useEffect(() => {
-    if (!repo || !filePath) return;
+    if (!repoPath || !filePath) return;
     reset();
-    void generateForFile(filePath, repo.path);
-  }, [filePath, generateForFile, repo, reset]);
+    void generateForFile(filePath, repoPath);
+  }, [filePath, generateForFile, repoPath, reset]);
+
+  useEffect(() => () => reset(), [reset]);
 
   if (!repo || !filePath) return null;
 

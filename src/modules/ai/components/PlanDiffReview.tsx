@@ -11,25 +11,14 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { usePlanStore, type QueuedEdit } from "../store/planStore";
+import {
+  buildLineDiffRows,
+  computeLineDiffStats,
+} from "../lib/lineDiff";
 
 function basename(p: string): string {
   const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
   return i >= 0 ? p.slice(i + 1) : p;
-}
-
-function diffStats(
-  original: string,
-  proposed: string,
-): { added: number; removed: number } {
-  const a = original.split("\n");
-  const b = proposed.split("\n");
-  const setA = new Set(a);
-  const setB = new Set(b);
-  let added = 0;
-  let removed = 0;
-  for (const line of b) if (!setA.has(line)) added++;
-  for (const line of a) if (!setB.has(line)) removed++;
-  return { added, removed };
 }
 
 export function PlanDiffReview() {
@@ -108,9 +97,7 @@ function PlanRow({
   const [open, setOpen] = useState(false);
   const isDir = item.kind === "create_directory";
   const isNew = item.isNewFile && !isDir;
-  const stats = isDir
-    ? null
-    : diffStats(item.originalContent, item.proposedContent);
+  const stats = isDir ? null : computeLineDiffStats(item.originalContent, item.proposedContent);
   const Icon = isDir
     ? FolderAddIcon
     : isNew
@@ -199,14 +186,7 @@ function UnifiedDiffPreview({
   original: string;
   proposed: string;
 }) {
-  const a = original.split("\n");
-  const b = proposed.split("\n");
-  const setA = new Set(a);
-  const setB = new Set(b);
-
-  const lines: Array<{ kind: "add" | "del" | "ctx"; text: string }> = [];
-  for (const l of a) if (!setB.has(l)) lines.push({ kind: "del", text: l });
-  for (const l of b) if (!setA.has(l)) lines.push({ kind: "add", text: l });
+  const lines = buildLineDiffRows(original, proposed);
 
   if (lines.length === 0) {
     return (

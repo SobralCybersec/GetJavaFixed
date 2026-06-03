@@ -9,8 +9,13 @@ type AiStreamEvent =
 
 type RequestHeaders = Record<string, string>;
 
+const boundWindowFetch: typeof fetch =
+  typeof window !== "undefined"
+    ? window.fetch.bind(window)
+    : globalThis.fetch.bind(globalThis);
+
 export const safeWindowFetch: typeof fetch = (input, init) =>
-  window.fetch(input, init);
+  boundWindowFetch(input, init);
 
 function headerInitToRecord(
   init: HeadersInit | undefined,

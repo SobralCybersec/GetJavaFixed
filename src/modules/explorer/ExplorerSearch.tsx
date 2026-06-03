@@ -171,15 +171,16 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
     <div className="flex flex-col">
       {open ? (
         <motion.div
-          className="relative shrink-0 px-2 py-1.5"
-          initial={{ opacity: 0, transform: "translateY(-15px)" }}
+          className="relative shrink-0 border-b border-white/8 bg-[#11141a] px-2.5 py-2"
+          initial={{ opacity: 0, transform: "translateY(-6px)" }}
           animate={{ opacity: 1, transform: "translateY(0px)" }}
+          transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
         >
           <HugeiconsIcon
             icon={Search01Icon}
             size={13}
             strokeWidth={2}
-            className="absolute top-1/2 left-4 -translate-y-1/2 text-muted-foreground"
+            className="absolute top-1/2 left-5 -translate-y-1/2 text-white/34"
           />
           <Input
             ref={inputRef}
@@ -210,13 +211,13 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
               }
             }}
             placeholder="Search files…"
-            className="h-7 pr-7 pl-6.5 text-xs"
+            className="h-8 border-white/10 bg-black/20 pr-7 pl-7 text-xs text-white placeholder:text-white/28"
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="absolute top-1/2 right-3.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="absolute top-1/2 right-4 -translate-y-1/2 rounded p-0.5 text-white/34 hover:bg-white/[0.06] hover:text-white"
               aria-label="Clear search"
             >
               <HugeiconsIcon icon={Cancel01Icon} size={11} strokeWidth={2} />
@@ -229,11 +230,11 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
         <ScrollArea className="min-h-0 flex-1">
           <div className="py-1" ref={scrollRef}>
             {searching && results.length === 0 ? (
-              <div className="px-3 py-2 text-[11px] text-muted-foreground">
+              <div className="px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-white/34">
                 Searching…
               </div>
             ) : results.length === 0 ? (
-              <div className="px-3 py-2 text-[11px] text-muted-foreground">
+              <div className="px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-white/34">
                 No matches
               </div>
             ) : (
@@ -253,8 +254,10 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                           }
                         }}
                         className={cn(
-                          "flex w-full items-center gap-1.5 px-2 py-1 text-left text-xs transition-colors",
-                          isSelected ? "bg-accent text-foreground" : "hover:bg-accent/50 text-foreground/80"
+                          "flex w-full items-center gap-2 border-l border-transparent px-2.5 py-1.5 text-left text-xs transition-[background-color,color,border-color] duration-100",
+                          isSelected
+                            ? "border-l-primary bg-white/[0.055] text-white"
+                            : "text-white/74 hover:bg-white/[0.03] hover:text-white"
                         )}
                         title={hit.path}
                       >
@@ -269,7 +272,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                           />
                         )}
                         <span className="truncate">{hit.name}</span>
-                        <span className="ml-auto truncate text-[10px] text-muted-foreground">
+                        <span className="ml-auto truncate font-mono text-[10px] text-white/28">
                           {hit.rel}
                         </span>
                       </button>

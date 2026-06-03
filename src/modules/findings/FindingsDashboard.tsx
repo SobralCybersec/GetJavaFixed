@@ -9,8 +9,10 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useDragControls, useReducedMotion } from "motion/react";
 
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import {
@@ -25,10 +27,19 @@ import {
   type FindingsAnalytics,
   type FindingsAnalyticsBucket,
 } from "@/modules/findings/lib/analytics";
-import { useFindings, type FindingsRepo } from "@/modules/findings/lib/useFindings";
+import {
+  useFindings,
+  type FindingsPanelState,
+  type FindingsRepo,
+} from "@/modules/findings/lib/useFindings";
 import { useRefactorGeneration } from "@/modules/findings/lib/useRefactorGeneration";
 import { useChatStore } from "@/modules/ai/store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import {
+  ArrowDown01Icon,
+  GridViewIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 type Props = {
   repo: FindingsRepo;
@@ -44,6 +55,7 @@ export function FindingsDashboard({
   onClose,
 }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const [exaApiKey, setExaApiKey] = useState<string | null>(null);
   const [context7ApiKey, setContext7ApiKey] = useState<string | null>(null);
   const [toolKeysLoaded, setToolKeysLoaded] = useState(false);
@@ -69,6 +81,7 @@ export function FindingsDashboard({
   const selectedModelId = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const prefs = usePreferencesStore();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     let alive = true;
@@ -129,54 +142,83 @@ export function FindingsDashboard({
     (refactor.status === "idle" || refactor.status === "error");
 
   return (
-    <div className="java-grid flex h-full min-h-0 flex-col overflow-auto bg-background text-foreground">
+    <div className="javarf-ops-dashboard relative flex h-full min-h-0 flex-col overflow-auto bg-background text-foreground">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_8%,color-mix(in_oklab,var(--primary)_10%,transparent),transparent_26%),radial-gradient(circle_at_88%_4%,color-mix(in_oklab,var(--accent)_8%,transparent),transparent_24%),linear-gradient(180deg,color-mix(in_oklab,var(--card)_86%,transparent),transparent_58%)]"
+      />
       {/* Header */}
-      <div className="border-b border-border/60 bg-card/90 px-6 py-3 backdrop-blur">
-        <div className="flex h-8 items-center gap-3">
+      <div className="sticky top-0 z-10 border-b border-border/60 bg-card/92 px-4 py-3 backdrop-blur xl:px-6">
+        <div className="flex min-h-8 flex-wrap items-center gap-3">
           <img src="/java.png" alt="" className="size-7 object-contain" />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">Java Refactor Dashboard</div>
-            <div className="truncate text-xs text-muted-foreground">{repo.readiness.repoName}</div>
+          <div className="min-w-0 flex-1">
+            <div className="font-heading text-xl font-semibold leading-none tracking-[0.08em] text-foreground">Refactor Java</div>
+            <div className="break-words text-xs leading-snug text-muted-foreground">
+              {repo.readiness.repoName}
+            </div>
           </div>
-          <Badge variant="secondary" className="ml-auto bg-primary/10 text-primary">
+          <Badge variant="secondary" className="bg-primary/10 text-primary">
             {repo.readiness.projectType}
           </Badge>
           {onClose ? (
-            <Button size="sm" variant="ghost" onClick={onClose}>
+            <Button size="sm" variant="ghost" onClick={onClose} className="ml-auto sm:ml-0">
               Open workspace
             </Button>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start">
-        {/* Left: findings queue */}
-        <div className="min-w-0 flex-1 space-y-4">
-          <McpResearchCard
-            exaApiKey={exaApiKey}
-            context7ApiKey={context7ApiKey}
-            toolKeysLoaded={toolKeysLoaded}
-            context7Url={prefs.context7Url}
-            mcpEnabled={prefs.refactorMcpEnabled}
-            onExaKeySaved={setExaApiKey}
-            onContext7KeySaved={setContext7ApiKey}
-          />
-          <DashboardAnalyticsOverview
-            analytics={analytics}
-            progress={progress}
-            impactSummary={impactSummary}
-          />
-          <Card size="sm" className="java-panel border border-border/60">
+      <div className="relative z-0 mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-5 px-4 py-5 sm:px-5 xl:gap-6 xl:py-6">
+        <div className="min-w-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 gap-4">
+            <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-2xl border border-border/60 bg-card/85 p-1">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="intelligence">Refactor Intelligence</TabsTrigger>
+              <TabsTrigger value="findings">Findings Queue</TabsTrigger>
+              <TabsTrigger value="research">Research MCPs</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-4">
+              <DashboardWidget title="Command center" reduceMotion={reduceMotion}>
+                <DashboardHeroSummary
+                  repoName={repo.readiness.repoName}
+                  projectType={repo.readiness.projectType}
+                  panelState={panelState}
+                  scopeLabel={scopeLabel}
+                  progress={progress}
+                  filesScanned={filesScanned}
+                  entriesVisited={entriesVisited}
+                  partial={partial}
+                />
+              </DashboardWidget>
+            </TabsContent>
+
+            <TabsContent value="intelligence" className="space-y-4">
+              <DashboardWidget title="Refactor intelligence" reduceMotion={reduceMotion}>
+                <DashboardAnalyticsOverview
+                  analytics={analytics}
+                  progress={progress}
+                  impactSummary={impactSummary}
+                />
+              </DashboardWidget>
+            </TabsContent>
+
+            <TabsContent value="findings" className="space-y-4">
+              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(420px,0.85fr)]">
+                <DashboardWidget title="Findings queue" reduceMotion={reduceMotion}>
+                  <Card size="sm" className="java-panel ops-card border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
             <CardHeader className="gap-2">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Refactor findings queue</CardTitle>
+                  <CardTitle className="whitespace-normal leading-tight">Refactor findings queue</CardTitle>
                   <CardDescription>
                     Ranked hotspots first, plus direct file previews before any write path.
                   </CardDescription>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline">{scopeLabel ?? "Whole repository"}</Badge>
-                    {activeScanPath ? <span className="font-mono">{activeScanPath}</span> : null}
+                    {activeScanPath ? (
+                      <span className="max-w-full break-all font-mono">{activeScanPath}</span>
+                    ) : null}
                     {filesScanned > 0 ? (
                       <span>{filesScanned} Java files scanned</span>
                     ) : null}
@@ -190,6 +232,7 @@ export function FindingsDashboard({
                     <Button
                       size="sm"
                       variant="outline"
+                      className="transition-colors duration-150"
                       onClick={() => void startAnalysis(selectedScanPath)}
                       disabled={panelState === "analyzing"}
                     >
@@ -198,6 +241,7 @@ export function FindingsDashboard({
                   ) : null}
                   <Button
                     size="sm"
+                    className="transition-colors duration-150"
                     onClick={() => void startAnalysis()}
                     disabled={panelState === "analyzing"}
                   >
@@ -208,7 +252,7 @@ export function FindingsDashboard({
             </CardHeader>
             <CardContent className="space-y-4">
               {(panelState === "analyzing" || panelState === "ready") && (
-                <div className="rounded-3xl border border-primary/20 bg-primary/6 px-4 py-4">
+                <div className="ops-inset-panel border border-primary/20 bg-primary/6 px-4 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium">{message}</p>
                     <span className="text-xs text-muted-foreground">watch-only</span>
@@ -218,25 +262,25 @@ export function FindingsDashboard({
               )}
 
               {panelState === "error" && error ? (
-                <div className="rounded-3xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-muted-foreground">
+                <div className="ops-inset-panel border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-muted-foreground">
                   {error}
                 </div>
               ) : null}
 
               {partial ? (
-                <div className="rounded-3xl border border-amber-500/30 bg-amber-500/8 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+                <div className="ops-inset-panel border border-amber-500/30 bg-amber-500/8 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
                   {partialReason ?? "This scan hit a safety limit and may be incomplete."}
                 </div>
               ) : null}
 
               {panelState === "empty" ? (
-                <div className="rounded-3xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
+                <div className="ops-inset-panel border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
                   Start full analysis to build the ranked refactor findings queue.
                 </div>
               ) : null}
 
               {findings.length > 0 ? (
-                <ScrollArea className="h-[420px] pr-1">
+                <ScrollArea className="h-[min(56vh,560px)] pr-1 xl:h-[calc(100vh-24rem)]">
                   <div role="list" className="space-y-2">
                     {findings.map((finding) => {
                       const active = selectedFinding?.id === finding.id;
@@ -247,22 +291,22 @@ export function FindingsDashboard({
                           role="listitem"
                           onClick={() => {
                             handleSelectFinding(finding.id);
-                            setDetailOpen(window.innerWidth < 1024);
+                            setDetailOpen(window.innerWidth < 1280);
                           }}
                           className={cn(
-                            "flex w-full items-start gap-3 rounded-sm border px-4 py-3 text-left transition-colors",
+                            "flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-[border-color,background-color] duration-100",
                             active
                               ? "border-primary/40 bg-primary/8 shadow-[0_12px_30px_color-mix(in_oklab,var(--primary)_15%,transparent)]"
-                              : "border-border/60 bg-card/80 hover:bg-muted/30",
+                              : "border-border/60 bg-card/80 hover:border-primary/20 hover:bg-muted/30",
                           )}
                         >
                           <div className="mt-0.5 h-10 w-1.5 bg-primary/80" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-medium">{finding.title}</p>
+                              <p className="break-words text-sm font-medium leading-tight">{finding.title}</p>
                               <Badge variant="secondary">{finding.category}</Badge>
                             </div>
-                            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+                            <p className="mt-1 text-pretty text-sm leading-5 text-muted-foreground">
                               {finding.rationale}
                             </p>
                             <p className="mt-2 text-xs text-muted-foreground">
@@ -278,11 +322,10 @@ export function FindingsDashboard({
               ) : null}
             </CardContent>
           </Card>
-        </div>
+                </DashboardWidget>
 
-        {/* Right: detail panel (desktop) */}
-        <div className="hidden w-full max-w-[36rem] lg:block">
-          <Card size="sm" className="java-panel border border-border/60">
+                <DashboardWidget title="Finding details" reduceMotion={reduceMotion} className="hidden lg:block xl:min-w-0">
+                  <Card size="sm" className="java-panel ops-card border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)] xl:sticky xl:top-24">
             <CardHeader>
               <CardTitle>{selectedFinding?.title ?? "Finding details"}</CardTitle>
               <CardDescription>
@@ -307,7 +350,7 @@ export function FindingsDashboard({
                   <span className="font-semibold">
                     {safety.kind === "gitFirst" ? "Git-first safety" : "Backup-copy safety"}
                   </span>
-                  {" — "}
+                  {" - "}
                   {safety.message}
                 </div>
               ) : null}
@@ -328,7 +371,7 @@ export function FindingsDashboard({
                       selectedFinding.affectedFiles.map((path) => (
                         <div
                           key={path}
-                          className="rounded-2xl border border-border/60 bg-background/80 px-3 py-2 font-mono text-xs"
+                          className="rounded-2xl border border-border/60 bg-background/80 px-3 py-2 font-mono text-xs tracking-tight"
                         >
                           {path}
                         </div>
@@ -346,7 +389,7 @@ export function FindingsDashboard({
                       <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         AI Refactor preview
                       </span>
-                      {canGenerateSelectedFinding && (
+                      {canGenerateSelectedFinding ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -356,8 +399,7 @@ export function FindingsDashboard({
                         >
                           Generate refactor
                         </Button>
-                      )}
-                      {refactor.status === "ready" && (
+                      ) : refactor.status === "ready" ? (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -366,7 +408,7 @@ export function FindingsDashboard({
                         >
                           Clear
                         </Button>
-                      )}
+                      ) : null}
                     </div>
 
                     {refactor.status === "idle" ? (
@@ -375,7 +417,7 @@ export function FindingsDashboard({
                         No files are changed until you accept and apply.
                       </p>
                     ) : (
-                      <div className="h-[360px] min-h-0">
+                      <div className="flex min-h-[320px] flex-col">
                         {/* Lazy import to avoid loading CodeMirror until needed */}
                         <RefactorPreviewInline
                           status={refactor.status}
@@ -394,6 +436,24 @@ export function FindingsDashboard({
               )}
             </CardContent>
           </Card>
+                </DashboardWidget>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="research" className="space-y-4">
+              <DashboardWidget title="Research MCPs" reduceMotion={reduceMotion}>
+                <McpResearchCard
+                  exaApiKey={exaApiKey}
+                  context7ApiKey={context7ApiKey}
+                  toolKeysLoaded={toolKeysLoaded}
+                  context7Url={prefs.context7Url}
+                  mcpEnabled={prefs.refactorMcpEnabled}
+                  onExaKeySaved={setExaApiKey}
+                  onContext7KeySaved={setContext7ApiKey}
+                />
+              </DashboardWidget>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
@@ -419,6 +479,59 @@ const CHART_COLORS = [
   "var(--color-chart-5)",
 ];
 
+function DashboardWidget({
+  title,
+  reduceMotion,
+  className,
+  children,
+}: {
+  title: string;
+  reduceMotion: boolean | null;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const controls = useDragControls();
+
+  return (
+    <section className={cn("ops-widget group/widget min-w-0", className)}>
+      <div className="ops-widget-handle mb-2 flex min-h-8 items-center justify-between gap-2 px-1.5">
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground"
+          aria-label={`${title} section`}
+          onPointerDown={(event) => {
+            if (reduceMotion || event.pointerType === "touch") return;
+            controls.start(event);
+          }}
+        >
+          <HugeiconsIcon icon={GridViewIcon} size={13} strokeWidth={1.8} />
+          <span className="truncate">{title}</span>
+        </button>
+        <button
+          type="button"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+          title={collapsed ? "Expand" : "Collapse"}
+          onClick={() => setCollapsed((value) => !value)}
+      >
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            size={13}
+            strokeWidth={1.8}
+            className={cn("transition-transform duration-100", collapsed && "-rotate-90")}
+          />
+        </button>
+      </div>
+      {!collapsed ? (
+        <div>
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DashboardAnalyticsOverview({
   analytics,
   progress,
@@ -429,12 +542,12 @@ function DashboardAnalyticsOverview({
   impactSummary: string;
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-      <Card size="sm" className="java-panel overflow-hidden border border-border/60">
-        <CardHeader className="gap-2 border-b border-border/40 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_55%)]">
+    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+      <Card size="sm" className="java-panel overflow-hidden border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
+        <CardHeader className="gap-2 border-b border-border/40 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklab,var(--primary)_10%,transparent),transparent_48%)]">
           <CardTitle>Refactor intelligence</CardTitle>
           <CardDescription>
-            Visual breakdown of what the scan found and where the biggest likely wins are.
+            What the scan found, where it repeats, and which fixes should move first.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-4">
@@ -460,18 +573,18 @@ function DashboardAnalyticsOverview({
             />
             <KpiCard
               label="Estimated impact"
-              value={`${analytics.impactLabel} · ${analytics.impactScore}`}
+              value={`${analytics.impactLabel} / ${analytics.impactScore}`}
               hint="Heuristic estimate, not profiler output"
             />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+            <div className="ops-inset-panel border border-border/60 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">Issue mix</p>
                   <p className="text-xs text-muted-foreground">
-                    Pizza-style category view of the current findings queue.
+                    Category spread for the current findings queue.
                   </p>
                 </div>
                 <Badge variant="outline" data-testid="issue-mix-chart">
@@ -500,7 +613,7 @@ function DashboardAnalyticsOverview({
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+              <div className="ops-inset-panel border border-border/60 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">Estimated gains</p>
@@ -524,7 +637,7 @@ function DashboardAnalyticsOverview({
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+              <div className="ops-inset-panel border border-border/60 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">Performance outlook</p>
@@ -569,7 +682,7 @@ function DashboardAnalyticsOverview({
         </CardContent>
       </Card>
 
-      <Card size="sm" className="java-panel border border-border/60">
+      <Card size="sm" className="java-panel border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
         <CardHeader className="gap-2">
           <CardTitle>Hotspot map</CardTitle>
           <CardDescription>
@@ -599,6 +712,70 @@ function DashboardAnalyticsOverview({
   );
 }
 
+function DashboardHeroSummary({
+  repoName,
+  projectType,
+  panelState,
+  scopeLabel,
+  progress,
+  filesScanned,
+  entriesVisited,
+  partial,
+}: {
+  repoName: string;
+  projectType: string;
+  panelState: FindingsPanelState;
+  scopeLabel: string | null;
+  progress: number;
+  filesScanned: number;
+  entriesVisited: number;
+  partial: boolean;
+}) {
+  return (
+    <Card size="sm" className="java-panel ops-hero overflow-hidden border border-border/60 shadow-[0_14px_36px_rgba(0,0,0,0.28)]">
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-end">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              Command center
+            </Badge>
+            <Badge variant="outline">{projectType}</Badge>
+          </div>
+          <div>
+            <div className="font-heading text-balance break-words text-4xl font-semibold leading-[0.88] tracking-[0.05em] text-foreground sm:text-5xl">
+              {repoName}
+            </div>
+            <p className="mt-1 text-pretty text-sm leading-6 text-muted-foreground">
+              Current scan scope: {scopeLabel ?? "Whole repository"}. Findings queue, hotspot map,
+              and AI refactor preview stay in one review surface.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <KpiCard
+            label="Scan state"
+            value={{ analyzing: "Running", ready: "Ready", error: "Error", empty: "Idle" }[panelState]}
+            hint={partial ? "Partial limits reached" : "Within safety limits"}
+            compact
+          />
+          <KpiCard
+            label="Progress"
+            value={`${progress}%`}
+            hint={`${filesScanned} files scanned`}
+            compact
+          />
+          <KpiCard
+            label="Entries"
+            value={entriesVisited}
+            hint="Filesystem entries visited"
+            compact
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function KpiCard({
   label,
   value,
@@ -613,15 +790,15 @@ function KpiCard({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-border/60 bg-background/70 px-4 py-3",
+        "ops-inset-panel border border-border/60 bg-background/70 px-4 py-3 transition-colors duration-100 hover:border-primary/25",
         compact && "px-3 py-2.5",
       )}
     >
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>
-      <div className={cn("mt-2 text-2xl font-semibold", compact && "text-xl")}>{value}</div>
-      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      <div className={cn("mt-2 text-balance text-xl font-semibold leading-tight sm:text-2xl", compact && "text-xl")}>{value}</div>
+      <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -636,8 +813,8 @@ function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
   let offset = 0;
 
   return (
-    <div className="relative flex h-44 w-44 items-center justify-center self-center">
-      <svg viewBox="0 0 140 140" className="h-40 w-40 -rotate-90">
+    <div className="relative flex h-36 w-36 items-center justify-center self-center sm:h-44 sm:w-44">
+      <svg viewBox="0 0 140 140" className="h-32 w-32 -rotate-90 sm:h-40 sm:w-40">
         <circle
           cx="70"
           cy="70"
@@ -794,7 +971,6 @@ function RefactorPreviewInline({
       result={result}
       error={error}
       onReset={onReset}
-      className="h-full"
     />
   );
 }
@@ -825,17 +1001,17 @@ function McpResearchCard({
   const [context7Draft, setContext7Draft] = useState("");
 
   return (
-    <Card size="sm" className="java-panel border border-border/60">
-        <CardHeader className="gap-2">
-          <CardTitle>Research MCPs</CardTitle>
-          <CardDescription>
+    <Card size="sm" className="java-panel rounded-[1.25rem] border border-border/60">
+      <CardHeader className="gap-2">
+        <CardTitle>Research MCPs</CardTitle>
+        <CardDescription>
           Refactor preview can enrich reasoning with Exa live search plus Context7 version-aware docs.
-          </CardDescription>
-        </CardHeader>
+        </CardDescription>
+      </CardHeader>
       <CardContent className="space-y-3">
         <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           {mcpEnabled
-            ? "MCP enrichment enabled for refactor previews. Exa tools: web_search_exa + web_fetch_exa."
+            ? "MCP enrichment enabled for the AI agent and refactor previews. Exa tools: web_search_exa + web_fetch_exa."
             : "MCP enrichment disabled in Settings > Models."}
         </div>
         <div className="rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
@@ -851,7 +1027,7 @@ function McpResearchCard({
               value={exaDraft}
               onChange={(event) => setExaDraft(event.target.value)}
               placeholder="Paste Exa API key"
-              className="h-9 flex-1 rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none"
+              className="h-9 flex-1 rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
             <Button
               size="sm"
@@ -896,7 +1072,7 @@ function McpResearchCard({
               value={context7Draft}
               onChange={(event) => setContext7Draft(event.target.value)}
               placeholder="Paste Context7 API key"
-              className="h-9 flex-1 rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none"
+              className="h-9 flex-1 rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
             <Button
               size="sm"

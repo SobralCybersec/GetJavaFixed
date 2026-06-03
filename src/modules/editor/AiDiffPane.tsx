@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { AiDiffStatus } from "@/modules/tabs";
-import { presentableDiff, unifiedMergeView } from "@codemirror/merge";
+import { unifiedMergeView } from "@codemirror/merge";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { Cancel01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { buildSharedExtensions, languageCompartment } from "./lib/extensions";
 import { resolveLanguage, resolveLanguageSync } from "./lib/languageResolver";
 import { EDITOR_THEME_EXT } from "./lib/themes";
+import { computeLineDiffStats } from "@/modules/ai/lib/lineDiff";
 
 type Props = {
   path: string;
@@ -183,23 +184,5 @@ function computeLineStats(
   original: string,
   proposed: string,
 ): { added: number; removed: number } {
-  const changes = presentableDiff(original, proposed);
-  let added = 0;
-  let removed = 0;
-  for (const c of changes) {
-    removed += countLines(original, c.fromA, c.toA);
-    added += countLines(proposed, c.fromB, c.toB);
-  }
-  return { added, removed };
-}
-
-function countLines(doc: string, from: number, to: number): number {
-  if (from === to) return 0;
-  const slice = doc.slice(from, to);
-  let n = 1;
-  for (let i = 0; i < slice.length; i++) {
-    if (slice.charCodeAt(i) === 10) n++;
-  }
-  if (slice.endsWith("\n")) n--;
-  return Math.max(n, 1);
+  return computeLineDiffStats(original, proposed);
 }

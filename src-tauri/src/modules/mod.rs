@@ -6,6 +6,7 @@ pub mod java_repo;
 pub mod net;
 pub mod proc;
 pub mod proxyexamples;
+pub mod refactoring_db;
 pub mod pty;
 pub mod secrets;
 pub mod shell;

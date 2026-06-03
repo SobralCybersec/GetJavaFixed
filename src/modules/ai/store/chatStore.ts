@@ -32,6 +32,7 @@ import {
 import { pushRecentModel } from "../lib/modelPrefs";
 import { createContextAwareTransport } from "../lib/transport";
 import type { ToolContext } from "../tools/tools";
+import type { McpConfig } from "../lib/mcpClient";
 
 type Live = {
   getCwd: () => string | null;
@@ -249,6 +250,11 @@ function makeChat(sessionId: string): Chat<UIMessage> {
       };
     },
     getPlanMode: () => usePlanStore.getState().active,
+    getMcpConfig: (): McpConfig => ({
+      exaEnabled: usePreferencesStore.getState().refactorMcpEnabled,
+      context7Enabled: usePreferencesStore.getState().refactorMcpEnabled,
+      context7Url: usePreferencesStore.getState().context7Url,
+    }),
     getLmstudioBaseURL: () => usePreferencesStore.getState().lmstudioBaseURL,
     getLmstudioModelId: () => usePreferencesStore.getState().lmstudioModelId,
     getMlxBaseURL: () => usePreferencesStore.getState().mlxBaseURL,

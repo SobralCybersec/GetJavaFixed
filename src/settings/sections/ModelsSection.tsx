@@ -27,9 +27,8 @@ import { clearKey, getAllKeys, setKey } from "@/modules/ai/lib/keyring";
 import {
   native,
   normalizeOpenAiCompatibleBaseUrl,
-  normalizeOpenAiCompatibleModelsBaseUrl,
-  type ProxyExampleInfo,
   type ProxyExampleModel,
+  type ProxyExampleStatus,
 } from "@/modules/ai/lib/native";
 import {
   clearRefactorToolKey,
@@ -42,12 +41,10 @@ import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
   setContext7Url,
-  setDeepsproxyPath,
   setAutocompleteEnabled,
   setAutocompleteModelId,
   setAutocompleteProvider,
   setDefaultModel,
-  setKimiproxyPath,
   setLmstudioBaseURL,
   setLmstudioModelId,
   setMlxBaseURL,
@@ -59,6 +56,7 @@ import {
   setOpenaiCompatibleModelId,
   setOpenrouterModelId,
   setProxyPresetId,
+  setProxyPresetPath,
   setRefactorCustomInstructions,
   setRefactorMcpEnabled,
 } from "@/modules/settings/store";
@@ -74,9 +72,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ProviderIcon } from "../components/ProviderIcon";
 import { ProviderKeyCard } from "../components/ProviderKeyCard";
 import { SectionHeader } from "../components/SectionHeader";
+import {
+  buildProxyStatusArgs,
+  canRunProxyLogin,
+  canStartProxy,
+  getProxyRecoveryText,
+  resolveDetectedProxyPreset,
+} from "./proxyPreset";
 
 type KeysMap = Record<ProviderId, string | null>;
 
@@ -161,9 +167,7 @@ export function ModelsSection() {
     (s) => s.refactorCustomInstructions,
   );
   const proxyPresetId = usePreferencesStore((s) => s.proxyPresetId);
-  const deepsproxyPath = usePreferencesStore((s) => s.deepsproxyPath);
-  const kimiproxyPath = usePreferencesStore((s) => s.kimiproxyPath);
-  const setSelectedModelId = useChatStore((s) => s.setSelectedModelId);
+  const proxyPresetPaths = usePreferencesStore((s) => s.proxyPresetPaths);
 
   useEffect(() => {
     void getAllKeys().then(setKeys);
@@ -317,43 +321,7 @@ export function ModelsSection() {
       />
 
       <RefactorPromptControlBlock value={refactorCustomInstructions} />
-
-      <ProxyExamplesBlock
-        selectedProxyId={proxyPresetId}
-        compatBaseURL={compatBaseURL}
-        compatModelId={compatModelId}
-        compatKey={keys["openai-compatible"]}
-        deepsproxyPath={deepsproxyPath}
-        kimiproxyPath={kimiproxyPath}
-        onSelectProxy={async (proxy) => {
-          await setProxyPresetId(proxy.id);
-          const normalizedBaseUrl = normalizeOpenAiCompatibleModelsBaseUrl(
-            proxy.defaultBaseUrl,
-          );
-          await setOpenaiCompatibleBaseURL(normalizedBaseUrl);
-          await setDefaultModel("openai-compatible-custom");
-          setSelectedModelId("openai-compatible-custom");
-          const models = await native.proxyexampleModels(
-            normalizedBaseUrl,
-            keys["openai-compatible"] ?? null,
-          ).catch(
-            () => [] as ProxyExampleModel[],
-          );
-          const defaultModel = models[0]?.id ?? "";
-          if (defaultModel) {
-            await setOpenaiCompatibleModelId(defaultModel);
-          }
-        }}
-        onSelectModel={async (modelId) => {
-          await setOpenaiCompatibleModelId(modelId);
-          await setDefaultModel("openai-compatible-custom");
-          setSelectedModelId("openai-compatible-custom");
-        }}
-        onSaveProxyPath={async (proxyId, path) => {
-          if (proxyId === "deepsproxy") await setDeepsproxyPath(path);
-          if (proxyId === "kimiproxy") await setKimiproxyPath(path);
-        }}
-      />
+      <RefactorRulesExplorerBlock />
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -383,6 +351,8 @@ export function ModelsSection() {
                   configured={configuredIds.has(p.id)}
                   config={localConfig(p.id)!}
                   meta={LOCAL_META[p.id]!}
+                  proxyPresetId={proxyPresetId}
+                  proxyPresetPaths={proxyPresetPaths}
                   compatKey={
                     p.id === "openai-compatible" || p.id === "openrouter"
                       ? keys[p.id]
@@ -542,7 +512,7 @@ function RefactorToolsBlock({
 
   return (
     <div className="flex flex-col gap-3">
-      <Label>Refactor research</Label>
+      <Label>Agent research</Label>
       <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
         <FieldRow label="MCPs">
           <div className="flex flex-1 items-center gap-2">
@@ -551,7 +521,7 @@ function RefactorToolsBlock({
               onCheckedChange={(value) => void setRefactorMcpEnabled(value)}
             />
             <span className="text-[11px] text-muted-foreground">
-              Enable Exa + Context7 during AI refactor preview generation
+              Enable Exa + Context7 for the live AI agent and refactor preview generation
             </span>
           </div>
         </FieldRow>
@@ -606,7 +576,7 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
   }, [value]);
 
   const openRefactorPromptFolder = async () => {
-    const path = await native.canonicalize("src/modules/ai/refactoring-db");
+    const path = await native.refactorRulesRoot();
     await revealInFinder(path);
   };
 
@@ -656,6 +626,181 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
           >
             Open prompt builder
           </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RefactorRulesExplorerBlock() {
+  const [root, setRoot] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [content, setContent] = useState("");
+  const [savedContent, setSavedContent] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "saving" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFiles = async () => {
+    setStatus("loading");
+    setError(null);
+    try {
+      const nextRoot = await native.refactorRulesRoot();
+      const [entries, manifestFiles] = await Promise.all([
+        native.readDir(nextRoot),
+        native.refactorRulesList(),
+      ]);
+      const next = manifestFiles
+        .filter((name) => entries.some((entry) => entry.kind === "file" && entry.name === name))
+        .sort((left, right) => left.localeCompare(right));
+      setRoot(nextRoot);
+      setFiles(next);
+      setSelectedFile((current) => current ?? next[0] ?? null);
+      setStatus("idle");
+    } catch (cause) {
+      setStatus("error");
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  useEffect(() => {
+    void loadFiles();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setContent("");
+      setSavedContent("");
+      return;
+    }
+    setStatus("loading");
+    setError(null);
+    void native
+      .readFile(`${root}/${selectedFile}`)
+      .then((result) => {
+        if (result.kind !== "text") {
+          throw new Error("Rule file is not readable text.");
+        }
+        setContent(result.content);
+        setSavedContent(result.content);
+        setStatus("idle");
+      })
+      .catch((cause) => {
+        setStatus("error");
+        setError(cause instanceof Error ? cause.message : String(cause));
+      });
+  }, [root, selectedFile]);
+
+  const dirty = content !== savedContent;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Label>Refactor rules</Label>
+      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Browse and edit the markdown rules that feed AI refactor previews. Changes save directly
+          into the app-local refactor rules folder.
+        </p>
+        <p className="text-[10.5px] leading-relaxed text-muted-foreground/80">
+          {root ? `Rules folder: ${root}` : "Loading rules folder…"}
+        </p>
+        <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <div className="rounded-lg border border-border/60 bg-card/50 p-2">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground">Rule files</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void loadFiles()}
+                className="h-7 px-2 text-[11px]"
+              >
+                Refresh
+              </Button>
+            </div>
+            <div className="flex max-h-[320px] flex-col gap-1 overflow-auto">
+              {files.map((file) => (
+                <button
+                  key={file}
+                  type="button"
+                  onClick={() => setSelectedFile(file)}
+                  className={cn(
+                    "rounded-md px-2 py-1.5 text-left text-[11px] transition-colors",
+                    selectedFile === file
+                      ? "bg-primary/12 text-primary"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                  )}
+                >
+                  {file}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">
+                {selectedFile ?? "No rule selected"}
+              </Badge>
+              {dirty ? <Badge variant="secondary">Unsaved</Badge> : null}
+              {status === "error" && error ? (
+                <span className="text-[11px] text-destructive/80">{error}</span>
+              ) : null}
+            </div>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Select a markdown rule to edit it here."
+              className="min-h-[320px] resize-y border border-border bg-card/50 font-mono text-[11.5px] leading-relaxed"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                disabled={!selectedFile || !dirty || status === "saving"}
+                onClick={async () => {
+                  if (!selectedFile) return;
+                  setStatus("saving");
+                  setError(null);
+                  try {
+                    await native.writeFile(
+                      `${root}/${selectedFile}`,
+                      content,
+                    );
+                    setSavedContent(content);
+                    setStatus("idle");
+                  } catch (cause) {
+                    setStatus("error");
+                    setError(cause instanceof Error ? cause.message : String(cause));
+                  }
+                }}
+                className="h-8 px-3 text-[11px]"
+              >
+                Save selected rule
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  if (!root) return;
+                  const path = await native.canonicalize(root);
+                  await revealInFinder(path);
+                }}
+                className="h-8 px-3 text-[11px]"
+              >
+                Reveal rules folder
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  if (!root) return;
+                  const path = await native.canonicalize(`${root}/manifest.json`);
+                  await revealInFinder(path);
+                }}
+                className="h-8 px-3 text-[11px]"
+              >
+                Reveal manifest
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -933,6 +1078,8 @@ function LocalProviderCard({
   configured,
   config,
   meta,
+  proxyPresetId,
+  proxyPresetPaths,
   compatKey,
   onSaveKey,
   onClearKey,
@@ -942,6 +1089,8 @@ function LocalProviderCard({
   configured: boolean;
   config: LocalConfig;
   meta: LocalMeta;
+  proxyPresetId?: string | null;
+  proxyPresetPaths?: Record<string, string>;
   compatKey?: string | null;
   onSaveKey: (v: string) => Promise<void>;
   onClearKey: () => Promise<void>;
@@ -1218,6 +1367,20 @@ function LocalProviderCard({
           </div>
         ) : null}
 
+        {provider.id === "openai-compatible" ? (
+          <ProxyPresetControls
+            baseURL={urlDraft}
+            modelsError={modelsError}
+            activePresetId={proxyPresetId ?? null}
+            presetPaths={proxyPresetPaths ?? {}}
+            compatKey={compatKey ?? null}
+            onUseBaseUrl={async (nextBaseUrl) => {
+              setUrlDraft(nextBaseUrl);
+              await setBaseURL(nextBaseUrl);
+            }}
+          />
+        ) : null}
+
         {!modelId.trim() && meta.modelHint ? (
           <p className="text-[10.5px] leading-relaxed text-muted-foreground">
             {meta.modelHint}
@@ -1228,199 +1391,290 @@ function LocalProviderCard({
   );
 }
 
-function ProxyExamplesBlock({
-  selectedProxyId,
-  compatBaseURL,
-  compatModelId,
+function ProxyPresetControls({
+  baseURL,
+  modelsError,
+  activePresetId,
+  presetPaths,
   compatKey,
-  deepsproxyPath,
-  kimiproxyPath,
-  onSelectProxy,
-  onSelectModel,
-  onSaveProxyPath,
+  onUseBaseUrl,
 }: {
-  selectedProxyId: string | null;
-  compatBaseURL: string;
-  compatModelId: string;
+  baseURL: string;
+  modelsError: string | null;
+  activePresetId: string | null;
+  presetPaths: Record<string, string>;
   compatKey?: string | null;
-  deepsproxyPath: string;
-  kimiproxyPath: string;
-  onSelectProxy: (proxy: ProxyExampleInfo) => Promise<void>;
-  onSelectModel: (modelId: string) => Promise<void>;
-  onSaveProxyPath: (proxyId: string, path: string) => Promise<void>;
+  onUseBaseUrl: (baseUrl: string) => Promise<void>;
 }) {
-  const [proxies, setProxies] = useState<Record<string, ProxyExampleInfo>>({});
-  const [health, setHealth] = useState<Record<string, string>>({});
-  const [models, setModels] = useState<Record<string, ProxyExampleModel[]>>({});
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const configuredPaths: Record<string, string> = {
-    deepsproxy: deepsproxyPath,
-    kimiproxy: kimiproxyPath,
-  };
-
-  const refreshProxy = async (proxyId: string) => {
-    const info = await native.proxyexampleDetectAtPath(
-      proxyId,
-      configuredPaths[proxyId] || null,
-    );
-    setProxies((prev) => ({ ...prev, [proxyId]: info }));
-    const status = await native
-      .proxyexampleHealth(info.defaultBaseUrl)
-      .then((result) => `${result.ok ? "Healthy" : "Unhealthy"} (${result.status})`)
-      .catch(() => "Offline");
-    setHealth((prev) => ({ ...prev, [proxyId]: status }));
-    const normalizedBaseUrl = normalizeOpenAiCompatibleModelsBaseUrl(
-      info.defaultBaseUrl,
-    );
-    const availableModels = await native
-      .proxyexampleModels(normalizedBaseUrl, compatKey ?? null)
-      .catch(() => [] as ProxyExampleModel[]);
-    setModels((prev) => ({ ...prev, [proxyId]: availableModels }));
-  };
+  const [presets, setPresets] = useState<Awaited<
+    ReturnType<typeof native.proxyexamplePresets>
+  >>([]);
+  const [detectedPreset, setDetectedPreset] = useState<Awaited<
+    ReturnType<typeof native.proxyexampleDetectAtPath>
+  > | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
+    activePresetId,
+  );
+  const [selectedPath, setSelectedPath] = useState("");
+  const [busyAction, setBusyAction] = useState<"start" | "login" | null>(null);
+  const [status, setStatus] = useState<ProxyExampleStatus | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
 
   useEffect(() => {
-    void Promise.all(["deepsproxy", "kimiproxy"].map(refreshProxy));
-  }, [compatKey, deepsproxyPath, kimiproxyPath]);
+    void native.proxyexamplePresets().then(setPresets).catch(() => setPresets([]));
+  }, []);
+
+  useEffect(() => {
+    setSelectedPresetId(activePresetId);
+  }, [activePresetId]);
+
+  useEffect(() => {
+    setSelectedPath(selectedPresetId ? presetPaths[selectedPresetId] ?? "" : "");
+  }, [presetPaths, selectedPresetId]);
+
+  useEffect(() => {
+    if (!selectedPresetId) {
+      setDetectedPreset(null);
+      return;
+    }
+    let alive = true;
+    void native
+      .proxyexampleDetectAtPath(selectedPresetId, selectedPath.trim() || null)
+      .then((next) => {
+        if (alive) setDetectedPreset(next);
+      })
+      .catch(() => {
+        if (alive) setDetectedPreset(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [selectedPath, selectedPresetId]);
+
+  useEffect(() => {
+    if (!selectedPresetId) {
+      setStatus(null);
+      return;
+    }
+    const normalizedBaseUrl = normalizeOpenAiCompatibleBaseUrl(baseURL);
+    if (!normalizedBaseUrl) {
+      setStatus(null);
+      return;
+    }
+    let alive = true;
+    setStatusBusy(true);
+    void native
+      .proxyexampleStatus(
+        ...buildProxyStatusArgs(
+          selectedPresetId,
+          selectedPath,
+          normalizedBaseUrl,
+          compatKey,
+        ),
+      )
+      .then((next) => {
+        if (alive) setStatus(next);
+      })
+      .catch(() => {
+        if (alive) setStatus(null);
+      })
+      .finally(() => {
+        if (alive) setStatusBusy(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [baseURL, compatKey, selectedPath, selectedPresetId]);
+
+  const selectedPreset =
+    presets.find((preset) => preset.id === selectedPresetId) ?? null;
+  const effectivePreset = resolveDetectedProxyPreset(detectedPreset, selectedPreset);
+  const recoveryHint = getProxyRecoveryText(status, getProxyRecoveryHint(modelsError));
+  const looksLocalCompat =
+    baseURL.includes("127.0.0.1") ||
+    baseURL.includes("localhost") ||
+    baseURL.includes("0.0.0.0");
+
+  if (!selectedPreset && !recoveryHint && !looksLocalCompat) return null;
+
+  const runAction = async (kind: "start" | "login") => {
+    if (!selectedPresetId || !selectedPath.trim()) {
+      toast.error("Choose a proxy preset and its folder first.");
+      return;
+    }
+    setBusyAction(kind);
+    try {
+      if (kind === "start") {
+        await native.proxyexampleStart(selectedPresetId, selectedPath.trim());
+        toast.success("Proxy preset started.");
+      } else {
+        await native.proxyexampleLogin(selectedPresetId, selectedPath.trim());
+        toast.success("Proxy preset login flow launched.");
+      }
+      await setProxyPresetId(selectedPresetId);
+      await setProxyPresetPath(selectedPresetId, selectedPath.trim());
+      const normalizedBaseUrl = normalizeOpenAiCompatibleBaseUrl(
+        baseURL || selectedPreset?.defaultBaseUrl || "",
+      );
+      if (normalizedBaseUrl) {
+        setStatus(
+          await native.proxyexampleStatus(
+            ...buildProxyStatusArgs(
+              selectedPresetId,
+              selectedPath,
+              normalizedBaseUrl,
+              compatKey,
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const chooseFolder = async () => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Choose proxy preset folder",
+    });
+    if (typeof selected !== "string") return;
+    setSelectedPath(selected);
+    if (selectedPresetId) {
+      await setProxyPresetPath(selectedPresetId, selected);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-3">
-      <Label>Proxyexamples</Label>
-      <div className="grid gap-3 lg:grid-cols-2">
-        {["deepsproxy", "kimiproxy"].map((proxyId) => {
-          const info = proxies[proxyId];
-          const availableModels = models[proxyId] ?? [];
-          const isSelected = selectedProxyId === proxyId;
-          const configuredPath = configuredPaths[proxyId] ?? "";
-          return (
-            <div
-              key={proxyId}
-              className={cn(
-                "flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3",
-                isSelected && "border-primary/40 bg-primary/5",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-[12.5px] font-medium">
-                  {info?.displayName ?? proxyId}
-                </span>
-                {isSelected ? <Badge variant="secondary">Selected</Badge> : null}
-                <Badge variant="outline" className="ml-auto">
-                  {health[proxyId] ?? "Checking…"}
-                </Badge>
-              </div>
-              <p className="text-[10.5px] text-muted-foreground">
-                {configuredPath.trim()
-                  ? info?.path ?? "Configured path not found"
-                  : "No folder configured"}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    const selected = await open({
-                      directory: true,
-                      multiple: false,
-                      title: `Choose ${info?.displayName ?? proxyId} folder`,
-                    });
-                    if (typeof selected !== "string") return;
-                    await onSaveProxyPath(proxyId, selected);
-                  }}
-                  className="h-8 px-3 text-[11px]"
-                >
-                  Choose Folder
-                </Button>
-                {configuredPath.trim() ? (
-                  <code className="min-w-0 flex-1 truncate rounded bg-muted/40 px-2 py-1 text-[10.5px]">
-                    {configuredPath}
-                  </code>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void refreshProxy(proxyId)}
-                  className="h-8 px-3 text-[11px]"
-                >
-                  Refresh
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    setBusyId(`${proxyId}:start`);
-                    try {
-                      await native.proxyexampleStart(proxyId, configuredPath);
-                      await refreshProxy(proxyId);
-                    } finally {
-                      setBusyId(null);
-                    }
-                  }}
-                  disabled={!info?.detected || !info?.hasStartScript || !configuredPath.trim() || busyId !== null}
-                  className="h-8 px-3 text-[11px]"
-                >
-                  Start
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    setBusyId(`${proxyId}:login`);
-                    try {
-                      await native.proxyexampleLogin(
-                        proxyId,
-                        configuredPath,
-                        info?.loginVariants[0] ?? null,
-                      );
-                    } finally {
-                      setBusyId(null);
-                    }
-                  }}
-                  disabled={!info?.detected || !info?.hasLoginScript || !configuredPath.trim() || busyId !== null}
-                  className="h-8 px-3 text-[11px]"
-                >
-                  Login
-                </Button>
-                <Button
-                  size="sm"
-                  variant={isSelected ? "secondary" : "outline"}
-                  onClick={() => void (info ? onSelectProxy(info) : Promise.resolve())}
-                  disabled={!info?.detected}
-                  className="h-8 px-3 text-[11px]"
-                >
-                  Use preset
-                </Button>
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-[10.5px] text-muted-foreground">
-                  Base URL: <span className="font-mono">{normalizeOpenAiCompatibleModelsBaseUrl(info?.defaultBaseUrl ?? compatBaseURL)}</span>
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableModels.length > 0 ? (
-                    availableModels.map((model) => (
-                      <Button
-                        key={model.id}
-                        size="sm"
-                        variant={compatModelId === model.id && isSelected ? "secondary" : "outline"}
-                        className="h-7 px-2 font-mono text-[10.5px]"
-                        onClick={() => void onSelectModel(model.id)}
-                      >
-                        {model.id}
-                      </Button>
-                    ))
-                  ) : (
-                    <span className="text-[10.5px] text-muted-foreground">
-                      No models loaded yet.
-                    </span>
-                  )}
-                </div>
-              </div>
+    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-3">
+      <div className="flex flex-col gap-2">
+        <span className="text-[11px] font-medium text-foreground">
+          Proxy preset recovery
+        </span>
+        <span className="text-[10.5px] leading-relaxed text-muted-foreground">
+          {recoveryHint ??
+            "This looks like a bundled proxy preset. Start it here and run its interactive login flow when the upstream site needs browser auth."}
+        </span>
+        {status ? (
+          <div className="rounded-md border border-border/60 bg-background/70 px-2.5 py-2 text-[10.5px] text-muted-foreground">
+            <div>
+              Health:{" "}
+              {status.healthOk
+                ? `ok (${status.healthStatus ?? "n/a"})`
+                : status.healthStatus ?? status.healthError ?? "unreachable"}
             </div>
-          );
-        })}
+            <div>
+              Models:{" "}
+              {status.modelsReachable ? "reachable" : status.modelsError ?? "not reachable"}
+            </div>
+            {!status.configuredPathOk && status.pathError ? (
+              <div>Path: {status.pathError}</div>
+            ) : null}
+          </div>
+        ) : statusBusy ? (
+          <div className="text-[10.5px] text-muted-foreground">Checking preset status...</div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={selectedPresetId ?? ""}
+            onChange={async (e) => {
+              const next = e.target.value || null;
+              setSelectedPresetId(next);
+              await setProxyPresetId(next);
+              const preset = presets.find((item) => item.id === next);
+              if (preset && !baseURL.trim()) {
+                await onUseBaseUrl(preset.defaultBaseUrl);
+              }
+            }}
+            className="h-8 min-w-36 rounded-md border border-border bg-background px-2.5 text-[11.5px]"
+          >
+            <option value="">Select preset</option>
+            {presets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.displayName}
+              </option>
+            ))}
+          </select>
+          <Input
+            value={selectedPath}
+            onChange={(e) => setSelectedPath(e.target.value)}
+            onBlur={() => {
+              if (selectedPresetId) {
+                void setProxyPresetPath(selectedPresetId, selectedPath.trim());
+              }
+            }}
+            placeholder="Path to proxy preset folder"
+            spellCheck={false}
+            className="h-8 flex-1 font-mono text-[11px]"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void chooseFolder()}
+            className="h-8 px-3 text-[11px]"
+          >
+            Browse
+          </Button>
+        </div>
+
+        {selectedPreset ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void onUseBaseUrl(selectedPreset.defaultBaseUrl)}
+              className="h-8 px-3 text-[11px]"
+            >
+              Use preset URL
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canStartProxy(effectivePreset, busyAction)}
+              onClick={() => void runAction("start")}
+              className="h-8 px-3 text-[11px]"
+            >
+              {busyAction === "start" ? "Starting..." : "Start proxy"}
+            </Button>
+            <Button
+              size="sm"
+              disabled={!canRunProxyLogin(effectivePreset, busyAction)}
+              onClick={() => void runAction("login")}
+              className="h-8 px-3 text-[11px]"
+            >
+              {busyAction === "login" ? "Opening..." : "Run login"}
+            </Button>
+            <span className="text-[10.5px] text-muted-foreground">
+              Default URL: {selectedPreset.defaultBaseUrl}
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
+}
+
+function getProxyRecoveryHint(message: string | null): string | null {
+  if (!message) return null;
+  const text = message.toLowerCase();
+  if (text.includes("deepseek login required")) {
+    return "This proxy preset needs an interactive DeepSeek login. Click `Run login`, finish the browser flow, then retry.";
+  }
+  if (text.includes("waf challenge")) {
+    return "DeepSeek presented a WAF challenge. Click `Run login`, let the browser finish the challenge, then retry model loading.";
+  }
+  if (
+    text.includes("net::err_aborted") ||
+    text.includes("failed to open deepseek start page") ||
+    text.includes("deepseek_navigation_failed")
+  ) {
+    return "The local proxy is reachable, but its browser session is not ready. Use `Run login` to refresh the saved session before retrying.";
+  }
+  return null;
 }
 
 function FieldRow({

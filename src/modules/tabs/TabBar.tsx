@@ -80,12 +80,12 @@ export function TabBar({
       data-tauri-drag-region
       className="min-w-0 shrink overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div className="flex w-max items-center gap-0.5">
+      <div className="flex w-max items-center gap-1">
         <Tabs
           value={String(activeId)}
           onValueChange={(v) => onSelect(Number(v))}
         >
-          <TabsList className="h-7 w-max gap-0.5 bg-transparent p-0">
+          <TabsList className="h-8 w-max gap-1 bg-transparent p-0">
             {tabs.map((t) => {
               const isPreview = t.kind === "editor" && (t as EditorTab).preview;
               return (
@@ -105,7 +105,7 @@ export function TabBar({
                     if (e.button === 1) e.preventDefault();
                   }}
                   className={cn(
-                    "group h-7 shrink-0 gap-1.5 rounded-md text-xs text-muted-foreground transition-colors data-[state=active]:bg-accent data-[state=active]:text-foreground hover:text-foreground/80 justify-between",
+                    "group h-8 shrink-0 justify-between gap-1.5 rounded-lg border border-transparent bg-white/[0.01] text-xs text-white/46 transition-[background-color,border-color,color,opacity] duration-100 data-[state=active]:border-white/12 data-[state=active]:bg-white/[0.05] data-[state=active]:text-white hover:border-white/8 hover:bg-white/[0.03] hover:text-white/82",
                     compact
                       ? "px-1.5!"
                       : tabs.length === 1
@@ -128,7 +128,7 @@ export function TabBar({
                     {t.kind === "editor" && t.dirty ? (
                       <span
                         aria-label="Unsaved changes"
-                        className="size-1.5 shrink-0 rounded-full bg-foreground/70"
+                        className="size-1.5 shrink-0 rounded-full bg-primary/80"
                       />
                     ) : null}
                   </span>
@@ -140,7 +140,7 @@ export function TabBar({
                         e.stopPropagation();
                         onClose(t.id);
                       }}
-                      className="rounded p-0.5 opacity-0 transition-opacity hover:bg-accent hover:opacity-100 group-hover:opacity-60"
+                      className="rounded-md p-0.5 opacity-0 transition-opacity hover:bg-white/[0.06] hover:opacity-100 group-hover:opacity-60"
                     >
                       <HugeiconsIcon
                         icon={Cancel01Icon}
@@ -159,7 +159,7 @@ export function TabBar({
             <Button
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="size-8 shrink-0 rounded-lg border border-white/8 bg-white/[0.02] text-white/56 hover:border-white/12 hover:bg-white/[0.04] hover:text-white"
               title="New tab"
             >
               <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />

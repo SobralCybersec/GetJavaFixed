@@ -1,21 +1,12 @@
 import { DEFAULT_THEME_ID, type Theme } from "../types";
-import { caffeine } from "./caffeine";
 import { bungouStrayDogs } from "./bungou-stray-dogs";
-import { catppuccin } from "./catppuccin";
-import { claude } from "./claude";
 import { dragonBall } from "./dragon-ball";
 import { gintama } from "./gintama";
-import { gruvbox } from "./gruvbox";
-import { nord } from "./nord";
 import { naruto } from "./naruto";
-import { rosePine } from "./rose-pine";
-import { sage } from "./sage";
 import { javarfDefault } from "./javarf-default";
 import { onePiece } from "./one-piece";
 import { soloLeveling } from "./solo-leveling";
-import { tide } from "./tide";
 import { tokyoGhoul } from "./tokyo-ghoul";
-import { tokyoNight } from "./tokyo-night";
 
 const BUILTIN: Theme[] = [
   tokyoGhoul,
@@ -25,16 +16,7 @@ const BUILTIN: Theme[] = [
   bungouStrayDogs,
   soloLeveling,
   onePiece,
-  tokyoNight,
-  javarfDefault,
-  claude,
-  nord,
-  tide,
-  sage,
-  catppuccin,
-  gruvbox,
-  rosePine,
-  caffeine,
+  javarfDefault
 ];
 
 const BY_ID = new Map<string, Theme>(BUILTIN.map((t) => [t.id, t]));

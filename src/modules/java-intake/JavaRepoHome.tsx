@@ -39,7 +39,7 @@ export function JavaRepoHome({
   onClose,
 }: Props) {
   return (
-    <div className="java-grid flex h-full min-h-0 flex-col overflow-auto bg-background px-6 py-6 text-foreground">
+    <div className="flex h-full min-h-0 flex-col overflow-auto bg-background px-6 py-6 text-foreground">
       <div className="mx-auto flex w-full max-w-5xl justify-end pb-4">
         {onClose ? (
           <Button variant="ghost" size="sm" onClick={onClose}>

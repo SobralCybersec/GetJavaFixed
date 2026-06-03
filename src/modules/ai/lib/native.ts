@@ -129,6 +129,8 @@ export type ProxyExampleInfo = {
   loginVariants: string[];
 };
 
+export type ProxyPresetInfo = ProxyExampleInfo;
+
 export type ProxyExampleHealth = {
   ok: boolean;
   status: number;
@@ -139,6 +141,21 @@ export type ProxyExampleModel = {
   id: string;
   object?: string | null;
   ownedBy?: string | null;
+};
+
+export type ProxyExampleStatus = {
+  proxyId: string;
+  displayName: string;
+  configuredPathOk: boolean;
+  hasStartScript: boolean;
+  hasLoginScript: boolean;
+  healthOk: boolean;
+  healthStatus: number | null;
+  modelsReachable: boolean;
+  recoveryHint: string | null;
+  pathError: string | null;
+  healthError: string | null;
+  modelsError: string | null;
 };
 
 function trimTrailingSlash(value: string): string {
@@ -317,6 +334,25 @@ export const native = {
       baseUrl,
       apiKey: apiKey ?? null,
     }),
+  proxyexampleStatus: (
+    proxyId: string,
+    path: string | null,
+    baseUrl: string,
+    apiKey?: string | null,
+  ) =>
+    invoke<ProxyExampleStatus>("proxyexample_status", {
+      proxyId,
+      path,
+      baseUrl,
+      apiKey: apiKey ?? null,
+      workspace: currentWorkspaceEnv(),
+    }),
+  proxyexamplePresets: () =>
+    invoke<ProxyPresetInfo[]>("proxyexample_presets"),
+  refactorRulesRoot: () => invoke<string>("refactor_rules_root"),
+  refactorRulesList: () => invoke<string[]>("refactor_rules_list"),
+  refactorRulesExportDefaults: () =>
+    invoke<string>("refactor_rules_export_defaults"),
   gitResolveRepo: (cwd: string) =>
     invoke<GitRepoInfo | null>("git_resolve_repo", {
       cwd,

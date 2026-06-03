@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +53,9 @@ type Props = {
   onOpenSettings: () => void;
   searchTarget: SearchTarget;
   searchRef: RefObject<SearchInlineHandle | null>;
+  zenMode: boolean;
+  onToggleZenMode: () => void;
+  onHoverChange?: (hovered: boolean) => void;
 };
 
 const COMPACT_WIDTH = 720;
@@ -75,6 +79,9 @@ export function Header({
   onOpenSettings,
   searchTarget,
   searchRef,
+  zenMode,
+  onToggleZenMode,
+  onHoverChange,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
@@ -106,7 +113,7 @@ export function Header({
     <Button
       variant="ghost"
       size="icon"
-      className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+      className="size-7 shrink-0 rounded-lg border border-transparent text-white/48 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
       onClick={onOpenSettings}
       title="Settings"
     >
@@ -118,13 +125,17 @@ export function Header({
     <div
       ref={rootRef}
       data-tauri-drag-region
-      className={`flex h-11 shrink-0 items-center gap-2 border-b border-border/60 bg-card/92 select-none backdrop-blur ${
-        IS_MAC ? "pr-2 pl-20" : "pr-0 pl-2"
-      }`}
+      onMouseEnter={() => onHoverChange?.(true)}
+      onMouseLeave={() => onHoverChange?.(false)}
+      className={cn(
+        "flex h-12 shrink-0 items-center gap-2 border-b border-white/8 bg-[#0e1015]/96 select-none backdrop-blur-md",
+        zenMode && "opacity-30 hover:opacity-100 hover:bg-[#10131a]/98",
+        IS_MAC ? "pr-2 pl-20" : "pr-0 pl-2",
+      )}
     >
       <div className="flex shrink-0 items-center gap-1.5">
         {!compact ? (
-          <div className="java-panel hidden h-8 shrink-0 items-center gap-2 rounded-xl px-2.5 sm:flex">
+          <div className="java-panel hidden h-9 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 sm:flex">
             <img
               src="/java.png"
               alt=""
@@ -132,11 +143,11 @@ export function Header({
               draggable={false}
             />
             <div className="flex min-w-0 flex-col leading-none">
-              <span className="text-[11px] font-semibold tracking-[0.18em] text-primary">
+              <span className="font-heading text-[0.95rem] font-semibold tracking-[0.14em] text-primary">
                 JAVA
               </span>
-              <span className="text-[10px] text-muted-foreground">
-                Refactor AI
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/38">
+                Refactor Workspace
               </span>
             </div>
           </div>
@@ -146,9 +157,21 @@ export function Header({
           title="Toggle sidebar"
           variant="ghost"
           size="icon-sm"
-          className="shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="shrink-0 rounded-lg border border-transparent text-white/48 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
         >
           <HugeiconsIcon icon={SidebarLeftIcon} size={18} strokeWidth={1.75} />
+        </Button>
+        <Button
+          onClick={onToggleZenMode}
+          title={zenMode ? "Disable Zen mode" : "Enable Zen mode"}
+          variant="ghost"
+          size="icon-sm"
+          className={cn(
+            "shrink-0 rounded-lg border border-transparent text-white/48 transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-white",
+            zenMode && "border-primary/20 text-primary",
+          )}
+        >
+          <YinYangGlyph />
         </Button>
 
         <DropdownMenu>
@@ -156,7 +179,7 @@ export function Header({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+              className="shrink-0 rounded-lg border border-transparent text-white/48 hover:border-white/10 hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
               title="Split terminal"
               disabled={!canSplit}
             >
@@ -199,12 +222,15 @@ export function Header({
           />}
       </div>
 
-      {!IS_MAC && <span className="mx-1 h-5 w-px shrink-0 bg-border" />}
+      {!IS_MAC && <span className="mx-1 h-5 w-px shrink-0 bg-white/8" />}
 
-      {IS_MAC && <span className="mr-1 h-full w-px shrink-0 bg-border" />}
+      {IS_MAC && <span className="mr-1 h-full w-px shrink-0 bg-white/8" />}
 
       <div
-        className="flex min-w-0 flex-1 items-center gap-2"
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 transition-opacity duration-200",
+          zenMode && "opacity-80 hover:opacity-100",
+        )}
         data-tauri-drag-region
       >
         <TabBar
@@ -239,10 +265,21 @@ export function Header({
 
       {USE_CUSTOM_WINDOW_CONTROLS && (
         <>
-          <span className="ml-1 h-5 w-px shrink-0 bg-border" />
+          <span className="ml-1 h-5 w-px shrink-0 bg-white/8" />
           <WindowControls />
         </>
       )}
     </div>
+  );
+}
+
+function YinYangGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true" fill="none">
+      <path
+        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 0 1 0 16 4 4 0 0 1 0-8 4 4 0 1 0 0-8Zm0 3.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm0 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }

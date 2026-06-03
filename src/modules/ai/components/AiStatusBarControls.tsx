@@ -53,7 +53,7 @@ import {
   type ModelInfo,
   type ProviderId,
 } from "../config";
-import { ACCEPTED_FILES, useComposer } from "../lib/composer";
+import { ACCEPTED_FILES, useComposer } from "../lib/composer-context";
 import { toggleFavoriteModel } from "../lib/modelPrefs";
 import { useChatStore } from "../store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";

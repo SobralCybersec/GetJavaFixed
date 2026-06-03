@@ -19,6 +19,8 @@ describe("FindingsDashboard shell", () => {
     expect(dashboardSrc).toContain("h-8");
     expect(dashboardSrc).toContain("repo.readiness.repoName");
     expect(dashboardSrc).toContain("repo.readiness.projectType");
+    expect(dashboardSrc).toContain("DashboardWidget");
+    expect(dashboardSrc).toContain("controls.start");
   });
 
   it("uses one ranked queue with visible category badges", () => {
@@ -33,6 +35,12 @@ describe("FindingsDashboard shell", () => {
     expect(dashboardSrc).toContain("issue-mix-chart");
     expect(dashboardSrc).toContain("impact-strip");
     expect(dashboardSrc).toContain("Hotspot map");
+  });
+
+  it("keeps the dashboard responsive with a lower breakpoint split", () => {
+    expect(dashboardSrc).toContain("lg:grid");
+    expect(dashboardSrc).toContain("lg:block");
+    expect(dashboardSrc).toContain("xl:sticky");
   });
 
   it("auto-selects the top finding when analysis completes", () => {

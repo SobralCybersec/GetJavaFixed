@@ -14,6 +14,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
 import { WorkspaceEnvSelector } from "./WorkspaceEnvSelector";
 import type { WorkspaceEnv } from "@/modules/workspace";
+import { cn } from "@/lib/utils";
 
 type Props = {
   cwd: string | null;
@@ -25,6 +26,8 @@ type Props = {
   /** Only rendered when the AI panel is open and a key is loaded. */
   hasComposer: boolean;
   privateActive: boolean;
+  zenMode?: boolean;
+  onHoverChange?: (hovered: boolean) => void;
 };
 
 export function StatusBar({
@@ -36,12 +39,23 @@ export function StatusBar({
   onOpenMini,
   hasComposer,
   privateActive,
+  zenMode,
+  onHoverChange,
 }: Props) {
   const panelOpen = useChatStore((s) => s.panelOpen);
   const openPanel = useChatStore((s) => s.openPanel);
 
   return (
-    <footer className="flex h-8 shrink-0 items-center justify-between gap-3 border-t border-border/60 bg-card/60 px-3 text-[11px]">
+    <footer
+      onMouseEnter={() => onHoverChange?.(true)}
+      onMouseLeave={() => onHoverChange?.(false)}
+      onFocusCapture={() => onHoverChange?.(true)}
+      onBlurCapture={() => onHoverChange?.(false)}
+      className={cn(
+        "flex h-9 shrink-0 items-center justify-between gap-3 border-t border-white/8 bg-[#0d1014]/88 px-3 text-[11px] backdrop-blur-md",
+        zenMode && "opacity-30 hover:opacity-100 hover:bg-[#10131a]/94",
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <WorkspaceEnvSelector onSelect={onWorkspaceChange} />
         <CwdBreadcrumb cwd={cwd} filePath={filePath} home={home} onCd={onCd} />

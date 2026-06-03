@@ -3,6 +3,7 @@ import { z } from "zod";
 import { runSubagent } from "../agents/runSubagent";
 import { SUBAGENTS, type SubagentType } from "../agents/registry";
 import { useChatStore } from "../store/chatStore";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { ToolContext } from "./context";
 
 const TYPE_KEYS = Object.keys(SUBAGENTS) as [SubagentType, ...SubagentType[]];
@@ -32,12 +33,24 @@ Auto-executes (no approval) — subagents are read-only by design.`,
         const { apiKeys, selectedModelId, patchAgentMeta } =
           useChatStore.getState();
         try {
+          const prefs = usePreferencesStore.getState();
           const r = await runSubagent({
             type,
             prompt,
             keys: apiKeys,
             modelId: selectedModelId,
             toolContext: ctx,
+            localConfig: {
+              lmstudioBaseURL: prefs.lmstudioBaseURL,
+              lmstudioModelId: prefs.lmstudioModelId,
+              mlxBaseURL: prefs.mlxBaseURL,
+              mlxModelId: prefs.mlxModelId,
+              ollamaBaseURL: prefs.ollamaBaseURL,
+              ollamaModelId: prefs.ollamaModelId,
+              openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL,
+              openaiCompatibleModelId: prefs.openaiCompatibleModelId,
+              openrouterModelId: prefs.openrouterModelId,
+            },
             onStep: (label) => patchAgentMeta({ step: label }),
           });
           return {

@@ -75,8 +75,7 @@ function EntryRowImpl(props: EntryRowProps) {
     if (isDir) {
       onSelectDirectory?.(path);
       tree.toggle(path);
-    }
-    else onOpenFile(path);
+    } else onOpenFile(path);
   };
 
   return (
@@ -84,7 +83,7 @@ function EntryRowImpl(props: EntryRowProps) {
       <ContextMenuTrigger asChild>
         {isRenaming ? (
           <div
-            className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
+            className="flex h-8 w-full min-w-0 items-center gap-2 px-2 text-[12px] text-white/86"
             style={{ paddingLeft }}
           >
             <span className="size-3.5 shrink-0" />
@@ -95,6 +94,7 @@ function EntryRowImpl(props: EntryRowProps) {
             )}
             <InlineInput
               initial={name}
+              placeholder={isDir ? "Folder name" : "File name"}
               onCommit={tree.commitRename}
               onCancel={tree.cancelRename}
             />
@@ -106,19 +106,19 @@ function EntryRowImpl(props: EntryRowProps) {
             onClick={handleClick}
             onDoubleClick={() => !isDir && tree.beginRename(path)}
             className={cn(
-              "group flex h-6 w-full min-w-0 cursor-pointer items-center gap-2 rounded-sm px-1.5 text-left text-[13px] text-foreground/85 transition-colors hover:bg-accent/70",
-              isSelected && "bg-accent text-foreground",
+              "group flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-none border-l border-transparent px-2 text-left text-[12px] text-white/72 transition-[background-color,color,border-color] duration-100 hover:bg-white/[0.03] hover:text-white",
+              isSelected && "border-l-primary bg-white/[0.055] text-white",
             )}
             style={{ paddingLeft }}
           >
-            <span className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground">
+            <span className="flex size-3.5 shrink-0 items-center justify-center text-white/34">
               {isDir ? (
                 <HugeiconsIcon
                   icon={ArrowRight01Icon}
                   size={12}
                   strokeWidth={2.25}
                   className={cn(
-                    "transition-transform",
+                    "transition-transform duration-100",
                     isExpanded && "rotate-90",
                   )}
                 />
@@ -130,6 +130,11 @@ function EntryRowImpl(props: EntryRowProps) {
               <span className="size-4 shrink-0" />
             )}
             <span className="min-w-0 flex-1 truncate">{name}</span>
+            {isDir ? (
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-white/22 transition-colors duration-100 group-hover:text-white/44">
+                dir
+              </span>
+            ) : null}
           </button>
         )}
       </ContextMenuTrigger>
@@ -243,7 +248,7 @@ export type PendingRowProps = {
 export function PendingRow({ depth, kind, onCommit, onCancel }: PendingRowProps) {
   return (
     <div
-      className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
+      className="flex h-8 w-full min-w-0 items-center gap-2 px-2 text-[12px] text-white/82"
       style={{ paddingLeft: 6 + depth * 12 }}
     >
       <span className="size-3.5 shrink-0" />
@@ -274,8 +279,8 @@ export function StatusRow({
   return (
     <div
       className={cn(
-        "h-6 truncate px-2 text-[11px] leading-6",
-        tone === "error" ? "text-destructive" : "text-muted-foreground",
+        "h-8 truncate px-2 font-mono text-[10px] leading-8 tracking-[0.08em]",
+        tone === "error" ? "text-destructive/90" : "text-white/34",
       )}
       style={{ paddingLeft: 6 + depth * 12 + 18 }}
     >

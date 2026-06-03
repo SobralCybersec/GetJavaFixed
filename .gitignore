@@ -12,6 +12,7 @@ node_modules
 dist
 dist-ssr
 *.localc
+src-tauri/target-test
 
 # Editor directories and files
 .vscode/*
@@ -26,3 +27,4 @@ dist-ssr
 
 *.tsbuildinfo
 proxyexamples
+wordlist.txt

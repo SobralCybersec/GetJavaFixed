@@ -1,11 +1,18 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { type ModelId } from "../config";
-import { runAgentStream, type AgentUsageDelta } from "./agent";
+import {
+  messageLikelyNeedsMcpTools,
+  runAgentStream,
+  type AgentUsageDelta,
+} from "./agent";
 import type { ProviderKeys } from "./keyring";
+import { getCachedMcpToolBundle, type McpConfig } from "./mcpClient";
 import { native } from "./native";
 import type { ToolContext } from "../tools/tools";
+import { getRefactorToolKey } from "./toolKeyring";
 
 const JAVARF_MD_MAX_BYTES = 32 * 1024;
+const MCP_BOOTSTRAP_TIMEOUT_MS = 4_000;
 type MemoryCacheEntry = { content: string | null; mtime: number };
 const projectMemoryCache = new Map<string, MemoryCacheEntry>();
 
@@ -61,6 +68,7 @@ type Deps = {
   onCompact?: (info: { droppedCount: number }) => void;
   onFinishMeta?: (info: { hitStepCap: boolean; finishReason: string }) => void;
   getPlanMode?: () => boolean;
+  getMcpConfig?: () => McpConfig;
 };
 
 type SendOptions = {
@@ -77,7 +85,14 @@ export function createContextAwareTransport(deps: Deps) {
     const messagesForRun = envBlock
       ? injectEnvIntoLastUser(options.messages, envBlock)
       : options.messages;
-    const result = await runAgentStream({
+    const mcpConfig = deps.getMcpConfig?.();
+    const shouldLoadMcp = !!mcpConfig && messageLikelyNeedsMcpTools(messagesForRun);
+    const runWithBundle = async (
+      mcpBundle:
+        | Awaited<ReturnType<typeof getCachedMcpToolBundle>>
+        | null,
+    ) =>
+      runAgentStream({
       keys: deps.getKeys(),
       modelId: deps.getModelId(),
       customInstructions: deps.getCustomInstructions(),
@@ -99,9 +114,36 @@ export function createContextAwareTransport(deps: Deps) {
       openrouterModelId: deps.getOpenrouterModelId?.(),
       planMode: deps.getPlanMode?.(),
       projectMemory,
+      mcpTools: mcpBundle?.tools,
+      mcpToolNames: mcpBundle?.toolNames,
       uiMessages: messagesForRun,
       abortSignal: options.abortSignal,
     });
+    let mcpBundle: Awaited<ReturnType<typeof getCachedMcpToolBundle>> | null = null;
+    if (shouldLoadMcp) {
+      try {
+        const [exaApiKey, context7ApiKey] = await Promise.all([
+          mcpConfig.exaApiKey !== undefined
+            ? Promise.resolve(mcpConfig.exaApiKey)
+            : getRefactorToolKey("exa"),
+          mcpConfig.context7ApiKey !== undefined
+            ? Promise.resolve(mcpConfig.context7ApiKey)
+            : getRefactorToolKey("context7"),
+        ]);
+        mcpBundle = await withTimeout(
+          getCachedMcpToolBundle({
+          ...mcpConfig,
+            exaApiKey: exaApiKey ?? undefined,
+            context7ApiKey: context7ApiKey ?? undefined,
+          }),
+          MCP_BOOTSTRAP_TIMEOUT_MS,
+          "MCP bootstrap timed out",
+        );
+      } catch (error) {
+        console.warn("[javarf][agent] MCP bootstrap failed; continuing without MCP tools", error);
+      }
+    }
+    const result = await runWithBundle(mcpBundle);
     return result.toUIMessageStream({
       originalMessages: options.messages,
     });
@@ -113,6 +155,28 @@ export function createContextAwareTransport(deps: Deps) {
       return null;
     },
   };
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
 
 function injectEnvIntoLastUser(

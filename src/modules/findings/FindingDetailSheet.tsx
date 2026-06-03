@@ -39,7 +39,7 @@ export function FindingDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full border-l border-border/60 bg-card sm:max-w-[40rem]"
+        className="flex w-full flex-col border-l border-border/60 bg-card sm:max-w-[40rem]"
       >
         {finding ? (
           <>
@@ -52,7 +52,7 @@ export function FindingDetailSheet({
               <SheetDescription>{finding.rationale}</SheetDescription>
             </SheetHeader>
 
-            <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
               {/* Safety state */}
               {safety ? (
                 <div
@@ -67,7 +67,7 @@ export function FindingDetailSheet({
                   <span className="font-semibold">
                     {safety.kind === "gitFirst" ? "Git-first safety" : "Backup-copy safety"}
                   </span>
-                  {" — "}
+                  {" - "}
                   {safety.message}
                 </div>
               ) : null}
@@ -96,7 +96,7 @@ export function FindingDetailSheet({
                     {finding.affectedFiles.map((path) => (
                       <div
                         key={path}
-                        className="rounded-2xl border border-border/60 bg-background/70 px-3 py-2 font-mono text-xs text-foreground"
+                        className="rounded-2xl border border-border/60 bg-background/70 px-3 py-2 font-mono text-xs tracking-tight text-foreground"
                       >
                         {path}
                       </div>
@@ -144,7 +144,7 @@ export function FindingDetailSheet({
                 {refactor.status === "idle" ? (
                   <p className="text-sm text-muted-foreground">
                     Click "Generate refactor" to get an AI-powered before/after preview.
-                    Review-only — no files are changed until you accept and apply.
+                    Review-only - no files are changed until you accept and apply.
                   </p>
                 ) : (
                   <>

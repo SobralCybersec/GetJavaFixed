@@ -371,21 +371,21 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     return (
       <div
         ref={containerRef}
-        className="flex h-full flex-col outline-none"
+        className="flex h-full flex-col bg-[#0f1115] outline-none"
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border/60 px-2">
+        <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-white/8 bg-[#12151b] px-2.5">
           <span
-            className="flex flex-1 items-center truncate text-xs font-medium text-foreground/80"
+            className="flex flex-1 items-center truncate text-[11px] font-medium uppercase tracking-[0.18em] text-white/72"
             title={rootPath}
           >
             <img
               src={folderIconUrl(basename(rootPath), false)}
               alt=""
-              height={15}
-              width={15}
-              className="mx-1.5"
+              height={16}
+              width={16}
+              className="mr-2 opacity-80"
             />
             {basename(rootPath)}
           </span>
@@ -393,7 +393,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
             onClick={() => setIsSearchOpen((v) => !v)}
             title="Search files"
             aria-label="Search files"
@@ -404,7 +404,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
             onClick={() => tree.beginCreate(rootPath, "file")}
             title="New file"
           >
@@ -413,7 +413,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
             onClick={() => tree.beginCreate(rootPath, "dir")}
             title="New folder"
           >
@@ -422,7 +422,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
             onClick={() => tree.refresh(rootPath)}
             title="Refresh"
           >
@@ -446,11 +446,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             <ContextMenuTrigger asChild>
               <div
                 ref={scrollRef}
-                className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]"
+                className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#0d0f14] [scrollbar-gutter:stable]"
               >
                 {pendingAtRoot ? (
                   <div
-                    className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
+                    className="flex h-8 w-full min-w-0 items-center gap-2 px-2 text-[12px] text-white/84"
                     style={{ paddingLeft: 6 }}
                   >
                     <span className="size-3.5 shrink-0" />
@@ -474,12 +474,12 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                   </div>
                 ) : null}
                 {root?.status === "loading" && (
-                  <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                  <div className="px-3 py-3 font-mono text-[11px] text-white/42">
                     Loading…
                   </div>
                 )}
                 {root?.status === "error" && (
-                  <div className="px-3 py-2 text-[11px] text-destructive">
+                  <div className="px-3 py-3 font-mono text-[11px] text-destructive/90">
                     {root.message}
                   </div>
                 )}

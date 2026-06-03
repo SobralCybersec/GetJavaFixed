@@ -321,7 +321,8 @@ fn scan_findings_in_scope(
             .map_err(|e| e.to_string())?;
         let content = fs::read_to_string(path)
             .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-        let line_count = content.lines().count();
+        let lines: Vec<&str> = content.lines().collect();
+        let line_count = lines.len();
 
         if content.contains("System.out.println") {
             findings.push(Phase1Finding {
@@ -335,8 +336,8 @@ fn scan_findings_in_scope(
             });
         }
 
-        if content
-            .lines()
+        if lines
+            .iter()
             .any(|line| line.trim_start().starts_with("import ") && line.contains(".*;"))
         {
             findings.push(Phase1Finding {
@@ -351,38 +352,10 @@ fn scan_findings_in_scope(
         }
 
         if content.contains("catch (") {
-            let mut in_catch = false;
-            let mut brace_depth = 0i32;
-            let mut catch_body_start = false;
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("catch (") || trimmed.contains(" catch (") {
-                    in_catch = true;
-                    brace_depth = 0;
-                    catch_body_start = false;
-                }
-                if in_catch {
-                    for ch in trimmed.chars() {
-                        if ch == '{' {
-                            brace_depth += 1;
-                            if brace_depth == 1 {
-                                catch_body_start = true;
-                            }
-                        } else if ch == '}' {
-                            brace_depth -= 1;
-                            if brace_depth == 0 && catch_body_start {
-                                in_catch = false;
-                            }
-                        }
-                    }
-                }
-            }
-
-            let lines_vec: Vec<&str> = content.lines().collect();
-            for i in 0..lines_vec.len().saturating_sub(1) {
-                let l = lines_vec[i].trim();
+            for i in 0..lines.len().saturating_sub(1) {
+                let l = lines[i].trim();
                 if (l.starts_with("catch (") || l.contains(" catch (")) && l.ends_with('{') {
-                    if let Some(next) = lines_vec.get(i + 1) {
+                    if let Some(next) = lines.get(i + 1) {
                         if next.trim() == "}" {
                             findings.push(Phase1Finding {
                                 id: format!("empty-catch:{rel}:{i}"),
@@ -416,7 +389,7 @@ fn scan_findings_in_scope(
 
         {
             let mut in_loop = false;
-            for line in content.lines() {
+            for line in &lines {
                 let t = line.trim();
                 if t.starts_with("for ") || t.starts_with("while ") || t.starts_with("do {") {
                     in_loop = true;
@@ -446,7 +419,7 @@ fn scan_findings_in_scope(
         }
 
         if content.contains(".size()") {
-            for line in content.lines() {
+            for line in &lines {
                 let t = line.trim();
                 if (t.starts_with("for (") || t.starts_with("while (")) && t.contains(".size()") {
                     findings.push(Phase1Finding {
@@ -491,7 +464,7 @@ fn scan_findings_in_scope(
         }
 
         if content.contains("instanceof ") && !content.contains("instanceof (") {
-            let has_old_instanceof = content.lines().any(|line| {
+            let has_old_instanceof = lines.iter().any(|line| {
                 let t = line.trim();
                 t.contains("instanceof ")
                     && !t.contains("instanceof (")

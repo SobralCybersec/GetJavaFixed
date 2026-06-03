@@ -27,7 +27,7 @@ export function JavaFirstRunSetup({
   onContinue,
 }: Props) {
   return (
-    <div className="java-grid flex h-screen min-h-0 items-center justify-center overflow-auto bg-background px-6 py-8 text-foreground">
+    <div className="flex h-screen min-h-0 items-center justify-center overflow-auto bg-background px-6 py-8 text-foreground">
       <Card size="sm" className="java-panel w-full max-w-4xl border border-border/60">
         <CardHeader className="gap-5">
           <div className="flex flex-wrap items-start justify-between gap-6">

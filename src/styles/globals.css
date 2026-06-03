@@ -9,112 +9,123 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: 'CC Wild Words Roman', 'Inter Variable', sans-serif;
-    --font-sans: 'CC Wild Words Roman', 'Inter Variable', sans-serif;
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+  --font-heading: "Bebas Neue", "Downcome", Impact, sans-serif;
+  --font-sans: "Inter Variable", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Share Tech Mono", "SFMono-Regular", monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
+  --radius-4xl: 32px;
 }
 
 :root,
 .dark {
-    --background: oklch(0.08 0 0);
-    --foreground: oklch(0.96 0 0);
-    --card: oklch(0.11 0 0);
-    --card-foreground: oklch(0.96 0 0);
-    --popover: oklch(0.11 0 0);
-    --popover-foreground: oklch(0.96 0 0);
-    --primary: oklch(0.94 0 0);
-    --primary-foreground: oklch(0.08 0 0);
-    --secondary: oklch(0.16 0 0);
-    --secondary-foreground: oklch(0.94 0 0);
-    --muted: oklch(0.14 0 0);
-    --muted-foreground: oklch(0.65 0 0);
-    --accent: oklch(0.18 0 0);
-    --accent-foreground: oklch(0.96 0 0);
-    --destructive: oklch(0.68 0.2 24);
-    --border: oklch(0.24 0 0);
-    --input: oklch(0.18 0 0);
-    --ring: oklch(0.82 0 0);
-    --chart-1: oklch(0.88 0 0);
-    --chart-2: oklch(0.72 0 0);
-    --chart-3: oklch(0.56 0 0);
-    --chart-4: oklch(0.42 0 0);
-    --chart-5: oklch(0.28 0 0);
-    --radius: 0.125rem;
-    --sidebar: oklch(0.09 0 0);
-    --sidebar-foreground: oklch(0.96 0 0);
-    --sidebar-primary: oklch(0.94 0 0);
-    --sidebar-primary-foreground: oklch(0.08 0 0);
-    --sidebar-accent: oklch(0.16 0 0);
-    --sidebar-accent-foreground: oklch(0.96 0 0);
-    --sidebar-border: oklch(0.24 0 0);
-    --sidebar-ring: oklch(0.82 0 0);
+  --background: oklch(0.14 0.01 18);
+  --foreground: oklch(0.93 0.01 85);
+  --card: oklch(0.18 0.012 18);
+  --card-foreground: oklch(0.93 0.01 85);
+  --popover: oklch(0.17 0.012 18);
+  --popover-foreground: oklch(0.93 0.01 85);
+  --primary: oklch(0.59 0.19 24);
+  --primary-foreground: oklch(0.97 0.005 85);
+  --secondary: oklch(0.23 0.012 18);
+  --secondary-foreground: oklch(0.91 0.01 85);
+  --muted: oklch(0.21 0.01 18);
+  --muted-foreground: oklch(0.62 0.014 45);
+  --accent: oklch(0.27 0.018 14);
+  --accent-foreground: oklch(0.93 0.01 85);
+  --destructive: oklch(0.63 0.2 24);
+  --border: oklch(0.28 0.01 22);
+  --input: oklch(0.23 0.012 18);
+  --ring: oklch(0.59 0.19 24);
+  --chart-1: oklch(0.59 0.19 24);
+  --chart-2: oklch(0.67 0.12 12);
+  --chart-3: oklch(0.76 0.06 70);
+  --chart-4: oklch(0.64 0.1 150);
+  --chart-5: oklch(0.7 0.07 245);
+  --radius: 16px;
+  --sidebar: oklch(0.16 0.01 18);
+  --sidebar-foreground: oklch(0.92 0.01 85);
+  --sidebar-primary: oklch(0.59 0.19 24);
+  --sidebar-primary-foreground: oklch(0.97 0.005 85);
+  --sidebar-accent: oklch(0.2 0.012 18);
+  --sidebar-accent-foreground: oklch(0.92 0.01 85);
+  --sidebar-border: oklch(0.26 0.01 22);
+  --sidebar-ring: oklch(0.59 0.19 24);
+  --ember: oklch(0.59 0.19 24);
+  --ember-dim: oklch(0.43 0.11 24);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     margin: 0;
     overflow: hidden;
     font-family: var(--font-sans);
+    background-color: var(--background);
     background-image:
-      linear-gradient(180deg, color-mix(in oklab, var(--background) 96%, white 4%), var(--background)),
-      linear-gradient(90deg, color-mix(in oklab, var(--border) 35%, transparent) 1px, transparent 1px),
-      linear-gradient(color-mix(in oklab, var(--border) 35%, transparent) 1px, transparent 1px);
-    background-size: auto, 32px 32px, 32px 32px;
+      radial-gradient(circle at top left, color-mix(in oklab, var(--primary) 14%, transparent), transparent 24%),
+      radial-gradient(circle at 88% 0%, color-mix(in oklab, var(--foreground) 4%, transparent), transparent 18%),
+      linear-gradient(180deg, color-mix(in oklab, var(--background) 94%, var(--card) 6%), var(--background)),
+      linear-gradient(color-mix(in oklab, var(--foreground) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in oklab, var(--foreground) 4%, transparent) 1px, transparent 1px);
+    background-size: auto, auto, auto, 28px 28px, 28px 28px;
     background-attachment: fixed;
-    }
-  html, body, #root {
-    height: 100%;
-    }
-  html {
-    @apply font-sans;
-    }
+  }
 }
 
 :root {
   --terminal-background: var(--background);
   --terminal-foreground: var(--foreground);
-  --terminal-cursor: var(--foreground);
+  --terminal-cursor: var(--primary);
   --terminal-cursor-accent: var(--background);
   --terminal-selection: var(--accent);
   --terminal-ansi-black: #18181b;
@@ -133,18 +144,17 @@
   --terminal-ansi-bright-magenta: #c084fc;
   --terminal-ansi-bright-cyan: #22d3ee;
   --terminal-ansi-bright-white: #fafafa;
-}
-
-:root {
   --app-zoom: 1;
 }
 
 html[data-chrome="borderless"] .javarf-bg-surface {
-  border-radius: 2px;
+  border-radius: 0;
 }
+
 .zoom-content {
   zoom: var(--app-zoom);
 }
+
 .zoom-exempt {
   zoom: calc(1 / var(--app-zoom));
 }
@@ -153,9 +163,20 @@ html[data-chrome="borderless"] .javarf-bg-surface {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 2px;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--card) 98%, white 2%), var(--card));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
+    0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.java-panel:focus-within,
+.java-panel[data-active="true"] {
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent),
+    0 14px 34px rgba(0, 0, 0, 0.28);
+  border-color: color-mix(in oklab, var(--border) 60%, var(--ember) 40%);
 }
 
 .java-panel::before {
@@ -163,40 +184,93 @@ html[data-chrome="borderless"] .javarf-bg-surface {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, color-mix(in oklab, white 3%, transparent), transparent 30%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--foreground) 2%, transparent),
+    transparent 30%
+  );
+}
+
+.javarf-ops-dashboard {
+  background:
+    radial-gradient(circle at 14% 8%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 26%),
+    radial-gradient(circle at 86% 4%, color-mix(in oklab, var(--foreground) 4%, transparent), transparent 18%),
+    linear-gradient(180deg, color-mix(in oklab, var(--background) 96%, var(--card) 4%), var(--background) 44%);
+  overflow-wrap: anywhere;
+}
+
+.javarf-ops-dashboard .ops-card,
+.javarf-ops-dashboard .ops-widget,
+.javarf-ops-dashboard .java-panel {
+  border-radius: var(--radius-lg) !important;
+}
+
+.javarf-ops-dashboard .ops-card,
+.javarf-ops-dashboard .java-panel {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--card) 90%, var(--foreground) 3%), var(--card)),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
+    0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+.javarf-ops-dashboard .ops-hero {
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--card) 94%, white 4%), color-mix(in oklab, var(--background) 92%, transparent)),
+    radial-gradient(circle at 92% 10%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 28%);
+}
+
+.javarf-ops-dashboard .ops-inset-panel {
+  border-radius: var(--radius-md) !important;
+}
+
+.javarf-ops-dashboard .ops-widget-handle {
+  border-radius: 10px !important;
+  background: color-mix(in oklab, var(--background) 58%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 68%, transparent);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent) inset;
+}
+
+.javarf-ops-dashboard .ops-widget-handle button {
+  border-radius: 8px !important;
+}
+
+.javarf-ops-dashboard .ops-widget:active .ops-widget-handle,
+.javarf-ops-dashboard .ops-widget:hover .ops-widget-handle {
+  color: color-mix(in oklab, var(--foreground) 88%, var(--primary) 12%);
+}
+
+@media (max-width: 640px) {
+  .javarf-ops-dashboard .ops-card,
+  .javarf-ops-dashboard .java-panel {
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
+      0 8px 18px rgba(0, 0, 0, 0.18);
+  }
 }
 
 .java-grid {
   background-image:
-    linear-gradient(color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px);
-  background-size: 26px 26px;
+    linear-gradient(color-mix(in oklab, var(--border) 18%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--border) 18%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
-/* Custom window chrome (Linux/Windows): the OS gives us a transparent
- * borderless window, and we paint the rounded corners + border + shadow
- * ourselves so the app doesn't look naked on GNOME/KDE/Hyprland. */
 html[data-chrome="borderless"],
 html[data-chrome="borderless"] body {
   background: transparent !important;
 }
+
 html[data-chrome="borderless"] #root,
 html[data-chrome="borderless"] #settings-root {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--background);
 }
 
-/*
- * xterm.js overrides — kept outside @layer so they win against the addon's
- * own stylesheet (which is not in any layer and would otherwise override).
- *
- * Newer xterm renders scrollbars as real <div class="scrollbar vertical|horizontal">
- * children rather than relying on native overflow scrollbars. Both code paths exist
- * across versions, so we hide both.
- */
 .xterm .scrollbar,
 .xterm .scrollbar.vertical,
 .xterm .scrollbar.horizontal {
@@ -206,31 +280,32 @@ html[data-chrome="borderless"] #settings-root {
   height: 0 !important;
   pointer-events: none !important;
 }
+
 .xterm .xterm-viewport,
 .xterm-viewport {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
+
 .xterm .xterm-viewport::-webkit-scrollbar,
 .xterm-viewport::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
   display: none !important;
 }
+
 .xterm,
 .xterm-screen,
 .xterm:focus,
-.xterm.focus {
-  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace !important;
-  outline: none !important;
-}
-
+.xterm.focus,
 .cm-editor,
 .cm-scroller {
-  font-family: "JetBrains Mono", SFMono-Regular, Menlo, monospace !important;
+  font-family: var(--font-mono) !important;
+  outline: none !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
+
 .cm-editor::-webkit-scrollbar,
 .cm-scroller::-webkit-scrollbar {
   width: 0 !important;
@@ -242,6 +317,7 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
+
 input,
 textarea,
 select,
@@ -252,7 +328,7 @@ kbd,
 .cm-editor,
 .select-text,
 .select-text * {
-  font-family: 'Inter Variable', sans-serif;
+  font-family: inherit;
   -webkit-user-select: text;
   user-select: text;
 }
@@ -262,13 +338,14 @@ kbd,
   width: 0.85em;
   height: 0.85em;
   margin-right: 0.35em;
-  border-radius: 3px;
+  border-radius: 4px;
   border: 1px solid rgba(128, 128, 128, 0.4);
   vertical-align: middle;
   position: relative;
   overflow: hidden;
   cursor: pointer;
 }
+
 .cm-color-swatch-input {
   position: absolute;
   inset: 0;
@@ -280,11 +357,11 @@ kbd,
   cursor: pointer;
 }
 
-
 .no-scrollbar {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
+
 .no-scrollbar::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
@@ -296,6 +373,7 @@ kbd,
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
+
 .no-scrollbar-deep::-webkit-scrollbar,
 .no-scrollbar-deep *::-webkit-scrollbar {
   width: 0 !important;
@@ -303,11 +381,6 @@ kbd,
   display: none !important;
 }
 
-/* Kill native scrollbars everywhere by default — Linux/Windows ship chunky
- * Chromium bars that break the chrome, and macOS WKWebView flashes its overlay
- * scrollbar briefly during layout transitions (AI panel open, pane split,
- * window resize) which looks like a glitch. Visible scroll affordances are
- * provided per-region via shadcn <ScrollArea>. */
 html,
 html *,
 html *::before,
@@ -315,6 +388,7 @@ html *::after {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 html *::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -326,6 +400,7 @@ html *::-webkit-scrollbar {
     height: 0;
     opacity: 0;
   }
+
   to {
     height: var(--radix-collapsible-content-height);
     opacity: 1;
@@ -337,6 +412,7 @@ html *::-webkit-scrollbar {
     height: var(--radix-collapsible-content-height);
     opacity: 1;
   }
+
   to {
     height: 0;
     opacity: 0;
@@ -346,9 +422,31 @@ html *::-webkit-scrollbar {
 .javarf-collapsible-content {
   overflow: hidden;
 }
+
 .javarf-collapsible-content[data-state="open"] {
-  animation: javarf-collapsible-down 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  animation: javarf-collapsible-down 140ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .javarf-collapsible-content[data-state="closed"] {
-  animation: javarf-collapsible-up 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  animation: javarf-collapsible-up 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.border-ember {
+  border-color: var(--ember) !important;
+}
+
+.text-ember {
+  color: var(--ember);
+}
+
+.bg-ember {
+  background-color: var(--ember);
+}
+
+.rail-ember {
+  border-left: 3px solid var(--ember);
+}
+
+.rail-ember-dim {
+  border-left: 3px solid var(--ember-dim);
 }

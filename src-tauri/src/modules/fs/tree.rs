@@ -72,15 +72,20 @@ pub fn fs_read_dir(
         })
         .collect();
 
-    entries.sort_by(|a, b| {
-        let rank = |k: &EntryKind| match k {
-            EntryKind::Dir => 0,
-            EntryKind::Symlink => 1,
-            EntryKind::File => 2,
+    entries.sort_by(|left, right| {
+        let left_rank = match left.kind {
+            EntryKind::Dir => 0u8,
+            EntryKind::Symlink => 1u8,
+            EntryKind::File => 2u8,
         };
-        rank(&a.kind)
-            .cmp(&rank(&b.kind))
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        let right_rank = match right.kind {
+            EntryKind::Dir => 0u8,
+            EntryKind::Symlink => 1u8,
+            EntryKind::File => 2u8,
+        };
+        left_rank
+            .cmp(&right_rank)
+            .then_with(|| compare_case_insensitive_ascii(&left.name, &right.name))
     });
 
     Ok(entries)
@@ -112,6 +117,26 @@ pub fn list_subdirs(
         .filter(|name| show_hidden || !name.starts_with('.'))
         .collect();
 
-    dirs.sort_by_key(|a| a.to_lowercase());
+    dirs.sort_by(|left, right| compare_case_insensitive_ascii(left, right));
     Ok(dirs)
+}
+
+fn compare_case_insensitive_ascii(left: &str, right: &str) -> std::cmp::Ordering {
+    let mut left_iter = left.bytes();
+    let mut right_iter = right.bytes();
+    loop {
+        match (left_iter.next(), right_iter.next()) {
+            (Some(a), Some(b)) => {
+                let a = a.to_ascii_lowercase();
+                let b = b.to_ascii_lowercase();
+                match a.cmp(&b) {
+                    std::cmp::Ordering::Equal => continue,
+                    other => return other,
+                }
+            }
+            (Some(_), None) => return std::cmp::Ordering::Greater,
+            (None, Some(_)) => return std::cmp::Ordering::Less,
+            (None, None) => return std::cmp::Ordering::Equal,
+        }
+    }
 }

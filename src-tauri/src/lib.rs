@@ -1,7 +1,8 @@
 pub mod modules;
 
 use modules::{
-    agent, analysis, fs, git, java_repo, net, proxyexamples, pty, secrets, shell, workspace,
+    agent, analysis, fs, git, java_repo, net, proxyexamples, pty, refactoring_db, secrets, shell,
+    workspace,
 };
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
@@ -171,11 +172,16 @@ pub fn run() {
             analysis::phase1_analysis_start,
             analysis::phase1_analysis_status,
             analysis::java_safety_snapshot,
+            proxyexamples::proxyexample_presets,
             proxyexamples::proxyexample_detect,
             proxyexamples::proxyexample_start,
             proxyexamples::proxyexample_login,
             proxyexamples::proxyexample_health,
             proxyexamples::proxyexample_models,
+            proxyexamples::proxyexample_status,
+            refactoring_db::refactor_rules_root,
+            refactoring_db::refactor_rules_list,
+            refactoring_db::refactor_rules_export_defaults,
             get_launch_dir,
             open_settings_window,
             agent::agent_enable_claude_hooks,

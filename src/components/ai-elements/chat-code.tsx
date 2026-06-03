@@ -16,7 +16,18 @@ import { Shimmer } from "./shimmer";
 import { highlight, isHighlightable, type HighlightedNode } from "./chat-code-lezer";
 
 const StreamingCtx = createContext(false);
-export const ChatStreamingProvider = StreamingCtx.Provider;
+
+export function ChatStreamingProvider({
+  value,
+  children,
+}: {
+  value: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <StreamingCtx.Provider value={value}>{children}</StreamingCtx.Provider>
+  );
+}
 
 const POSIX_SHELL = new Set([
   "bash",

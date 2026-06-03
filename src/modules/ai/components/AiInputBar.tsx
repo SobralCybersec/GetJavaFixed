@@ -13,7 +13,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceFiles } from "../hooks/useWorkspaceFiles";
-import { useComposer, type FileAttachment } from "../lib/composer";
+import { type FileAttachment, useComposer } from "../lib/composer-context";
 import { SLASH_COMMANDS } from "../lib/slashCommands";
 import type { Snippet } from "../lib/snippets";
 import { useChatStore } from "../store/chatStore";
