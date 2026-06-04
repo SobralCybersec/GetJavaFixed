@@ -6,7 +6,11 @@ import {
   type AgentUsageDelta,
 } from "./agent";
 import type { ProviderKeys } from "./keyring";
-import { getCachedMcpToolBundle, type McpConfig } from "./mcpClient";
+import {
+  getCachedMcpToolBundle,
+  invalidateCachedMcpToolBundle,
+  type McpConfig,
+} from "./mcpClient";
 import { native } from "./native";
 import type { ToolContext } from "../tools/tools";
 import { getRefactorToolKey } from "./toolKeyring";
@@ -95,6 +99,7 @@ export function createContextAwareTransport(deps: Deps) {
       mcpBundle:
         | Awaited<ReturnType<typeof getCachedMcpToolBundle>>
         | null,
+      runtimeNotices: string[] = [],
     ) =>
       runAgentStream({
       keys: deps.getKeys(),
@@ -120,11 +125,14 @@ export function createContextAwareTransport(deps: Deps) {
       projectMemory,
       mcpTools: mcpBundle?.tools,
       mcpToolNames: mcpBundle?.toolNames,
+      runtimeNotices,
       uiMessages: messagesForRun,
       abortSignal: options.abortSignal,
     });
     let mcpBundle: Awaited<ReturnType<typeof getCachedMcpToolBundle>> | null = null;
+    const runtimeNotices: string[] = [];
     if (shouldLoadMcp) {
+      let resolvedMcpConfig: McpConfig | null = null;
       try {
         const [exaApiKey, context7ApiKey] = await Promise.all([
           mcpConfig.exaApiKey !== undefined
@@ -134,20 +142,31 @@ export function createContextAwareTransport(deps: Deps) {
             ? Promise.resolve(mcpConfig.context7ApiKey)
             : getRefactorToolKey("context7"),
         ]);
+        resolvedMcpConfig = {
+          ...mcpConfig,
+          exaApiKey: exaApiKey ?? undefined,
+          context7ApiKey: context7ApiKey ?? undefined,
+        };
         mcpBundle = await withTimeout(
           getCachedMcpToolBundle({
-          ...mcpConfig,
-            exaApiKey: exaApiKey ?? undefined,
-            context7ApiKey: context7ApiKey ?? undefined,
+            ...resolvedMcpConfig,
           }),
           MCP_BOOTSTRAP_TIMEOUT_MS,
           "MCP bootstrap timed out",
         );
       } catch (error) {
+        if (resolvedMcpConfig) {
+          await invalidateCachedMcpToolBundle(resolvedMcpConfig);
+        }
         console.warn("[javarf][agent] MCP bootstrap failed; continuing without MCP tools", error);
       }
+      if ((mcpBundle?.toolNames.length ?? 0) === 0) {
+        runtimeNotices.push(
+          "Live web/docs research was requested, but MCP research tools were unavailable this turn. Do not claim you searched the web. Continue with local workspace inspection only and mention the limitation briefly.",
+        );
+      }
     }
-    const result = await runWithBundle(mcpBundle);
+    const result = await runWithBundle(mcpBundle, runtimeNotices);
     return result.toUIMessageStream({
       originalMessages: options.messages,
     });

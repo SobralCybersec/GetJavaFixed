@@ -9,6 +9,7 @@ type Props = {
   title?: string;
   description?: string;
   refactor: UseRefactorGenerationResult;
+  onGenerate: () => void;
   onRetry: () => void;
   onClose: () => void;
 };
@@ -19,6 +20,7 @@ export function JavaRefactorPreviewPane({
   title,
   description,
   refactor,
+  onGenerate,
   onRetry,
   onClose,
 }: Props) {
@@ -55,6 +57,7 @@ export function JavaRefactorPreviewPane({
               status={refactor.status}
               result={refactor.result}
               error={refactor.error}
+              onGenerate={onGenerate}
               onReset={refactor.reset}
             />
             <Button size="sm" onClick={onRetry} className="h-9 px-4 text-xs">
@@ -66,6 +69,7 @@ export function JavaRefactorPreviewPane({
             status={refactor.status}
             result={refactor.result}
             error={refactor.error}
+            onGenerate={onGenerate}
             onReset={refactor.reset}
             className={cn("h-full")}
           />

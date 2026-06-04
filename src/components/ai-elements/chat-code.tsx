@@ -237,8 +237,8 @@ function RunInTerminalButton({ command }: { command: string }) {
       variant="ghost"
       onClick={onRun}
       className="h-5 gap-1 px-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-      aria-label="Run in active terminal"
-      title="Run in active terminal"
+      aria-label="Run in terminal"
+      title="Run in terminal"
     >
       <HugeiconsIcon
         icon={sent ? TerminalIcon : ArrowRight01Icon}

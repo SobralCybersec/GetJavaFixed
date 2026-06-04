@@ -47,8 +47,6 @@ import {
   GitHistoryStack,
   type GitHistorySearchHandle,
 } from "@/modules/git-history";
-import { HomeDashboard } from "@/app/HomeDashboard";
-import { FindingsDashboard, JavaRefactorPreviewPane } from "@/modules/findings";
 import { useRefactorGeneration } from "@/modules/findings";
 import {
   JavaFirstRunSetup,
@@ -110,6 +108,7 @@ import {
 } from "@/modules/terminal";
 import { ThemeProvider } from "@/modules/theme";
 import { listCustomThemes, saveCustomTheme } from "@/modules/theme/customThemes";
+import { resolveTerminalInjectionTarget } from "@/modules/terminal/lib/injection";
 import {
   isThemeFilePath,
   onThemeEdit,
@@ -131,10 +130,24 @@ import { homeDir } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { SearchAddon } from "@xterm/addon-search";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 
 type TuiWaitResult = "ready" | "gone" | "timeout";
+
+const HomeDashboardLazy = lazy(() =>
+  import("./HomeDashboard").then((m) => ({ default: m.HomeDashboard })),
+);
+const FindingsDashboardLazy = lazy(() =>
+  import("@/modules/findings/FindingsDashboard").then((m) => ({
+    default: m.FindingsDashboard,
+  })),
+);
+const JavaRefactorPreviewPaneLazy = lazy(() =>
+  import("@/modules/findings/JavaRefactorPreviewPane").then((m) => ({
+    default: m.JavaRefactorPreviewPane,
+  })),
+);
 
 async function waitForClaudeTuiReady(
   readBuf: () => string | null,
@@ -239,7 +252,7 @@ export default function App() {
     newPreviewTab,
     newMarkdownTab,
     openAiDiffTab,
-    closeAiDiffTab,
+    setAiDiffStatus,
     openGitDiffTab,
     openCommitHistoryTab,
     openCommitFileDiffTab,
@@ -1588,6 +1601,12 @@ export default function App() {
       return explorerRoot ?? launchCwd ?? home ?? null;
     };
 
+    const injectIntoLeaf = (leafId: number, text: string) => {
+      if (!writeToSession(leafId, text)) return false;
+      terminalRefs.current.get(leafId)?.focus();
+      return true;
+    };
+
     setLive({
       getCwd: findCwd,
       getTerminalContext: () => {
@@ -1602,12 +1621,34 @@ export default function App() {
         return t?.kind === "terminal" && t.private === true;
       },
       injectIntoActivePty: (text) => {
-        const t = tabs.find((x) => x.id === activeId);
-        if (t?.kind !== "terminal") return false;
-        const term = terminalRefs.current.get(t.activeLeafId);
-        if (!term) return false;
-        term.write(text);
-        term.focus();
+        const target = resolveTerminalInjectionTarget(
+          tabs.filter((tab): tab is Extract<Tab, { kind: "terminal" }> => tab.kind === "terminal"),
+          activeId,
+          findCwd(),
+        );
+        if (!target) return false;
+        if (target.kind === "existing") {
+          setActiveId(target.tabId);
+          void whenSessionReady(target.leafId)
+            .then(() => {
+              injectIntoLeaf(target.leafId, text);
+            })
+            .catch(() => {});
+          return true;
+        }
+        const tabId = newTab(target.cwd ?? undefined);
+        void (async () => {
+          await new Promise((resolve) => setTimeout(resolve, 80));
+          const tab = tabsRef.current.find((candidate) => candidate.id === tabId);
+          if (!tab || tab.kind !== "terminal") return;
+          setActiveId(tab.id);
+          try {
+            await whenSessionReady(tab.activeLeafId);
+          } catch {
+            return;
+          }
+          injectIntoLeaf(tab.activeLeafId, text);
+        })();
         return true;
       },
       getWorkspaceRoot: () => explorerRoot ?? launchCwd ?? home ?? null,
@@ -1672,6 +1713,7 @@ export default function App() {
     launchCwd,
     home,
     openPreviewTab,
+    newTab,
     newAgentTab,
   ]);
 
@@ -1773,12 +1815,14 @@ export default function App() {
   );
 
   const phase1DashboardShell = phase1Repo ? (
-    <FindingsDashboard
-      repo={phase1Repo}
-      selectedScanPath={javaAnalysisFolderPath}
-      autoStartScanPath={javaAutoScanPath}
-      onClose={handleClosePhase1}
-    />
+    <Suspense fallback={null}>
+      <FindingsDashboardLazy
+        repo={phase1Repo}
+        selectedScanPath={javaAnalysisFolderPath}
+        autoStartScanPath={javaAutoScanPath}
+        onClose={handleClosePhase1}
+      />
+    </Suspense>
   ) : null;
 
   const phase1Surface =
@@ -1821,13 +1865,15 @@ export default function App() {
   );
 
   const homeSurface = (
-    <HomeDashboard
-      hasModelAccess={hasComposer}
-      onOpenWorkspace={() => {
-        void handleChooseJavaRepo();
-      }}
-      onOpenJavaRefactor={handleOpenJavaRefactor}
-    />
+    <Suspense fallback={null}>
+      <HomeDashboardLazy
+        hasModelAccess={hasComposer}
+        onOpenWorkspace={() => {
+          void handleChooseJavaRepo();
+        }}
+        onOpenJavaRefactor={handleOpenJavaRefactor}
+      />
+    </Suspense>
   );
 
   const shell = (
@@ -2063,7 +2109,7 @@ export default function App() {
             <>
               <AgentRunBridge
                 openAiDiffTab={openAiDiffTab}
-                closeAiDiffTab={closeAiDiffTab}
+                setAiDiffStatus={setAiDiffStatus}
               />
               <LocalAgentNotificationsBridge />
             </>
@@ -2231,20 +2277,22 @@ function JavaRefactorPreviewShell({
   useEffect(() => {
     if (!repoPath || !filePath) return;
     reset();
-    void generateForFile(filePath, repoPath);
-  }, [filePath, generateForFile, repoPath, reset]);
+  }, [filePath, repoPath, reset]);
 
   useEffect(() => () => reset(), [reset]);
 
   if (!repo || !filePath) return null;
 
   return (
-    <JavaRefactorPreviewPane
-      repoPath={repo.path}
-      filePath={filePath}
-      refactor={refactor}
-      onRetry={() => void generateForFile(filePath, repo.path)}
-      onClose={onClose}
-    />
+    <Suspense fallback={null}>
+      <JavaRefactorPreviewPaneLazy
+        repoPath={repo.path}
+        filePath={filePath}
+        refactor={refactor}
+        onGenerate={() => void generateForFile(filePath, repo.path)}
+        onRetry={() => void generateForFile(filePath, repo.path)}
+        onClose={onClose}
+      />
+    </Suspense>
   );
 }

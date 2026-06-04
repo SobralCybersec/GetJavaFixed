@@ -554,6 +554,10 @@ function CustomInstructionsBlock({ value }: { value: string }) {
         placeholder="e.g. Always reply in concise bullet points. Prefer pnpm over npm. My machine is an M-series Mac."
         className="min-h-[100px] resize-y bg-card/60 font-sans text-[12px] leading-relaxed border border-border"
       />
+      <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+        These instructions apply to the main chat agent. Java refactor previews use the separate
+        Refactor prompt control in Models.
+      </p>
     </div>
   );
 }

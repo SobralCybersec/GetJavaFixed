@@ -10,13 +10,21 @@ type Props = {
   status: RefactorStatus;
   result: RefactorResult | null;
   error: string | null;
+  onGenerate: () => void;
   onReset: () => void;
   className?: string;
 };
 
 const LARGE_DIFF_PREVIEW_THRESHOLD = 160_000;
 
-export function RefactorPreviewPanel({ status, result, error, onReset, className }: Props) {
+export function RefactorPreviewPanel({
+  status,
+  result,
+  error,
+  onGenerate,
+  onReset,
+  className,
+}: Props) {
   const enqueue = usePlanStore((s) => s.enqueue);
   const [showLargeDiff, setShowLargeDiff] = useState(false);
 
@@ -38,7 +46,31 @@ export function RefactorPreviewPanel({ status, result, error, onReset, className
     onReset();
   };
 
-  if (status === "idle") return null;
+  if (status === "idle") {
+    return (
+      <div
+        className={cn(
+          "flex h-full flex-col justify-center gap-4 rounded-2xl border border-border/60 bg-card/40 p-5",
+          className,
+        )}
+      >
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">Refactor preview is ready to generate</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            JavaRf will wait until you start it, then build a safe diff for review.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={onGenerate} className="h-8 px-3 text-xs">
+            Generate refactor
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onReset} className="h-8 px-3 text-xs">
+            Clear
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (status === "generating") {
     return (

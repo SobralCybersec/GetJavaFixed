@@ -6,6 +6,7 @@ import {
   FileEditIcon,
   FilePlusIcon,
   FolderAddIcon,
+  RobotIcon,
   TerminalIcon,
   Tick02Icon,
   ToolsIcon,
@@ -28,6 +29,8 @@ const TOOL_META: Record<string, { label: string; icon: typeof FilePlusIcon }> =
     create_directory: { label: "Create directory", icon: FolderAddIcon },
     bash_run: { label: "Run shell command", icon: TerminalIcon },
     bash_background: { label: "Spawn background process", icon: TerminalIcon },
+    spawn_coding_agent: { label: "Spawn coding agent", icon: RobotIcon },
+    send_to_agent: { label: "Message coding agent", icon: RobotIcon },
   };
 
 function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
@@ -166,6 +169,25 @@ function PreviewBlock({
       <div className="font-mono text-[11px] text-muted-foreground">
         {String(input.path ?? "")}
       </div>
+    );
+  }
+  if (toolName === "spawn_coding_agent") {
+    const prompt = typeof input.prompt === "string" ? input.prompt : "";
+    const lines = prompt ? prompt.split("\n").length : 0;
+    return (
+      <div className="space-y-0.5 font-mono text-[11px]">
+        <div className="text-muted-foreground">coding agent prompt</div>
+        <div className="text-[10.5px] text-muted-foreground/80">
+          {lines} line{lines === 1 ? "" : "s"} · review before starting
+        </div>
+      </div>
+    );
+  }
+  if (toolName === "send_to_agent") {
+    return (
+      <pre className="overflow-auto rounded-md bg-muted/60 p-2 font-mono text-[11px] leading-relaxed">
+        {String(input.instruction ?? "")}
+      </pre>
     );
   }
   return (

@@ -80,7 +80,9 @@ import {
   buildProxyStatusArgs,
   canRunProxyLogin,
   canStartProxy,
+  getEffectiveProxyPath,
   getProxyRecoveryText,
+  isUsingAutoDetectedProxyPath,
   resolveDetectedProxyPreset,
 } from "./proxyPreset";
 
@@ -595,6 +597,10 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
           This applies only to AI refactor previews. Precedence: built-in
           refactor system prompt, matched rule docs, your refactor instructions,
           then the finding or file context.
+        </p>
+        <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+          Normal chat keeps using Custom instructions in Agents. This setting does not change the
+          main chat agent.
         </p>
         <Textarea
           value={draft}
@@ -1451,6 +1457,19 @@ function ProxyPresetControls({
     };
   }, [selectedPath, selectedPresetId]);
 
+  const selectedPreset =
+    presets.find((preset) => preset.id === selectedPresetId) ?? null;
+  const effectivePreset = resolveDetectedProxyPreset(detectedPreset, selectedPreset);
+  const effectivePath = getEffectiveProxyPath(
+    selectedPath,
+    detectedPreset,
+    selectedPreset,
+  );
+  const usingAutoDetectedPath = isUsingAutoDetectedProxyPath(
+    selectedPath,
+    effectivePath,
+  );
+
   useEffect(() => {
     if (!selectedPresetId) {
       setStatus(null);
@@ -1467,7 +1486,7 @@ function ProxyPresetControls({
       .proxyexampleStatus(
         ...buildProxyStatusArgs(
           selectedPresetId,
-          selectedPath,
+          effectivePath,
           normalizedBaseUrl,
           compatKey,
         ),
@@ -1484,11 +1503,7 @@ function ProxyPresetControls({
     return () => {
       alive = false;
     };
-  }, [baseURL, compatKey, selectedPath, selectedPresetId]);
-
-  const selectedPreset =
-    presets.find((preset) => preset.id === selectedPresetId) ?? null;
-  const effectivePreset = resolveDetectedProxyPreset(detectedPreset, selectedPreset);
+  }, [baseURL, compatKey, effectivePath, selectedPresetId]);
   const recoveryHint = getProxyRecoveryText(status, getProxyRecoveryHint(modelsError));
   const looksLocalCompat =
     baseURL.includes("127.0.0.1") ||
@@ -1498,21 +1513,23 @@ function ProxyPresetControls({
   if (!selectedPreset && !recoveryHint && !looksLocalCompat) return null;
 
   const runAction = async (kind: "start" | "login") => {
-    if (!selectedPresetId || !selectedPath.trim()) {
+    if (!selectedPresetId || !effectivePath) {
       toast.error("Choose a proxy preset and its folder first.");
       return;
     }
     setBusyAction(kind);
     try {
       if (kind === "start") {
-        await native.proxyexampleStart(selectedPresetId, selectedPath.trim());
+        await native.proxyexampleStart(selectedPresetId, effectivePath);
         toast.success("Proxy preset started.");
       } else {
-        await native.proxyexampleLogin(selectedPresetId, selectedPath.trim());
+        await native.proxyexampleLogin(selectedPresetId, effectivePath);
         toast.success("Proxy preset login flow launched.");
       }
       await setProxyPresetId(selectedPresetId);
-      await setProxyPresetPath(selectedPresetId, selectedPath.trim());
+      if (selectedPath.trim()) {
+        await setProxyPresetPath(selectedPresetId, selectedPath.trim());
+      }
       const normalizedBaseUrl = normalizeOpenAiCompatibleBaseUrl(
         baseURL || selectedPreset?.defaultBaseUrl || "",
       );
@@ -1521,7 +1538,7 @@ function ProxyPresetControls({
           await native.proxyexampleStatus(
             ...buildProxyStatusArgs(
               selectedPresetId,
-              selectedPath,
+              effectivePath,
               normalizedBaseUrl,
               compatKey,
             ),
@@ -1620,6 +1637,12 @@ function ProxyPresetControls({
             Browse
           </Button>
         </div>
+
+        {usingAutoDetectedPath ? (
+          <div className="text-[10.5px] text-muted-foreground">
+            Using repo-local preset path: {effectivePath}
+          </div>
+        ) : null}
 
         {selectedPreset ? (
           <div className="flex flex-wrap items-center gap-2">

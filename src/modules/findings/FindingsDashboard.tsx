@@ -970,6 +970,7 @@ function RefactorPreviewInline({
       status={status}
       result={result}
       error={error}
+      onGenerate={() => {}}
       onReset={onReset}
     />
   );

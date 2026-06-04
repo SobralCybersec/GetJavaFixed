@@ -44,11 +44,20 @@ const TOOL_META: Record<string, { label: string; icon: typeof File01Icon }> = {
   bash_logs: { label: "Logs", icon: TerminalIcon },
   bash_list: { label: "Jobs", icon: TerminalIcon },
   bash_kill: { label: "Kill", icon: TerminalIcon },
+  get_terminal_output: { label: "Terminal", icon: TerminalIcon },
   grep: { label: "Search", icon: GlobalSearchIcon },
   glob: { label: "Glob", icon: Folder01Icon },
   suggest_command: { label: "Suggest", icon: SparklesIcon },
   open_preview: { label: "Preview", icon: EyeIcon },
   run_subagent: { label: "Subagent", icon: RobotIcon },
+  spawn_coding_agent: { label: "Spawn agent", icon: RobotIcon },
+  send_to_agent: { label: "Message agent", icon: RobotIcon },
+  read_agent_output: { label: "Agent output", icon: RobotIcon },
+  web_search_exa: { label: "Web search", icon: GlobalSearchIcon },
+  web_search_advanced_exa: { label: "Deep search", icon: GlobalSearchIcon },
+  web_fetch_exa: { label: "Web fetch", icon: File01Icon },
+  "resolve-library-id": { label: "Resolve lib", icon: GlobalSearchIcon },
+  "get-library-docs": { label: "Library docs", icon: File01Icon },
   todo_write: { label: "Todos", icon: CheckListIcon },
 };
 
@@ -77,6 +86,13 @@ function deriveSummary(toolName: string, input: unknown): string | null {
   const i = input as Record<string, unknown>;
   const str = (k: string) =>
     typeof i[k] === "string" ? (i[k] as string) : null;
+  const num = (k: string) =>
+    typeof i[k] === "number" ? (i[k] as number) : null;
+  const firstString = (k: string) => {
+    const value = i[k];
+    if (!Array.isArray(value)) return null;
+    return value.find((entry): entry is string => typeof entry === "string") ?? null;
+  };
 
   switch (toolName) {
     case "read_file":
@@ -91,7 +107,11 @@ function deriveSummary(toolName: string, input: unknown): string | null {
       return str("command");
     case "bash_logs":
     case "bash_kill":
-      return str("id");
+      return str("id") ?? String(num("handle") ?? "");
+    case "get_terminal_output": {
+      const lines = num("lines");
+      return lines != null ? `${lines} line${lines === 1 ? "" : "s"}` : null;
+    }
     case "grep":
       return str("pattern") ?? str("query");
     case "glob":
@@ -101,7 +121,24 @@ function deriveSummary(toolName: string, input: unknown): string | null {
     case "open_preview":
       return str("path") ?? str("url");
     case "run_subagent":
-      return str("agent") ?? str("task");
+      return str("description") ?? str("type") ?? str("agent") ?? str("task");
+    case "spawn_coding_agent":
+      return str("description") ?? str("prompt");
+    case "send_to_agent":
+      return str("instruction");
+    case "read_agent_output": {
+      const lines = num("lines");
+      return lines != null ? `${lines} line${lines === 1 ? "" : "s"}` : null;
+    }
+    case "web_search_exa":
+    case "web_search_advanced_exa":
+      return str("query");
+    case "web_fetch_exa":
+      return firstString("urls");
+    case "resolve-library-id":
+      return str("libraryName");
+    case "get-library-docs":
+      return str("context7CompatibleLibraryID") ?? str("topic");
     case "todo_write": {
       const items = Array.isArray(i.todos) ? i.todos : null;
       return items
@@ -121,11 +158,18 @@ export type ToolProps = ComponentProps<typeof Collapsible> & {
   errorText?: string;
 };
 
-const HEAVY_CONTENT_TOOLS = new Set([
+const SUMMARY_ONLY_INPUT_TOOLS = new Set([
   "write_file",
   "edit",
   "multi_edit",
   "run_subagent",
+  "todo_write",
+]);
+
+const SUMMARY_ONLY_OUTPUT_TOOLS = new Set([
+  "write_file",
+  "edit",
+  "multi_edit",
   "todo_write",
 ]);
 
@@ -145,9 +189,9 @@ const ToolImpl = ({
   const summary = deriveSummary(toolName, input);
   const isError = state === "output-error";
   const open = defaultOpen ?? isError;
-  const isHeavy = HEAVY_CONTENT_TOOLS.has(toolName);
-  const showInputBody = !isHeavy && Boolean(input);
-  const showOutputBody = !isHeavy && output !== undefined;
+  const showInputBody = !SUMMARY_ONLY_INPUT_TOOLS.has(toolName) && Boolean(input);
+  const showOutputBody =
+    !SUMMARY_ONLY_OUTPUT_TOOLS.has(toolName) && output !== undefined;
   const hasDetails =
     showInputBody || showOutputBody || Boolean(errorText);
 
@@ -218,7 +262,7 @@ export const Tool = memo(ToolImpl, (a, b) => {
   if (a.errorText !== b.errorText) return false;
   if (a.output !== b.output) return false;
   if (a.className !== b.className) return false;
-  if (HEAVY_CONTENT_TOOLS.has(a.toolName)) {
+  if (SUMMARY_ONLY_INPUT_TOOLS.has(a.toolName)) {
     return deriveSummary(a.toolName, a.input) ===
       deriveSummary(b.toolName, b.input);
   }
@@ -297,6 +341,33 @@ function renderInputPreview(
       <div className="space-y-0.5 font-mono text-[11px]">
         <div className="text-foreground">{pat}</div>
         {path ? <div className="text-muted-foreground">{path}</div> : null}
+      </div>
+    );
+  }
+  if (
+    toolName === "web_search_exa" ||
+    toolName === "web_search_advanced_exa"
+  ) {
+    const query = str("query");
+    if (!query) return null;
+    return (
+      <pre className="overflow-auto rounded bg-muted/40 p-2 font-mono text-[11px] leading-relaxed">
+        {query}
+      </pre>
+    );
+  }
+  if (toolName === "web_fetch_exa") {
+    const urls = Array.isArray(i.urls)
+      ? (i.urls as unknown[]).filter((entry): entry is string => typeof entry === "string")
+      : [];
+    if (urls.length === 0) return null;
+    return (
+      <div className="space-y-0.5 font-mono text-[11px]">
+        {urls.slice(0, 6).map((url) => (
+          <div key={url} className="truncate text-muted-foreground">
+            {url}
+          </div>
+        ))}
       </div>
     );
   }
@@ -431,6 +502,33 @@ function renderToolOutput(toolName: string, output: unknown): ReactNode | null {
       typeof o.explanation === "string" ? o.explanation : null;
     if (!cmd) return null;
     return <SuggestCommandCard command={cmd} explanation={explanation} />;
+  }
+
+  if (toolName === "run_subagent") {
+    const summary = typeof o.summary === "string" ? o.summary : null;
+    const error = typeof o.error === "string" ? o.error : null;
+    const type = typeof o.type === "string" ? o.type : null;
+    const stepCount = typeof o.stepCount === "number" ? o.stepCount : null;
+    const durationMs = typeof o.durationMs === "number" ? o.durationMs : null;
+
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <span>{type ? `type: ${type}` : "subagent"}</span>
+          {stepCount != null ? <span>{stepCount} step{stepCount === 1 ? "" : "s"}</span> : null}
+          {durationMs != null ? <span>{(durationMs / 1000).toFixed(1)}s</span> : null}
+        </div>
+        {error ? (
+          <div className="rounded bg-destructive/10 px-2 py-1.5 font-mono text-[11px] text-destructive whitespace-pre-wrap">
+            {error}
+          </div>
+        ) : summary ? (
+          <CodeBlockMini code={summary} language="text" />
+        ) : (
+          <div className="text-[11px] italic text-muted-foreground">no summary</div>
+        )}
+      </div>
+    );
   }
 
   if (toolName === "grep") {
@@ -722,7 +820,7 @@ function SuggestCommandCard({
             "disabled:opacity-60 disabled:cursor-default disabled:hover:bg-transparent",
             "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
           )}
-          aria-label="Insert into active terminal"
+          aria-label="Insert into terminal"
         >
           <HugeiconsIcon
             icon={inserted ? TerminalIcon : ArrowRight01Icon}

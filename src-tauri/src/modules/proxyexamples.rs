@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::modules::fs::to_canon;
 use crate::modules::net::{ai_http_request, HttpResponse};
 use crate::modules::shell::{spawn_background_registered, ShellState};
-use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
+use crate::modules::workspace::{
+    launch_cwd_snapshot, resolve_path, WorkspaceEnv, WorkspaceRegistry,
+};
 
 static PROXY_PRESET_MANIFEST: &str = include_str!("proxyexamples.manifest.json");
 static PROXY_PRESETS: OnceLock<Result<Vec<ProxyPreset>, String>> = OnceLock::new();
@@ -268,6 +270,40 @@ fn infer_recovery_hint(
     None
 }
 
+fn detect_repo_local_proxy_dir_from_launch(
+    launch_dir: &Path,
+    proxy_id: &str,
+    registry: &WorkspaceRegistry,
+) -> Option<PathBuf> {
+    let candidate = launch_dir.join("needhavesupport").join(proxy_id);
+    let canonical = std::fs::canonicalize(candidate).ok()?;
+    if !canonical.is_dir() {
+        return None;
+    }
+    registry.authorize(&canonical).ok()?;
+    Some(canonical)
+}
+
+fn detect_repo_local_proxy_dir(
+    proxy_id: &str,
+    registry: &WorkspaceRegistry,
+) -> Option<PathBuf> {
+    let launch_dir = launch_cwd_snapshot()?;
+    detect_repo_local_proxy_dir_from_launch(&launch_dir, proxy_id, registry)
+}
+
+fn resolve_effective_proxy_dir(
+    preset: &ProxyPreset,
+    configured_path: Option<&str>,
+    workspace: &WorkspaceEnv,
+    registry: &WorkspaceRegistry,
+) -> Result<Option<PathBuf>, String> {
+    if let Some(path) = configured_path.map(str::trim).filter(|value| !value.is_empty()) {
+        return resolve_proxy_dir(path, workspace, registry).map(Some);
+    }
+    Ok(detect_repo_local_proxy_dir(&preset.id, registry))
+}
+
 fn resolve_proxy_dir(
     configured_path: &str,
     workspace: &WorkspaceEnv,
@@ -322,10 +358,15 @@ fn package_scripts_info(preset: &ProxyPreset, dir: Option<&Path>) -> ProxyExampl
 }
 
 #[tauri::command]
-pub async fn proxyexample_presets() -> Result<Vec<ProxyExampleInfo>, String> {
+pub async fn proxyexample_presets(
+    registry: tauri::State<'_, WorkspaceRegistry>,
+) -> Result<Vec<ProxyExampleInfo>, String> {
     Ok(load_proxy_presets()?
         .iter()
-        .map(|preset| package_scripts_info(preset, None))
+        .map(|preset| {
+            let dir = detect_repo_local_proxy_dir(&preset.id, &registry);
+            package_scripts_info(preset, dir.as_deref())
+        })
         .collect())
 }
 
@@ -338,9 +379,7 @@ pub async fn proxyexample_detect(
 ) -> Result<ProxyExampleInfo, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     let preset = get_proxy_preset(&proxy_id)?;
-    let dir = path
-        .as_deref()
-        .and_then(|value| resolve_proxy_dir(value, &workspace, &registry).ok());
+    let dir = resolve_effective_proxy_dir(&preset, path.as_deref(), &workspace, &registry)?;
     Ok(package_scripts_info(&preset, dir.as_deref()))
 }
 
@@ -416,6 +455,49 @@ mod tests {
         assert!(!presets.is_empty());
         assert!(presets.iter().any(|preset| preset.id == "deepsproxy"));
     }
+
+    #[test]
+    fn repo_local_proxy_dir_is_discovered() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let support_dir = temp.path().join("needhavesupport").join("deepsproxy");
+        std::fs::create_dir_all(&support_dir).expect("create support dir");
+        let registry = WorkspaceRegistry::default();
+
+        let detected = detect_repo_local_proxy_dir_from_launch(
+            temp.path(),
+            "deepsproxy",
+            &registry,
+        )
+            .expect("repo-local proxy dir should be detected");
+
+        assert_eq!(detected, support_dir.canonicalize().expect("canonical path"));
+    }
+
+    #[test]
+    fn effective_proxy_dir_prefers_explicit_path() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let explicit_dir = temp.path().join("manual");
+        std::fs::create_dir_all(&explicit_dir).expect("create explicit dir");
+        let registry = WorkspaceRegistry::default();
+        let preset = ProxyPresetBuilder::new("deepsproxy")
+            .display_name("DeepSProxy")
+            .default_base_url("http://localhost:11434/v1")
+            .start_script("start")
+            .login_script_prefix("login")
+            .build()
+            .expect("preset");
+
+        let resolved = resolve_effective_proxy_dir(
+            &preset,
+            explicit_dir.to_str(),
+            &WorkspaceEnv::Local,
+            &registry,
+        )
+        .expect("resolve explicit path")
+        .expect("path");
+
+        assert_eq!(resolved, explicit_dir.canonicalize().expect("canonical path"));
+    }
 }
 
 async fn request_proxy_url(url: String, api_key: Option<String>) -> Result<HttpResponse, String> {
@@ -469,14 +551,10 @@ pub async fn proxyexample_status(
 ) -> Result<ProxyExampleStatus, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     let preset = get_proxy_preset(&proxy_id)?;
-    let resolved = match path.as_deref() {
-        Some(value) if !value.trim().is_empty() => {
-            resolve_proxy_dir(value, &workspace, &registry).map(Some)
-        }
-        _ => Ok(None),
-    };
+    let resolved = resolve_effective_proxy_dir(&preset, path.as_deref(), &workspace, &registry);
     let (dir, path_error) = match resolved {
-        Ok(dir) => (dir, None),
+        Ok(Some(dir)) => (Some(dir), None),
+        Ok(None) => (None, Some("no proxy folder configured".to_string())),
         Err(error) => (None, Some(error)),
     };
     let info = package_scripts_info(&preset, dir.as_deref());

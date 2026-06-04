@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { SYSTEM_PROMPT_LITE, selectSystemPrompt } from "../config";
 import {
   buildLocalRuntimeToolGuidanceBlock,
+  buildTurnExecutionGuidanceBlock,
   buildTurnContextBlock,
   buildTurnToolAvailabilityBlock,
+  extractLikelyLiveRequestText,
   isDegradedLocalToolTurn,
   messageLikelyNeedsMcpTools,
   normalizeAgentRunError,
@@ -33,9 +35,15 @@ function makeAvailableTools(): ToolSet {
     create_directory: { description: "mkdir" },
     bash_run: { description: "bash" },
     get_terminal_output: { description: "terminal" },
+    open_preview: { description: "preview" },
+    suggest_command: { description: "command" },
     todo_write: { description: "todo" },
     run_subagent: { description: "subagent" },
+    spawn_coding_agent: { description: "spawn" },
+    send_to_agent: { description: "send" },
+    read_agent_output: { description: "agent-output" },
     web_search_exa: { description: "search" },
+    web_search_advanced_exa: { description: "advanced-search" },
     web_fetch_exa: { description: "fetch" },
     "get-library-docs": { description: "docs" },
     "resolve-library-id": { description: "resolve" },
@@ -53,6 +61,52 @@ describe("agent tool selection", () => {
     expect(plan.activeTools).toBeUndefined();
     expect(plan.selectedTools).toBeUndefined();
     expect(plan.shouldRequireFirstToolCall).toBe(false);
+  });
+
+  it("does not force active-file context into plain greetings", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/GenericArmorLayerJJK.java\n</env>\n\nHello there",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(plan.activeTools).toBeUndefined();
+    expect(plan.shouldRequireFirstToolCall).toBe(false);
+    expect(plan.shouldIncludeTurnContext).toBe(false);
+  });
+
+  it("keeps local runtimes on the selected model even for simple chat", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "lmstudio-local",
+      messages: [userMessage("Hello there, how are you?")],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(plan.routedModelId).toBe("lmstudio-local");
+  });
+
+  it("only downgrades hosted models for pure conversational turns", () => {
+    const pureChat = planAgentTurnCapabilities({
+      modelId: "gpt-5.5",
+      messages: [userMessage("Hello there, how are you?")],
+      availableTools: makeAvailableTools(),
+    });
+    const codeAware = planAgentTurnCapabilities({
+      modelId: "gpt-5.5",
+      messages: [
+        userMessage(
+          "<env>\nworkspace_root: C:/repo\nactive_terminal_cwd: C:/repo\nactive_file: C:/repo/App.tsx\n</env>\n\nWhat's wrong here?",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(pureChat.routedModelId).toBe("gpt-5.4-mini");
+    expect(codeAware.routedModelId).toBe("gpt-5.5");
   });
 
   it("narrows runtime tools to the exact active set for read/search turns", () => {
@@ -87,7 +141,24 @@ describe("agent tool selection", () => {
         ],
         "openai-compatible",
       ),
-    ).toEqual(expect.arrayContaining(["read_file", "list_directory"]));
+    ).toEqual(expect.arrayContaining(["read_file", "list_directory", "grep", "glob"]));
+  });
+
+  it("keeps active-file analysis turns read/search only", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/AwakeningGojo.java\n</env>\n\nWhat's wrong here?",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["read_file", "list_directory", "grep", "glob"]),
+    );
+    expect(plan.activeTools).not.toEqual(expect.arrayContaining(["edit", "multi_edit"]));
   });
 
   it("keeps edit tools available for active-file change requests", () => {
@@ -156,6 +227,117 @@ describe("agent tool selection", () => {
     expect(plan.env.activeFile).toBeNull();
   });
 
+  it("extracts the trailing live request from a pasted transcript", () => {
+    expect(
+      extractLikelyLiveRequestText([
+        userMessage(
+          `Hello who are you?
+
+Reasoned
+We need to respond in plain text only.
+
+Hello! I'm JavaRf, your AI pair-programming assistant focused on safe Java refactoring.
+
+Can you websearch in internet?`,
+        ),
+      ]),
+    ).toBe("Can you websearch in internet?");
+  });
+
+  it("does not let pasted transcript tool traces suppress a trailing web request", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          `Hello there
+
+Reasoned
+I'm currently in a plain-text-only turn.
+
+Read what file I'm on
+
+Reasoned
+Read
+G:/Projetos Code v2/Minecraft Projects (Java)/JujutsuKaisenUltimateReworked/gradle.properties
+
+Check in Internet/Search websearch and find the best configs setup for this.`,
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+  });
+
+  it("does not let pasted transcript tool traces force tools for a trailing plain question", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          `Hello there
+
+Reasoned
+I'm currently in a plain-text-only turn.
+
+Read what file I'm on
+
+Reasoned
+Read
+G:/Projetos Code v2/Minecraft Projects (Java)/JujutsuKaisenUltimateReworked/gradle.properties
+
+Hello who are you?`,
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.activeTools).toBeUndefined();
+    expect(plan.shouldRequireFirstToolCall).toBe(false);
+    expect(plan.isSimple).toBe(true);
+  });
+
+  it("treats agent behavior diagnostics as a codebase search turn", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "Check the agents/subagents and understand what is wrong with the behavior. The MCPs are working, but the agent is not smart about what is wrong with the code.",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["read_file", "list_directory", "grep", "glob"]),
+    );
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.activeTools).not.toEqual(
+      expect.arrayContaining(["todo_write", "run_subagent"]),
+    );
+  });
+
   it("flags research turns for MCP bootstrap and MCP tools", () => {
     const messages = [
       userMessage("Search the web for the latest React 2026 docs and summarize them"),
@@ -165,12 +347,14 @@ describe("agent tool selection", () => {
     expect(
       selectActiveTools(messages, "openai-compatible", [
         "web_search_exa",
+        "web_search_advanced_exa",
         "web_fetch_exa",
         "get-library-docs",
       ]),
     ).toEqual(
       expect.arrayContaining([
         "web_search_exa",
+        "web_search_advanced_exa",
         "web_fetch_exa",
         "get-library-docs",
       ]),
@@ -182,6 +366,7 @@ describe("agent tool selection", () => {
       availableTools: makeAvailableTools(),
       mcpToolNames: [
         "web_search_exa",
+        "web_search_advanced_exa",
         "web_fetch_exa",
         "get-library-docs",
       ],
@@ -192,9 +377,103 @@ describe("agent tool selection", () => {
     expect(plan.activeTools).toEqual(
       expect.arrayContaining([
         "web_search_exa",
+        "web_search_advanced_exa",
         "web_fetch_exa",
         "get-library-docs",
       ]),
+    );
+  });
+
+  it("keeps active-file import research grounded in the selected file", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/GenericArmorLayerJJK.java\n</env>\n\nWebSearch and tell me about these imports, check what they are and what they do.",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "read_file",
+        "list_directory",
+        "grep",
+        "glob",
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.shouldIncludeTurnContext).toBe(true);
+  });
+
+  it("treats active-file library websearch requests as read plus MCP research turns", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/CombatStyleService.java\n</env>\n\nWebSearch and find what is about it lib.",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "read_file",
+        "list_directory",
+        "grep",
+        "glob",
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+  });
+
+  it("does not expose edit tools for refactor research phrased as analysis", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/CombatStyleService.java\n</env>\n\nUse exa websearch and find what we're going to refactor/change about it to best refactoring.",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "read_file",
+        "list_directory",
+        "grep",
+        "glob",
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+    expect(plan.activeTools).not.toEqual(
+      expect.arrayContaining(["edit", "multi_edit", "write_file", "create_directory"]),
     );
   });
 
@@ -204,6 +483,29 @@ describe("agent tool selection", () => {
     expect(messageLikelyNeedsMcpTools(messages)).toBe(true);
   });
 
+  it("does not treat MCP status chatter as MCP research intent", () => {
+    const messages = [
+      userMessage(
+        "The MCPs are working, but the agent is still not smart about diagnosing what is wrong with the code.",
+      ),
+    ];
+
+    expect(messageLikelyNeedsMcpTools(messages)).toBe(false);
+    expect(
+      selectActiveTools(messages, "openai-compatible", [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    ).not.toEqual(
+      expect.arrayContaining([
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+  });
+
   it("treats a bare research request as research intent", () => {
     const messages = [userMessage("Research")];
 
@@ -211,9 +513,59 @@ describe("agent tool selection", () => {
     expect(
       selectActiveTools(messages, "openai-compatible", [
         "web_search_exa",
+        "web_search_advanced_exa",
         "web_fetch_exa",
       ]),
-    ).toEqual(expect.arrayContaining(["web_search_exa", "web_fetch_exa"]));
+    ).toEqual(
+      expect.arrayContaining([
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+  });
+
+  it("does not treat plain mentions of plan or agent as delegation intent", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/Agent.ts\n</env>\n\nMake a plan for this file and explain why the agent gets confused.",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["read_file", "list_directory", "grep", "glob"]),
+    );
+    expect(plan.activeTools).not.toEqual(
+      expect.arrayContaining(["todo_write", "run_subagent"]),
+    );
+  });
+
+  it("only exposes preview tools for real preview/browser requests", () => {
+    const fileTurn = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/App.tsx\n</env>\n\nOpen this file and explain it.",
+        ),
+      ],
+      availableTools: makeAvailableTools(),
+    });
+    const previewTurn = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [userMessage("Open http://localhost:3000 in browser")],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(fileTurn.activeTools).not.toEqual(
+      expect.arrayContaining(["open_preview", "suggest_command"]),
+    );
+    expect(previewTurn.activeTools).toEqual(
+      expect.arrayContaining(["open_preview", "suggest_command"]),
+    );
   });
 
   it("tells the model the exact tools available this turn", () => {
@@ -240,6 +592,32 @@ describe("agent tool selection", () => {
     expect(guidance).toContain("`grep`, `glob`");
     expect(guidance).not.toContain("`bash_run`");
     expect(guidance).not.toContain("`edit`");
+  });
+
+  it("adds explicit web-research execution guidance for active-file turns", () => {
+    const guidance = buildTurnExecutionGuidanceBlock({
+      latestDirectRequest:
+        "Use exa deep websearch and find the latest 2026 guidance for what we're going to refactor/change about it.",
+      activeToolNames: [
+        "read_file",
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+      env: {
+        workspaceRoot: "C:/repo",
+        cwd: "C:/repo",
+        activeFile: "C:/repo/CombatStyleService.java",
+        terminalPrivate: false,
+      },
+    });
+
+    expect(guidance).toContain("explicitly requests live web/docs research");
+    expect(guidance).toContain("read `active_file` first");
+    expect(guidance).toContain(
+      "`web_search_exa`, `web_search_advanced_exa`, `web_fetch_exa`",
+    );
+    expect(guidance).toContain("Prefer `web_search_advanced_exa`");
   });
 
   it("uses the lite prompt for local placeholder model ids", () => {

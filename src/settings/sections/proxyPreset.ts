@@ -10,6 +10,26 @@ export function resolveDetectedProxyPreset(
   return detected ?? preset;
 }
 
+export function getEffectiveProxyPath(
+  selectedPath: string,
+  detected: ProxyExampleInfo | null,
+  preset: ProxyExampleInfo | null,
+): string {
+  return (
+    selectedPath.trim() ||
+    detected?.path?.trim() ||
+    preset?.path?.trim() ||
+    ""
+  );
+}
+
+export function isUsingAutoDetectedProxyPath(
+  selectedPath: string,
+  effectivePath: string,
+): boolean {
+  return !selectedPath.trim() && effectivePath.trim().length > 0;
+}
+
 export function canStartProxy(
   preset: ProxyExampleInfo | null,
   busyAction: "start" | "login" | null,
@@ -26,11 +46,11 @@ export function canRunProxyLogin(
 
 export function buildProxyStatusArgs(
   proxyId: string,
-  path: string,
+  path: string | null,
   baseUrl: string,
   compatKey?: string | null,
 ): [string, string | null, string, string | null] {
-  return [proxyId, path.trim() || null, baseUrl, compatKey ?? null];
+  return [proxyId, path?.trim() || null, baseUrl, compatKey ?? null];
 }
 
 export function getProxyRecoveryText(

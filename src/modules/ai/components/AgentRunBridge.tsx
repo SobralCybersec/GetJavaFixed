@@ -34,7 +34,10 @@ export type DiffOpenInput = {
 
 export type AgentRunBridgeProps = {
   openAiDiffTab: (input: DiffOpenInput) => number | null;
-  closeAiDiffTab: (approvalId: string) => void;
+  setAiDiffStatus: (
+    approvalId: string,
+    status: "pending" | "approved" | "rejected",
+  ) => void;
 };
 
 export function AgentRunBridge(props: AgentRunBridgeProps) {
@@ -57,7 +60,7 @@ type AnyPart = UIMessagePart<Record<string, never>, Record<string, never>>;
 function Bridge({
   sessionId,
   openAiDiffTab,
-  closeAiDiffTab,
+  setAiDiffStatus,
 }: BridgeProps) {
   const chat = useMemo(() => getOrCreateChat(sessionId), [sessionId]);
   const { status, messages, addToolApprovalResponse } = useChat<UIMessage>({
@@ -167,8 +170,6 @@ function Bridge({
     fileMutationFingerprintRef.current = fileMutationFingerprint;
 
     const pending: Pending[] = [];
-    const toClose = new Set<string>();
-
     for (const m of messages) {
       if (m.role !== "assistant") continue;
       for (const part of m.parts as AnyPart[]) {
@@ -177,22 +178,16 @@ function Bridge({
         const { state, approvalId, path, derive } = info;
         if (!approvalId) continue;
         if (state === "approval-requested") {
+          setAiDiffStatus(approvalId, "pending");
           if (!openedRef.current.has(approvalId)) {
             pending.push({ approvalId, path, derive });
           }
-        } else if (
-          state === "approval-responded" ||
-          state === "output-available" ||
-          state === "output-error"
-        ) {
-          if (openedRef.current.has(approvalId)) toClose.add(approvalId);
+        } else if (state === "output-available") {
+          setAiDiffStatus(approvalId, "approved");
+        } else if (state === "output-denied") {
+          setAiDiffStatus(approvalId, "rejected");
         }
       }
-    }
-
-    for (const id of toClose) {
-      openedRef.current.delete(id);
-      closeAiDiffTab(id);
     }
 
     if (pending.length === 0) return;
@@ -235,7 +230,7 @@ function Bridge({
     return () => {
       cancelled = true;
     };
-  }, [messages, fileMutationFingerprint, openAiDiffTab, closeAiDiffTab]);
+  }, [messages, fileMutationFingerprint, openAiDiffTab, setAiDiffStatus]);
 
   return null;
 }

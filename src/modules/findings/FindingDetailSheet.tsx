@@ -153,6 +153,7 @@ export function FindingDetailSheet({
                       status={refactor.status}
                       result={refactor.result}
                       error={refactor.error}
+                      onGenerate={() => {}}
                       onReset={refactor.reset}
                     />
                   </>

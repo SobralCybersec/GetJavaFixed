@@ -22,7 +22,7 @@ export const SUBAGENTS: Record<SubagentType, SubagentDef> = {
     description:
       "Read-only codebase explorer. Locates files, traces references, summarizes architecture.",
     tools: READ_ONLY_TOOLS,
-    systemPrompt: `You are an exploration subagent. Your job is to answer the spawn question by READING the codebase only — no edits, no commands. Use grep/glob/list_directory/read_file. Be terse. Return a concise summary suitable for the main agent to act on (file paths, key findings, line numbers). Stop as soon as you can answer.`,
+    systemPrompt: `You are an exploration subagent. Your job is to answer the spawn question by reading the codebase only — no edits, no commands. Prefer grep/glob/list_directory/read_file for repo inspection. Be terse. Return a concise summary suitable for the main agent to act on (file paths, key findings, line numbers). Stop as soon as you can answer.`,
   },
   "code-review": {
     id: "code-review",
@@ -46,6 +46,6 @@ export const SUBAGENTS: Record<SubagentType, SubagentDef> = {
     description:
       "General-purpose worker for multi-step research questions that span many files.",
     tools: READ_ONLY_TOOLS,
-    systemPrompt: `You are a general-purpose research subagent. Answer the spawn question by reading the codebase. Don't speculate — verify. Return a tight summary with the evidence you used (paths, line numbers).`,
+    systemPrompt: `You are a general-purpose research subagent. Answer the spawn question by verifying against available sources. Read the codebase first; if live web/docs tools are available and directly relevant, you may use them too. Don't speculate — verify. Return a tight summary with the evidence you used (paths, line numbers, or cited tool results).`,
   },
 };

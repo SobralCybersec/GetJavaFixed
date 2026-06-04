@@ -3,7 +3,16 @@ import {
   ClaudeIcon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
+import { getModel } from "../config";
+import { useChatStore } from "../store/chatStore";
 import { usePlanStore } from "../store/planStore";
+
+const MANAGED_AGENT_UNSUPPORTED_PROVIDERS = new Set([
+  "openai-compatible",
+  "lmstudio",
+  "mlx",
+  "ollama",
+]);
 
 /**
  * Outcome of intercepting a slash command from the composer.
@@ -108,6 +117,14 @@ export function tryRunSlashCommand(input: string): SlashOutcome {
     case "claude-code": {
       if (!tail) {
         return { kind: "handled", toast: "Usage: /claude-code <request>" };
+      }
+      const modelId = useChatStore.getState().selectedModelId;
+      if (MANAGED_AGENT_UNSUPPORTED_PROVIDERS.has(getModel(modelId).provider)) {
+        return {
+          kind: "handled",
+          toast:
+            "Claude Code delegation is unavailable on local/OpenAI-compatible runtimes. Switch to a hosted provider first.",
+        };
       }
       return {
         kind: "send-prompt",

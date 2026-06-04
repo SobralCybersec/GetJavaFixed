@@ -318,7 +318,20 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         );
         if (existing) {
           targetId = existing.id;
-          return curr;
+          const title = `${basename(input.path)} (AI diff)`;
+          return curr.map((t) =>
+            t.id === existing.id
+              ? {
+                  ...t,
+                  title,
+                  path: input.path,
+                  originalContent: input.originalContent,
+                  proposedContent: input.proposedContent,
+                  status: "pending" as AiDiffStatus,
+                  isNewFile: input.isNewFile,
+                }
+              : t,
+          );
         }
         const id = nextIdRef.current++;
         targetId = id;

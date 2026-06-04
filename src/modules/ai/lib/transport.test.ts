@@ -5,6 +5,7 @@ import { EMPTY_PROVIDER_KEYS } from "./keyring";
 const runAgentStreamMock = vi.fn();
 const planAgentTurnCapabilitiesMock = vi.fn();
 const getCachedMcpToolBundleMock = vi.fn();
+const invalidateCachedMcpToolBundleMock = vi.fn();
 const getRefactorToolKeyMock = vi.fn();
 
 vi.mock("./agent", () => ({
@@ -14,6 +15,7 @@ vi.mock("./agent", () => ({
 
 vi.mock("./mcpClient", () => ({
   getCachedMcpToolBundle: getCachedMcpToolBundleMock,
+  invalidateCachedMcpToolBundle: invalidateCachedMcpToolBundleMock,
 }));
 
 vi.mock("./toolKeyring", () => ({
@@ -65,6 +67,7 @@ function makeDeps() {
 describe("context-aware transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     planAgentTurnCapabilitiesMock.mockReturnValue({
       shouldLoadMcp: false,
     });
@@ -123,6 +126,68 @@ describe("context-aware transport", () => {
       expect.objectContaining({
         mcpTools: { web_search_exa: { description: "search" } },
         mcpToolNames: ["web_search_exa"],
+        runtimeNotices: [],
+      }),
+    );
+  });
+
+  it("invalidates timed-out MCP bootstrap attempts before retrying without MCP tools", async () => {
+    vi.useFakeTimers();
+    planAgentTurnCapabilitiesMock.mockReturnValue({
+      shouldLoadMcp: true,
+    });
+    getRefactorToolKeyMock
+      .mockResolvedValueOnce("exa-key")
+      .mockResolvedValueOnce("context7-key");
+    getCachedMcpToolBundleMock.mockReturnValue(new Promise(() => {}));
+    const transport = createContextAwareTransport(makeDeps());
+
+    const pending = transport.sendMessages({
+      messages: [userMessage("Search the web for the latest docs")],
+    });
+    await vi.advanceTimersByTimeAsync(4_000);
+    await pending;
+
+    expect(invalidateCachedMcpToolBundleMock).toHaveBeenCalledWith({
+      exaEnabled: true,
+      exaApiKey: "exa-key",
+      context7Enabled: true,
+      context7ApiKey: "context7-key",
+      context7Url: "https://mcp.context7.com/mcp",
+    });
+    expect(runAgentStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpTools: undefined,
+        mcpToolNames: undefined,
+        runtimeNotices: expect.arrayContaining([
+          expect.stringContaining("MCP research tools were unavailable"),
+        ]),
+      }),
+    );
+  });
+
+  it("warns the agent when research was requested but MCP resolves with no tools", async () => {
+    planAgentTurnCapabilitiesMock.mockReturnValue({
+      shouldLoadMcp: true,
+    });
+    getRefactorToolKeyMock
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+    getCachedMcpToolBundleMock.mockResolvedValue({
+      tools: {},
+      toolNames: [],
+    });
+    const transport = createContextAwareTransport(makeDeps());
+
+    await transport.sendMessages({
+      messages: [userMessage("Use exa websearch and check the latest docs")],
+    });
+
+    expect(runAgentStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimeNotices: expect.arrayContaining([
+          expect.stringContaining("Do not claim you searched the web"),
+        ]),
       }),
     );
   });
