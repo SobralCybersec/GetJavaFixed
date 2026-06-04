@@ -13,6 +13,7 @@ dist
 dist-ssr
 *.localc
 src-tauri/target-test
+testcommit
 
 # Editor directories and files
 .vscode/*
