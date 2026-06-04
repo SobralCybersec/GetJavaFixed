@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,9 +12,9 @@ type Props = {
 };
 
 const KPI_CARDS = [
-  { label: "Explorer", value: "Workspace gated", hint: "File tree appears only after a repo opens." },
-  { label: "Models", value: "OpenAI-compatible", hint: "Local endpoints and presets share one path." },
-  { label: "Rules", value: "Editable markdown", hint: "Manifest rules stay readable and configurable." },
+  { label: "Explorer", value: "Workspace gated", hint: "File tree stays locked until a repository is mounted." },
+  { label: "Models", value: "OpenAI-compatible", hint: "Provider presets and local endpoints share one execution path." },
+  { label: "Rules", value: "Editable markdown", hint: "Refactor rules remain readable, versioned, and directly tunable." },
 ];
 
 export function HomeDashboard({
@@ -31,40 +30,38 @@ export function HomeDashboard({
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_12%,color-mix(in_oklab,var(--primary)_16%,transparent),transparent_28%),radial-gradient(circle_at_86%_8%,color-mix(in_oklab,var(--chart-2)_10%,transparent),transparent_24%),linear-gradient(180deg,color-mix(in_oklab,var(--card)_80%,transparent),transparent_72%)]"
       />
-      <div className="relative mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-5 px-4 py-5 sm:px-5 md:gap-6 lg:px-7 lg:py-7">
+      <div className="relative mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-5 px-4 py-5 sm:px-5 md:gap-6 lg:px-7 lg:py-7">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col gap-4">
-          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-2xl border border-border/60 bg-card/85 p-1">
-            <TabsTrigger value="launch">Launch desk</TabsTrigger>
-            <TabsTrigger value="readiness">Readiness</TabsTrigger>
-            <TabsTrigger value="workflow">Workflow</TabsTrigger>
+          <TabsList className="javarf-terminal-tabs h-auto w-full justify-start overflow-x-auto border border-border/80 bg-card/95 p-1">
+            <TabsTrigger className="javarf-terminal-tab" value="launch">Launch desk</TabsTrigger>
+            <TabsTrigger className="javarf-terminal-tab" value="readiness">Readiness</TabsTrigger>
+            <TabsTrigger className="javarf-terminal-tab" value="workflow">Workflow</TabsTrigger>
           </TabsList>
 
           <TabsContent value="launch" className="mt-0 flex-1 space-y-4">
             <DashboardWidget title="Launch desk">
-              <section className="ops-card ops-hero border border-border/60 p-5 shadow-[0_18px_44px_rgba(0,0,0,0.3)] sm:p-6 lg:p-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+              <section className="javarf-terminal-frame ops-card ops-hero border border-border/70 p-5 sm:p-6 lg:p-7">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="min-w-0 max-w-3xl space-y-4">
-              <Badge variant="secondary" className="bg-primary/10 text-primary">
-                Refactoring Java
-              </Badge>
+              <DashboardEyebrow label="Refactoring Java" value="CCG DASHBOARD" />
               <div className="space-y-3">
-                <h1 className="font-heading text-balance text-4xl font-semibold leading-[0.9] tracking-[0.04em] text-foreground sm:text-5xl xl:text-6xl">
-                  Start clean, then open the code.
+                <h1 className="font-heading text-balance text-4xl font-semibold uppercase leading-[0.88] tracking-[0.08em] text-foreground sm:text-5xl xl:text-6xl">
+                  Terminal-ready refactor control surface.
                 </h1>
                 <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground sm:text-base">
-                  Open a repository, connect a model, and move from intake to analysis without
-                  exposing empty product states.
+                  Mount the repository, verify model access, and move into analysis through a denser
+                  terminal-like workflow instead of generic landing cards.
                 </p>
               </div>
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-              <Button size="lg" className="min-w-[150px] rounded-2xl px-6" onClick={onOpenWorkspace}>
+              <Button size="lg" className="min-w-[170px] border border-primary/40 bg-primary/10 px-6 font-mono uppercase tracking-[0.16em]" onClick={onOpenWorkspace}>
                 Open workspace
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="min-w-[150px] rounded-2xl px-6"
+                className="min-w-[170px] border border-border/80 bg-background/70 px-6 font-mono uppercase tracking-[0.16em]"
                 onClick={onOpenJavaRefactor}
                 disabled={!hasModelAccess}
                 title={!hasModelAccess ? "Connect a model in Settings to unlock Java refactor" : undefined}
@@ -78,16 +75,16 @@ export function HomeDashboard({
           </TabsContent>
 
           <TabsContent value="readiness" className="mt-0 flex-1">
-            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)]">
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {KPI_CARDS.map((card) => (
                   <DashboardWidget key={card.label} title={card.label}>
-                    <Card size="sm" className="java-panel ops-card border-border/60">
+                    <Card size="sm" className="javarf-terminal-frame java-panel ops-card border-border/70">
                   <CardContent className="min-h-[132px] space-y-2 p-5">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
                       {card.label}
                     </div>
-                    <div className="text-balance text-2xl font-semibold leading-tight">{card.value}</div>
+                    <div className="text-balance font-heading text-3xl font-semibold uppercase leading-tight tracking-[0.06em]">{card.value}</div>
                     <p className="text-pretty text-sm leading-5 text-muted-foreground">{card.hint}</p>
                   </CardContent>
                 </Card>
@@ -96,8 +93,8 @@ export function HomeDashboard({
               </div>
 
               <DashboardWidget title="Ready state">
-                <Card size="sm" className="java-panel ops-card h-full border-border/60">
-                  <CardHeader className="gap-2">
+                <Card size="sm" className="javarf-terminal-frame java-panel ops-card h-full border-border/70">
+                  <CardHeader className="gap-2 border-b border-border/60 bg-background/55">
                     <CardTitle>Next action</CardTitle>
                     <CardDescription>
                       {hasModelAccess
@@ -136,24 +133,24 @@ export function HomeDashboard({
 
           <TabsContent value="workflow" className="mt-0 flex-1">
             <DashboardWidget title="Workflow">
-              <Card size="sm" className="java-panel ops-card border-border/60">
-                <CardHeader>
+              <Card size="sm" className="javarf-terminal-frame java-panel ops-card border-border/70">
+                <CardHeader className="border-b border-border/60 bg-background/55">
                   <CardTitle>Product workflow</CardTitle>
                   <CardDescription>
                     Organize the app by phases instead of stacking every state in one surface.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3 lg:grid-cols-3">
-                  <div className="ops-inset-panel border border-border/60 bg-background/70 p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">01 Intake</div>
+                  <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">01 Intake</div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">Open workspace, confirm repo context, keep empty states useful.</p>
                   </div>
-                  <div className="ops-inset-panel border border-border/60 bg-background/70 p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">02 Analysis</div>
+                  <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">02 Analysis</div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">Run scan, inspect hotspots, and keep details on a full-width surface.</p>
                   </div>
-                  <div className="ops-inset-panel border border-border/60 bg-background/70 p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">03 Refactor</div>
+                  <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">03 Refactor</div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">Review diffs, queue edits, and apply only after explicit confirmation.</p>
                   </div>
                 </CardContent>
@@ -175,11 +172,26 @@ function DashboardWidget({
 }) {
   return (
     <section className="ops-widget min-w-0">
-      <div className="ops-widget-handle mb-2 flex h-8 max-w-full items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-muted-foreground">
+      <div className="ops-widget-handle mb-2 flex h-8 max-w-full items-center gap-1.5 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         <HugeiconsIcon icon={GridViewIcon} size={13} strokeWidth={1.8} />
         <span className="truncate">{title}</span>
       </div>
       {children}
     </section>
+  );
+}
+
+function DashboardEyebrow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+      <span className="border border-border/70 bg-background/65 px-2 py-1 text-primary">{label}</span>
+      <span className="border border-border/70 bg-background/45 px-2 py-1">{value}</span>
+    </div>
   );
 }

@@ -171,11 +171,11 @@ export function FindingsDashboard({
       <div className="relative z-0 mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-5 px-4 py-5 sm:px-5 xl:gap-6 xl:py-6">
         <div className="min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 gap-4">
-            <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-2xl border border-border/60 bg-card/85 p-1">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="intelligence">Refactor Intelligence</TabsTrigger>
-              <TabsTrigger value="findings">Findings Queue</TabsTrigger>
-              <TabsTrigger value="research">Research MCPs</TabsTrigger>
+            <TabsList className="javarf-terminal-tabs h-auto w-full justify-start overflow-x-auto border border-border/80 bg-card/95 p-1">
+              <TabsTrigger className="javarf-terminal-tab" value="overview">Overview</TabsTrigger>
+              <TabsTrigger className="javarf-terminal-tab" value="intelligence">Refactor Intelligence</TabsTrigger>
+              <TabsTrigger className="javarf-terminal-tab" value="findings">Findings Queue</TabsTrigger>
+              <TabsTrigger className="javarf-terminal-tab" value="research">Research MCPs</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
@@ -206,16 +206,16 @@ export function FindingsDashboard({
             <TabsContent value="findings" className="space-y-4">
               <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(420px,0.85fr)]">
                 <DashboardWidget title="Findings queue" reduceMotion={reduceMotion}>
-                  <Card size="sm" className="java-panel ops-card border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
-            <CardHeader className="gap-2">
+                  <Card size="sm" className="javarf-terminal-frame java-panel ops-card border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
+            <CardHeader className="gap-2 border-b border-border/60 bg-background/55">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="whitespace-normal leading-tight">Refactor findings queue</CardTitle>
                   <CardDescription>
-                    Ranked hotspots first, plus direct file previews before any write path.
+                    Ranked Java hotspots first, plus direct file previews before any write path.
                   </CardDescription>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline">{scopeLabel ?? "Whole repository"}</Badge>
+                    <Badge variant="outline" className="border-border/70 bg-background/60 uppercase tracking-[0.14em]">{scopeLabel ?? "Whole repository"}</Badge>
                     {activeScanPath ? (
                       <span className="max-w-full break-all font-mono">{activeScanPath}</span>
                     ) : null}
@@ -232,7 +232,7 @@ export function FindingsDashboard({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="transition-colors duration-150"
+                      className="border-border/80 bg-background/60 font-mono uppercase tracking-[0.14em] transition-colors duration-150"
                       onClick={() => void startAnalysis(selectedScanPath)}
                       disabled={panelState === "analyzing"}
                     >
@@ -241,7 +241,7 @@ export function FindingsDashboard({
                   ) : null}
                   <Button
                     size="sm"
-                    className="transition-colors duration-150"
+                    className="border-primary/40 bg-primary/10 font-mono uppercase tracking-[0.14em] transition-colors duration-150"
                     onClick={() => void startAnalysis()}
                     disabled={panelState === "analyzing"}
                   >
@@ -252,7 +252,7 @@ export function FindingsDashboard({
             </CardHeader>
             <CardContent className="space-y-4">
               {(panelState === "analyzing" || panelState === "ready") && (
-                <div className="ops-inset-panel border border-primary/20 bg-primary/6 px-4 py-4">
+                <div className="javarf-terminal-panel ops-inset-panel border border-primary/25 bg-primary/6 px-4 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium">{message}</p>
                     <span className="text-xs text-muted-foreground">watch-only</span>
@@ -262,19 +262,19 @@ export function FindingsDashboard({
               )}
 
               {panelState === "error" && error ? (
-                <div className="ops-inset-panel border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-muted-foreground">
+                <div className="javarf-terminal-panel ops-inset-panel border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-muted-foreground">
                   {error}
                 </div>
               ) : null}
 
               {partial ? (
-                <div className="ops-inset-panel border border-amber-500/30 bg-amber-500/8 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
+                <div className="javarf-terminal-panel ops-inset-panel border border-amber-500/30 bg-amber-500/8 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
                   {partialReason ?? "This scan hit a safety limit and may be incomplete."}
                 </div>
               ) : null}
 
               {panelState === "empty" ? (
-                <div className="ops-inset-panel border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
+                <div className="javarf-terminal-panel ops-inset-panel border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
                   Start full analysis to build the ranked refactor findings queue.
                 </div>
               ) : null}
@@ -294,17 +294,17 @@ export function FindingsDashboard({
                             setDetailOpen(window.innerWidth < 1280);
                           }}
                           className={cn(
-                            "flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-[border-color,background-color] duration-100",
+                            "javarf-terminal-panel flex w-full items-start gap-3 border px-4 py-3 text-left transition-[border-color,background-color] duration-100",
                             active
-                              ? "border-primary/40 bg-primary/8 shadow-[0_12px_30px_color-mix(in_oklab,var(--primary)_15%,transparent)]"
-                              : "border-border/60 bg-card/80 hover:border-primary/20 hover:bg-muted/30",
+                              ? "border-primary/45 bg-primary/8 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
+                              : "border-border/70 bg-card/85 hover:border-primary/25 hover:bg-muted/25",
                           )}
                         >
                           <div className="mt-0.5 h-10 w-1.5 bg-primary/80" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="break-words text-sm font-medium leading-tight">{finding.title}</p>
-                              <Badge variant="secondary">{finding.category}</Badge>
+                              <Badge variant="secondary" className="border border-primary/20 bg-primary/10 uppercase tracking-[0.12em] text-primary">{finding.category}</Badge>
                             </div>
                             <p className="mt-1 text-pretty text-sm leading-5 text-muted-foreground">
                               {finding.rationale}
@@ -325,21 +325,21 @@ export function FindingsDashboard({
                 </DashboardWidget>
 
                 <DashboardWidget title="Finding details" reduceMotion={reduceMotion} className="hidden lg:block xl:min-w-0">
-                  <Card size="sm" className="java-panel ops-card border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)] xl:sticky xl:top-24">
-            <CardHeader>
+                  <Card size="sm" className="javarf-terminal-frame java-panel ops-card flex max-h-[calc(100vh-10rem)] min-h-0 flex-col border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)] xl:sticky xl:top-24">
+            <CardHeader className="border-b border-border/60 bg-background/55">
               <CardTitle>{selectedFinding?.title ?? "Finding details"}</CardTitle>
               <CardDescription>
                 {selectedFinding?.rationale ??
                   "The top finding opens automatically here after analysis completes."}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto">
               {/* Safety badge */}
               {safety ? (
                 <div
                   data-testid="safety-state"
                   className={cn(
-                    "rounded-2xl border px-3 py-2 text-xs",
+                    "javarf-terminal-panel border px-3 py-2 text-xs",
                     safety.kind === "gitFirst"
                       ? "border-green-500/30 bg-green-500/8 text-green-700 dark:text-green-400"
                       : safety.kind === "backupFallback"
@@ -371,7 +371,7 @@ export function FindingsDashboard({
                       selectedFinding.affectedFiles.map((path) => (
                         <div
                           key={path}
-                          className="rounded-2xl border border-border/60 bg-background/80 px-3 py-2 font-mono text-xs tracking-tight"
+                          className="javarf-terminal-panel break-all border border-border/70 bg-background/80 px-3 py-2 font-mono text-xs tracking-tight"
                         >
                           {path}
                         </div>
@@ -417,7 +417,7 @@ export function FindingsDashboard({
                         No files are changed until you accept and apply.
                       </p>
                     ) : (
-                      <div className="flex min-h-[320px] flex-col">
+                      <div className="flex min-h-[320px] min-w-0 flex-col overflow-hidden">
                         {/* Lazy import to avoid loading CodeMirror until needed */}
                         <RefactorPreviewInline
                           status={refactor.status}
@@ -498,7 +498,7 @@ function DashboardWidget({
       <div className="ops-widget-handle mb-2 flex min-h-8 items-center justify-between gap-2 px-1.5">
         <button
           type="button"
-          className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground"
+          className="flex min-w-0 items-center gap-1.5 px-1.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
           aria-label={`${title} section`}
           onPointerDown={(event) => {
             if (reduceMotion || event.pointerType === "touch") return;
@@ -510,7 +510,7 @@ function DashboardWidget({
         </button>
         <button
           type="button"
-          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
           title={collapsed ? "Expand" : "Collapse"}
           onClick={() => setCollapsed((value) => !value)}
@@ -543,8 +543,8 @@ function DashboardAnalyticsOverview({
 }) {
   return (
     <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
-      <Card size="sm" className="java-panel overflow-hidden border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
-        <CardHeader className="gap-2 border-b border-border/40 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklab,var(--primary)_10%,transparent),transparent_48%)]">
+      <Card size="sm" className="javarf-terminal-frame java-panel overflow-hidden border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
+        <CardHeader className="gap-2 border-b border-border/60 bg-background/55">
           <CardTitle>Refactor intelligence</CardTitle>
           <CardDescription>
             What the scan found, where it repeats, and which fixes should move first.
@@ -579,7 +579,7 @@ function DashboardAnalyticsOverview({
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <div className="ops-inset-panel border border-border/60 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+            <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">Issue mix</p>
@@ -613,7 +613,7 @@ function DashboardAnalyticsOverview({
             </div>
 
             <div className="space-y-4">
-              <div className="ops-inset-panel border border-border/60 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+              <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">Estimated gains</p>
@@ -626,7 +626,7 @@ function DashboardAnalyticsOverview({
                   {analytics.solutionMessages.map((entry) => (
                     <div
                       key={entry.category}
-                      className="rounded-2xl border border-border/50 bg-background/55 px-3 py-2"
+                      className="javarf-terminal-panel border border-border/60 bg-background/55 px-3 py-2"
                     >
                       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {entry.label}
@@ -637,7 +637,7 @@ function DashboardAnalyticsOverview({
                 </div>
               </div>
 
-              <div className="ops-inset-panel border border-border/60 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+              <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">Performance outlook</p>
@@ -682,8 +682,8 @@ function DashboardAnalyticsOverview({
         </CardContent>
       </Card>
 
-      <Card size="sm" className="java-panel border border-border/60 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
-        <CardHeader className="gap-2">
+      <Card size="sm" className="javarf-terminal-frame java-panel border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]">
+        <CardHeader className="gap-2 border-b border-border/60 bg-background/55">
           <CardTitle>Hotspot map</CardTitle>
           <CardDescription>
             Most repeated categories, triggered principles, and affected files.
@@ -746,8 +746,8 @@ function DashboardHeroSummary({
               {repoName}
             </div>
             <p className="mt-1 text-pretty text-sm leading-6 text-muted-foreground">
-              Current scan scope: {scopeLabel ?? "Whole repository"}. Findings queue, hotspot map,
-              and AI refactor preview stay in one review surface.
+              Current scan scope: {scopeLabel ?? "Whole repository"}. The findings engine scans Java
+              sources only, while the queue, hotspot map, and AI refactor preview stay in one review surface.
             </p>
           </div>
         </div>
@@ -790,7 +790,7 @@ function KpiCard({
   return (
     <div
       className={cn(
-        "ops-inset-panel border border-border/60 bg-background/70 px-4 py-3 transition-colors duration-100 hover:border-primary/25",
+        "javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 px-4 py-3 transition-colors duration-100 hover:border-primary/25",
         compact && "px-3 py-2.5",
       )}
     >

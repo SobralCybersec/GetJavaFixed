@@ -54,6 +54,7 @@ type Props = {
   searchTarget: SearchTarget;
   searchRef: RefObject<SearchInlineHandle | null>;
   zenMode: boolean;
+  hiddenInZen?: boolean;
   onToggleZenMode: () => void;
   onHoverChange?: (hovered: boolean) => void;
 };
@@ -80,6 +81,7 @@ export function Header({
   searchTarget,
   searchRef,
   zenMode,
+  hiddenInZen = false,
   onToggleZenMode,
   onHoverChange,
 }: Props) {
@@ -113,7 +115,7 @@ export function Header({
     <Button
       variant="ghost"
       size="icon"
-      className="size-7 shrink-0 rounded-lg border border-transparent text-white/48 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+      className="size-7 shrink-0 rounded-md border border-white/8 bg-black/20 text-white/46 hover:border-primary/30 hover:bg-primary/10 hover:text-white"
       onClick={onOpenSettings}
       title="Settings"
     >
@@ -128,26 +130,24 @@ export function Header({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       className={cn(
-        "flex h-12 shrink-0 items-center gap-2 border-b border-white/8 bg-[#0e1015]/96 select-none backdrop-blur-md",
-        zenMode && "opacity-30 hover:opacity-100 hover:bg-[#10131a]/98",
+        "javarf-terminal-shell flex h-12 shrink-0 items-center gap-2 border-b border-[color:var(--border)] bg-[#050506]/96 select-none backdrop-blur-sm transition-[transform,opacity,background-color] duration-150",
+        zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
+        hiddenInZen && "-translate-y-full opacity-0 pointer-events-none",
         IS_MAC ? "pr-2 pl-20" : "pr-0 pl-2",
       )}
     >
       <div className="flex shrink-0 items-center gap-1.5">
         {!compact ? (
-          <div className="java-panel hidden h-9 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 sm:flex">
-            <img
-              src="/java.png"
-              alt=""
-              className="size-5 shrink-0 object-contain"
-              draggable={false}
-            />
+          <div className="hidden h-9 shrink-0 items-center gap-3 border border-[color:var(--border)] bg-black/45 px-3 sm:flex">
+            <span className="inline-flex h-6 w-14 shrink-0 items-center justify-center border-2 border-primary/80 font-heading text-[20px] leading-none tracking-[0.08em] text-white/14">
+              CCG
+            </span>
             <div className="flex min-w-0 flex-col leading-none">
-              <span className="font-heading text-[0.95rem] font-semibold tracking-[0.14em] text-primary">
-                JAVA
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-white/88">
+                Javarf Terminal
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/38">
-                Refactor Workspace
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary/72">
+                v2.1 secure workspace
               </span>
             </div>
           </div>
@@ -157,7 +157,7 @@ export function Header({
           title="Toggle sidebar"
           variant="ghost"
           size="icon-sm"
-          className="shrink-0 rounded-lg border border-transparent text-white/48 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
+          className="shrink-0 border border-[color:var(--border)] bg-black/30 text-white/46 hover:border-primary/50 hover:bg-primary/10 hover:text-white"
         >
           <HugeiconsIcon icon={SidebarLeftIcon} size={18} strokeWidth={1.75} />
         </Button>
@@ -167,8 +167,9 @@ export function Header({
           variant="ghost"
           size="icon-sm"
           className={cn(
-            "shrink-0 rounded-lg border border-transparent text-white/48 transition-colors hover:border-white/10 hover:bg-white/[0.04] hover:text-white",
-            zenMode && "border-primary/20 text-primary",
+            "shrink-0 border border-[color:var(--border)] text-white/48 transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-white",
+            "bg-black/30 text-white/46",
+            zenMode && "border-primary/35 text-primary",
           )}
         >
           <YinYangGlyph />
@@ -179,7 +180,7 @@ export function Header({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="shrink-0 rounded-lg border border-transparent text-white/48 hover:border-white/10 hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
+              className="shrink-0 border border-[color:var(--border)] bg-black/30 text-white/46 hover:border-primary/50 hover:bg-primary/10 hover:text-white disabled:opacity-50"
               title="Split terminal"
               disabled={!canSplit}
             >
@@ -222,14 +223,14 @@ export function Header({
           />}
       </div>
 
-      {!IS_MAC && <span className="mx-1 h-5 w-px shrink-0 bg-white/8" />}
+      {!IS_MAC && <span className="mx-1 h-5 w-px shrink-0 bg-[color:var(--border)]" />}
 
-      {IS_MAC && <span className="mr-1 h-full w-px shrink-0 bg-white/8" />}
+      {IS_MAC && <span className="mr-1 h-full w-px shrink-0 bg-[color:var(--border)]" />}
 
       <div
         className={cn(
           "flex min-w-0 flex-1 items-center gap-2 transition-opacity duration-200",
-          zenMode && "opacity-80 hover:opacity-100",
+          zenMode && "opacity-72 hover:opacity-100",
         )}
         data-tauri-drag-region
       >

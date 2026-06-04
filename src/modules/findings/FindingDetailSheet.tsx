@@ -39,7 +39,7 @@ export function FindingDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col border-l border-border/60 bg-card sm:max-w-[40rem]"
+        className="flex h-full w-full flex-col overflow-hidden border-l border-border/60 bg-card sm:max-w-[40rem]"
       >
         {finding ? (
           <>
@@ -52,7 +52,7 @@ export function FindingDetailSheet({
               <SheetDescription>{finding.rationale}</SheetDescription>
             </SheetHeader>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-x-hidden overflow-y-auto p-6">
               {/* Safety state */}
               {safety ? (
                 <div

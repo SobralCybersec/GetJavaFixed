@@ -16,7 +16,7 @@ import { BUILTIN_AGENTS } from "../lib/agents";
 import { useAgentsStore } from "./agentsStore";
 import { usePlanStore } from "./planStore";
 import { useTodosStore } from "./todoStore";
-import type { AgentUsage } from "../lib/agent";
+import { normalizeAgentRunError, type AgentUsage } from "../lib/agent";
 import { EMPTY_PROVIDER_KEYS, type ProviderKeys } from "../lib/keyring";
 import {
   deleteSessionData,
@@ -305,7 +305,7 @@ function makeChat(sessionId: string): Chat<UIMessage> {
     onError: (e) => {
       useChatStore.getState().patchAgentMeta({
         status: "error",
-        error: e instanceof Error ? e.message : String(e),
+        error: normalizeAgentRunError(e),
       });
     },
   });

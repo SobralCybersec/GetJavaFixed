@@ -52,8 +52,8 @@ export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
     const first = segments[0];
     const middle = segments.slice(1);
     return (
-      <Breadcrumb>
-        <BreadcrumbList className="gap-1 text-xs sm:gap-1.5">
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList className="min-w-0 flex-nowrap gap-1 overflow-hidden text-xs sm:gap-1.5">
           {first ? (
             <BreadcrumbSegment
               label={first.label}
@@ -76,8 +76,8 @@ export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
               />
             </span>
           ))}
-          <BreadcrumbItem>
-            <BreadcrumbPage className="text-foreground">{name}</BreadcrumbPage>
+          <BreadcrumbItem className="min-w-0 max-w-full">
+            <BreadcrumbPage className="block max-w-full truncate text-foreground">{name}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -97,8 +97,8 @@ export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
   const firstParent = parents[0];
   const middleParents = parents.slice(1);
   return (
-    <Breadcrumb>
-      <BreadcrumbList className="gap-1 text-xs sm:gap-1.5">
+    <Breadcrumb className="min-w-0">
+      <BreadcrumbList className="min-w-0 flex-nowrap gap-1 overflow-hidden text-xs sm:gap-1.5">
         {firstParent ? (
           <BreadcrumbSegment
             label={firstParent.label}
@@ -118,7 +118,7 @@ export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
             />
           </span>
         ))}
-        <BreadcrumbItem>
+        <BreadcrumbItem className="min-w-0 max-w-full">
           <CurrentSegmentDropdown
             label={current.label}
             path={current.fullPath}
@@ -146,11 +146,11 @@ function BreadcrumbSegment({
           <button
             type="button"
             onClick={onClick}
-            className="cursor-pointer"
+            className="max-w-full cursor-pointer"
           >
             <Badge
               variant="outline"
-              className="gap-1 text-muted-foreground hover:text-foreground"
+              className="max-w-[18rem] gap-1 overflow-hidden text-muted-foreground hover:text-foreground"
             >
               {isHome ? (
                 <HugeiconsIcon
@@ -159,7 +159,7 @@ function BreadcrumbSegment({
                   strokeWidth={1.75}
                 />
               ) : null}
-              {isHome ? "Home" : label}
+              <span className="truncate">{isHome ? "Home" : label}</span>
             </Badge>
           </button>
         </BreadcrumbLink>
@@ -205,7 +205,7 @@ function CurrentSegmentDropdown({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <BreadcrumbPage className="flex cursor-pointer items-center gap-1 rounded-sm px-1 py-0.5 text-foreground hover:bg-accent">
+        <BreadcrumbPage className="flex max-w-full cursor-pointer items-center gap-1 overflow-hidden rounded-sm px-1 py-0.5 text-foreground hover:bg-accent">
           {label === "~" ? (
             <>
               <HugeiconsIcon
@@ -216,7 +216,7 @@ function CurrentSegmentDropdown({
               Home
             </>
           ) : (
-            label
+            <span className="truncate">{label}</span>
           )}
           <HugeiconsIcon
             icon={ArrowDown01Icon}

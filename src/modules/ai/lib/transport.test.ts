@@ -1,14 +1,15 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EMPTY_PROVIDER_KEYS } from "./keyring";
 
 const runAgentStreamMock = vi.fn();
-const messageLikelyNeedsMcpToolsMock = vi.fn();
+const planAgentTurnCapabilitiesMock = vi.fn();
 const getCachedMcpToolBundleMock = vi.fn();
 const getRefactorToolKeyMock = vi.fn();
 
 vi.mock("./agent", () => ({
   runAgentStream: runAgentStreamMock,
-  messageLikelyNeedsMcpTools: messageLikelyNeedsMcpToolsMock,
+  planAgentTurnCapabilities: planAgentTurnCapabilitiesMock,
 }));
 
 vi.mock("./mcpClient", () => ({
@@ -31,7 +32,7 @@ function userMessage(text: string): UIMessage {
 
 function makeDeps() {
   return {
-    getKeys: () => ({}),
+    getKeys: () => ({ ...EMPTY_PROVIDER_KEYS }),
     toolContext: {
       getCwd: () => null,
       getWorkspaceRoot: () => null,
@@ -64,19 +65,26 @@ function makeDeps() {
 describe("context-aware transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    planAgentTurnCapabilitiesMock.mockReturnValue({
+      shouldLoadMcp: false,
+    });
     runAgentStreamMock.mockResolvedValue({
       toUIMessageStream: vi.fn(() => "stream"),
     });
   });
 
   it("skips MCP bootstrap for plain chat turns", async () => {
-    messageLikelyNeedsMcpToolsMock.mockReturnValue(false);
     const transport = createContextAwareTransport(makeDeps());
 
     await transport.sendMessages({
       messages: [userMessage("Hello there")],
     });
 
+    expect(planAgentTurnCapabilitiesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "gpt-5.4-mini",
+      }),
+    );
     expect(getCachedMcpToolBundleMock).not.toHaveBeenCalled();
     expect(getRefactorToolKeyMock).not.toHaveBeenCalled();
     expect(runAgentStreamMock).toHaveBeenCalledWith(
@@ -88,7 +96,9 @@ describe("context-aware transport", () => {
   });
 
   it("loads MCP tools only for research turns", async () => {
-    messageLikelyNeedsMcpToolsMock.mockReturnValue(true);
+    planAgentTurnCapabilitiesMock.mockReturnValue({
+      shouldLoadMcp: true,
+    });
     getRefactorToolKeyMock
       .mockResolvedValueOnce("exa-key")
       .mockResolvedValueOnce("context7-key");

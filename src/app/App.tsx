@@ -95,7 +95,7 @@ import {
   useSourceControl,
 } from "@/modules/source-control";
 import { StatusBar } from "@/modules/statusbar";
-import { MAX_PANES_PER_TAB, useTabs, useWorkspaceCwd } from "@/modules/tabs";
+import { MAX_PANES_PER_TAB, useTabs, useWorkspaceCwd, type Tab } from "@/modules/tabs";
 import {
   clearFocusedTerminal,
   disposeSession,
@@ -156,6 +156,34 @@ function dirname(path: string | null): string | null {
   const idx = normalized.lastIndexOf("/");
   if (idx <= 0) return normalized;
   return normalized.slice(0, idx);
+}
+
+function normalizeRepoPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return path.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function tabShouldHidePhase1(tab: Tab | undefined, repoPath: string | null): boolean {
+  if (!tab) return false;
+  if (
+    tab.kind === "terminal" ||
+    tab.kind === "preview" ||
+    tab.kind === "markdown" ||
+    tab.kind === "ai-diff" ||
+    tab.kind === "git-diff" ||
+    tab.kind === "git-commit-file" ||
+    tab.kind === "git-history"
+  ) {
+    return true;
+  }
+  if (tab.kind !== "editor") return false;
+  const normalizedPath = tab.path.replace(/\\/g, "/");
+  if (!repoPath) return true;
+  if (!normalizedPath.endsWith(".java")) return true;
+  return !(
+    normalizedPath === repoPath ||
+    normalizedPath.startsWith(`${repoPath}/`)
+  );
 }
 
 const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -258,9 +286,11 @@ export default function App() {
   const sidebarWidthWriteTimerRef = useRef(0);
   const [sidebarView, setSidebarViewState] = useState<SidebarViewId>(readSidebarView);
   const [statusBarHover, setStatusBarHover] = useState(false);
+  const [headerHover, setHeaderHover] = useState(false);
   const [zenMode, setZenMode] = useState(false);
   const hoverCloseTimerRef = useRef(0);
   const zenSidebarPinnedRef = useRef(false);
+  const zenSidebarHoverRef = useRef(false);
   const persistSidebarView = useCallback((view: SidebarViewId) => {
     setSidebarViewState(view);
     try {
@@ -347,11 +377,14 @@ export default function App() {
     explorer.focus();
   }, [persistSidebarView, sidebarView]);
 
+  const zenHoverActive = statusBarHover || headerHover;
+  const hideHeaderInZen = zenMode && !headerHover;
+
   useEffect(() => {
     const panel = sidebarRef.current;
     if (!panel || !hasWorkspaceRef.current) return;
     if (!zenMode) return;
-    if (statusBarHover) {
+    if (zenHoverActive) {
       if (panel.getSize().asPercentage <= 0) {
         panel.resize(`${sidebarWidthRef.current}px`);
       }
@@ -361,7 +394,7 @@ export default function App() {
     if (panel.getSize().asPercentage > 0 && !zenSidebarPinnedRef.current) {
       panel.collapse();
     }
-  }, [persistSidebarView, sidebarView, statusBarHover, zenMode]);
+  }, [persistSidebarView, sidebarView, zenHoverActive, zenMode]);
 
   useEffect(() => {
     return () => {
@@ -380,8 +413,9 @@ export default function App() {
     }
     hoverCloseTimerRef.current = window.setTimeout(() => {
       hoverCloseTimerRef.current = 0;
+      if (zenSidebarHoverRef.current) return;
       setStatusBarHover(false);
-    }, 180);
+    }, 260);
   }, []);
   const handleZenModeToggle = useCallback(() => {
     setZenMode((current) => {
@@ -389,6 +423,7 @@ export default function App() {
       if (!next) {
         zenSidebarPinnedRef.current = false;
         setStatusBarHover(false);
+        setHeaderHover(false);
       }
       return next;
     });
@@ -887,6 +922,24 @@ export default function App() {
   const hasWorkspace = !!explorerRoot;
   hasWorkspaceRef.current = hasWorkspace;
 
+  const activeJavaRepoPath = normalizeRepoPath(phase1Repo?.path);
+  const prevActiveIdRef = useRef(activeId);
+  useEffect(() => {
+    const activeChanged = prevActiveIdRef.current !== activeId;
+    prevActiveIdRef.current = activeId;
+    if (!activeChanged) return;
+    if (phase1Mode === "hidden" || !hasWorkspace || showFirstRunSetup) return;
+    if (!tabShouldHidePhase1(activeTab, activeJavaRepoPath)) return;
+    setPhase1Mode("hidden");
+  }, [
+    activeId,
+    activeJavaRepoPath,
+    activeTab,
+    hasWorkspace,
+    phase1Mode,
+    showFirstRunSetup,
+  ]);
+
   useEffect(() => {
     const panel = sidebarRef.current;
     if (!panel) return;
@@ -1088,10 +1141,12 @@ export default function App() {
   }, [askFromSelection]);
 
   const openNewTab = useCallback(() => {
+    setPhase1Mode("hidden");
     newTab(inheritedCwdForNewTab());
   }, [newTab, inheritedCwdForNewTab]);
 
   const openNewPrivateTab = useCallback(() => {
+    setPhase1Mode("hidden");
     newPrivateTab(inheritedCwdForNewTab());
   }, [newPrivateTab, inheritedCwdForNewTab]);
 
@@ -1108,6 +1163,7 @@ export default function App() {
 
   const cdInNewTab = useCallback(
     (path: string) => {
+      setPhase1Mode("hidden");
       const tabId = newTab(path);
       setTimeout(() => {
         const tab = tabsRef.current.find((x) => x.id === tabId);
@@ -1133,7 +1189,7 @@ export default function App() {
               readiness: javaRepoHomeState.readiness,
             }
           : null);
-      const normalizedRepoPath = activeJavaRepo?.path.replace(/\\/g, "/").replace(/\/+$/, "");
+      const normalizedRepoPath = normalizeRepoPath(activeJavaRepo?.path);
       if (
         normalizedRepoPath &&
         normalizedPath.endsWith(".java") &&
@@ -1146,6 +1202,7 @@ export default function App() {
         setPhase1Mode("hidden");
       } else {
         setJavaPreviewOpen(false);
+        setPhase1Mode("hidden");
       }
       setJavaAutoScanPath(null);
     },
@@ -1777,10 +1834,28 @@ export default function App() {
     <ThemeProvider>
       <TooltipProvider>
         <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
+          {zenMode ? (
+            <div
+              className="absolute inset-x-0 top-0 z-40 h-3"
+              onMouseEnter={() => setHeaderHover(true)}
+              onMouseLeave={() => setHeaderHover(false)}
+            />
+          ) : null}
           <Header
             tabs={tabs}
             activeId={activeId}
-            onSelect={setActiveId}
+            onSelect={(nextId) => {
+              const nextTab = tabsRef.current.find((tab) => tab.id === nextId);
+              if (
+                phase1Mode !== "hidden" &&
+                hasWorkspace &&
+                !showFirstRunSetup &&
+                tabShouldHidePhase1(nextTab, activeJavaRepoPath)
+              ) {
+                setPhase1Mode("hidden");
+              }
+              setActiveId(nextId);
+            }}
             onNew={openNewTab}
             onNewPrivate={openNewPrivateTab}
             onNewPreview={() => openPreviewTab("")}
@@ -1800,7 +1875,9 @@ export default function App() {
             searchTarget={searchTarget}
             searchRef={searchInlineRef}
             zenMode={zenMode}
+            hiddenInZen={hideHeaderInZen}
             onToggleZenMode={handleZenModeToggle}
+            onHoverChange={setHeaderHover}
           />
 
           <main className="zoom-content flex min-h-0 flex-1 flex-col">
@@ -1822,21 +1899,24 @@ export default function App() {
               >
                 <div
                   className={cn(
-                    "flex h-full min-h-0 flex-col border-r border-border/60 bg-card/96 transition-[opacity,border-color,background-color] duration-150 ease-out",
+                    "javarf-terminal-shell flex h-full min-h-0 flex-col border-r border-[color:var(--border)] bg-[#090b0f]/96 transition-[opacity,border-color,background-color] duration-75 ease-out",
                     zenMode ? "opacity-96" : "opacity-100",
                   )}
                   onMouseEnter={() => {
                     if (!zenMode) return;
+                    zenSidebarHoverRef.current = true;
                     zenSidebarPinnedRef.current = true;
                     handleStatusBarHoverChange(true);
                   }}
                   onMouseLeave={() => {
                     if (!zenMode) return;
+                    zenSidebarHoverRef.current = false;
                     zenSidebarPinnedRef.current = false;
                     handleStatusBarHoverChange(false);
                   }}
                   onFocusCapture={() => {
                     if (!zenMode) return;
+                    zenSidebarHoverRef.current = true;
                     zenSidebarPinnedRef.current = true;
                     handleStatusBarHoverChange(true);
                   }}
@@ -1846,6 +1926,7 @@ export default function App() {
                     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
                       return;
                     }
+                    zenSidebarHoverRef.current = false;
                     zenSidebarPinnedRef.current = false;
                     handleStatusBarHoverChange(false);
                   }}
@@ -1875,11 +1956,11 @@ export default function App() {
                           />
                         )}
                       </div>
-                      <div className="border-t border-border/60 px-2 py-2">
+                      <div className="border-t border-[color:var(--border)] bg-black/30 px-2 py-2">
                         <Button
                           size="sm"
                           variant={phase1Mode === "hidden" ? "outline" : "secondary"}
-                          className="w-full justify-start"
+                          className="w-full justify-start border-[color:var(--border)] bg-white/[0.03] font-mono text-[11px] uppercase tracking-[0.16em] text-white/82 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
                           onClick={handleOpenJavaRefactor}
                         >
                           Java refactor
@@ -1918,9 +1999,7 @@ export default function App() {
                       />
                     ) : !hasWorkspace ? (
                       homeSurface
-                    ) : phase1Mode === "hidden" ? (
-                      previewWorkspaceSurface
-                    ) : javaPreviewActive ? (
+                    ) : phase1Mode === "hidden" || javaPreviewActive ? (
                       previewWorkspaceSurface
                     ) : (
                       phase1Surface
@@ -1966,6 +2045,7 @@ export default function App() {
             onOpenMini={openMini}
             hasComposer={hasComposer}
             zenMode={zenMode}
+            collapsePathBarInZen={zenMode && !statusBarHover}
             privateActive={
               activeTab?.kind === "terminal" && activeTab.private === true
             }

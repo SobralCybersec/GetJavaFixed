@@ -52,6 +52,13 @@ const ThemeProviderContext = createContext<ThemeProviderState | null>(null);
 const FAST_PATH_KEY = "javarf-ui-theme-shadow";
 const FAST_PATH_THEME_ID = "javarf-ui-theme-id-shadow";
 
+function getSystemResolvedMode(): "dark" | "light" {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "dark";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 function readFastMode(fallback: ThemePref): ThemePref {
   if (typeof window === "undefined") return fallback;
   const v = window.localStorage.getItem(FAST_PATH_KEY);
@@ -79,6 +86,9 @@ export function ThemeProvider({ children, defaultMode = "system" }: ThemeProvide
   const [mode, setModeState] = useState<ThemePref>(() => readFastMode(defaultMode));
   const [themeId, setThemeIdState] = useState<string>(() => readFastThemeId());
   const [customThemes, setCustomThemes] = useState<Theme[]>([]);
+  const [systemResolvedMode, setSystemResolvedMode] = useState<"dark" | "light">(
+    getSystemResolvedMode,
+  );
 
   useEffect(() => {
     let alive = true;
@@ -116,12 +126,30 @@ export function ThemeProvider({ children, defaultMode = "system" }: ThemeProvide
     };
   }, []);
 
-  const resolvedMode: "dark" | "light" = "dark";
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => {
+      setSystemResolvedMode(media.matches ? "dark" : "light");
+    };
+    update();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  const resolvedMode: "dark" | "light" =
+    mode === "system" ? systemResolvedMode : mode;
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
     root.classList.add(resolvedMode);
+    root.style.colorScheme = resolvedMode;
+    root.style.backgroundColor = resolvedMode === "dark" ? "#0a0a0a" : "#ffffff";
   }, [resolvedMode]);
 
   const lastEditorPairRef = useRef<string | null>(null);

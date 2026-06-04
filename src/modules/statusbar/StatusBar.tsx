@@ -27,6 +27,7 @@ type Props = {
   hasComposer: boolean;
   privateActive: boolean;
   zenMode?: boolean;
+  collapsePathBarInZen?: boolean;
   onHoverChange?: (hovered: boolean) => void;
 };
 
@@ -40,6 +41,7 @@ export function StatusBar({
   hasComposer,
   privateActive,
   zenMode,
+  collapsePathBarInZen = false,
   onHoverChange,
 }: Props) {
   const panelOpen = useChatStore((s) => s.panelOpen);
@@ -50,21 +52,37 @@ export function StatusBar({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       onFocusCapture={() => onHoverChange?.(true)}
-      onBlurCapture={() => onHoverChange?.(false)}
+      onBlurCapture={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+          return;
+        }
+        onHoverChange?.(false);
+      }}
       className={cn(
-        "flex h-9 shrink-0 items-center justify-between gap-3 border-t border-white/8 bg-[#0d1014]/88 px-3 text-[11px] backdrop-blur-md",
-        zenMode && "opacity-30 hover:opacity-100 hover:bg-[#10131a]/94",
+        "javarf-terminal-shell flex h-10 shrink-0 items-center justify-between gap-3 border-t border-[color:var(--border)] bg-[#050506]/96 px-3 text-[11px] backdrop-blur-sm",
+        zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <WorkspaceEnvSelector onSelect={onWorkspaceChange} />
-        <CwdBreadcrumb cwd={cwd} filePath={filePath} home={home} onCd={onCd} />
+        <div
+          className={cn(
+            "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out",
+            collapsePathBarInZen
+              ? "max-w-0 -translate-y-0.5 opacity-0 pointer-events-none"
+              : "max-w-full opacity-100",
+          )}
+          aria-hidden={collapsePathBarInZen}
+        >
+          <CwdBreadcrumb cwd={cwd} filePath={filePath} home={home} onCd={onCd} />
+        </div>
         {privateActive ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="flex shrink-0 cursor-default items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-medium text-amber-700 dark:text-amber-400">
+              <span className="flex shrink-0 cursor-default items-center gap-1 border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-300">
                 <HugeiconsIcon icon={IncognitoIcon} size={11} strokeWidth={2} />
-                <span>Private: hidden from AI</span>
+                <span>Private channel</span>
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64 text-[11px] leading-relaxed">
@@ -74,7 +92,28 @@ export function StatusBar({
           </Tooltip>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-3">
+        <div
+          aria-hidden="true"
+          className="flex items-center gap-2 border-l border-[color:var(--border)] pl-3"
+        >
+          <div className="javarf-cat">
+            <span className="javarf-cat__ear javarf-cat__ear--left" />
+            <span className="javarf-cat__ear javarf-cat__ear--right" />
+            <span className="javarf-cat__face">
+              <span className="javarf-cat__eye javarf-cat__eye--left">
+                <span className="javarf-cat__pupil" />
+              </span>
+              <span className="javarf-cat__eye javarf-cat__eye--right">
+                <span className="javarf-cat__pupil" />
+              </span>
+              <span className="javarf-cat__muzzle" />
+            </span>
+          </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/48">
+            stray daemon
+          </span>
+        </div>
         <AgentStatusPill onClick={onOpenMini} />
         {panelOpen && hasComposer ? (
           <AiStatusBarControls />

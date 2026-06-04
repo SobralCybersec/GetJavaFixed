@@ -371,13 +371,13 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     return (
       <div
         ref={containerRef}
-        className="flex h-full flex-col bg-[#0f1115] outline-none"
+        className="javarf-terminal-shell flex h-full flex-col bg-[#050608] font-mono outline-none"
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-white/8 bg-[#12151b] px-2.5">
+        <div className="flex h-11 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b border-[color:var(--border)] bg-[#090b10] px-2.5">
           <span
-            className="flex flex-1 items-center truncate text-[11px] font-medium uppercase tracking-[0.18em] text-white/72"
+            className="flex min-w-0 flex-1 items-center truncate font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-white/72"
             title={rootPath}
           >
             <img
@@ -393,7 +393,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
+            className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => setIsSearchOpen((v) => !v)}
             title="Search files"
             aria-label="Search files"
@@ -404,7 +404,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
+            className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => tree.beginCreate(rootPath, "file")}
             title="New file"
           >
@@ -413,7 +413,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
+            className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => tree.beginCreate(rootPath, "dir")}
             title="New folder"
           >
@@ -422,7 +422,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 rounded-lg border border-transparent text-white/56 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"
+            className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => tree.refresh(rootPath)}
             title="Refresh"
           >
@@ -446,7 +446,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             <ContextMenuTrigger asChild>
               <div
                 ref={scrollRef}
-                className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#0d0f14] [scrollbar-gutter:stable]"
+                className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#030406] [scrollbar-gutter:stable]"
               >
                 {pendingAtRoot ? (
                   <div

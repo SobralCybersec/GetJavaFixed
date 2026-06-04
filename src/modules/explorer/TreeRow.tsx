@@ -83,7 +83,7 @@ function EntryRowImpl(props: EntryRowProps) {
       <ContextMenuTrigger asChild>
         {isRenaming ? (
           <div
-            className="flex h-8 w-full min-w-0 items-center gap-2 px-2 text-[12px] text-white/86"
+            className="flex h-8 w-full min-w-0 items-center gap-2 px-2 font-mono text-[12px] text-white/86"
             style={{ paddingLeft }}
           >
             <span className="size-3.5 shrink-0" />
@@ -106,8 +106,8 @@ function EntryRowImpl(props: EntryRowProps) {
             onClick={handleClick}
             onDoubleClick={() => !isDir && tree.beginRename(path)}
             className={cn(
-              "group flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-none border-l border-transparent px-2 text-left text-[12px] text-white/72 transition-[background-color,color,border-color] duration-100 hover:bg-white/[0.03] hover:text-white",
-              isSelected && "border-l-primary bg-white/[0.055] text-white",
+              "group flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-none border-l border-transparent px-2 text-left font-mono text-[12px] text-white/72 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.03] hover:text-white",
+              isSelected && "border-l-primary bg-primary/10 text-white",
             )}
             style={{ paddingLeft }}
           >
@@ -131,7 +131,7 @@ function EntryRowImpl(props: EntryRowProps) {
             )}
             <span className="min-w-0 flex-1 truncate">{name}</span>
             {isDir ? (
-              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-white/22 transition-colors duration-100 group-hover:text-white/44">
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-white/22 transition-colors duration-75 group-hover:text-white/44">
                 dir
               </span>
             ) : null}
@@ -248,7 +248,7 @@ export type PendingRowProps = {
 export function PendingRow({ depth, kind, onCommit, onCancel }: PendingRowProps) {
   return (
     <div
-      className="flex h-8 w-full min-w-0 items-center gap-2 px-2 text-[12px] text-white/82"
+      className="flex h-8 w-full min-w-0 items-center gap-2 px-2 font-mono text-[12px] text-white/82"
       style={{ paddingLeft: 6 + depth * 12 }}
     >
       <span className="size-3.5 shrink-0" />

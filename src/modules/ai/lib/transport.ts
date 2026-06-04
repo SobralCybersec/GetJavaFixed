@@ -1,7 +1,7 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { type ModelId } from "../config";
 import {
-  messageLikelyNeedsMcpTools,
+  planAgentTurnCapabilities,
   runAgentStream,
   type AgentUsageDelta,
 } from "./agent";
@@ -86,7 +86,11 @@ export function createContextAwareTransport(deps: Deps) {
       ? injectEnvIntoLastUser(options.messages, envBlock)
       : options.messages;
     const mcpConfig = deps.getMcpConfig?.();
-    const shouldLoadMcp = !!mcpConfig && messageLikelyNeedsMcpTools(messagesForRun);
+    const turnPlan = planAgentTurnCapabilities({
+      modelId: deps.getModelId(),
+      messages: messagesForRun,
+    });
+    const shouldLoadMcp = !!mcpConfig && turnPlan.shouldLoadMcp;
     const runWithBundle = async (
       mcpBundle:
         | Awaited<ReturnType<typeof getCachedMcpToolBundle>>

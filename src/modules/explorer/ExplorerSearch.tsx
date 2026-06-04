@@ -15,7 +15,6 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { currentWorkspaceEnv } from "@/modules/workspace";
-import { motion } from "motion/react";
 import {
   forwardRef,
   useEffect,
@@ -168,14 +167,9 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
       {open ? (
-        <motion.div
-          className="relative shrink-0 border-b border-white/8 bg-[#11141a] px-2.5 py-2"
-          initial={{ opacity: 0, transform: "translateY(-6px)" }}
-          animate={{ opacity: 1, transform: "translateY(0px)" }}
-          transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-        >
+        <div className="relative shrink-0 overflow-hidden border-b border-[color:var(--border)] bg-black/35 px-2.5 py-2">
           <HugeiconsIcon
             icon={Search01Icon}
             size={13}
@@ -211,7 +205,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
               }
             }}
             placeholder="Search files…"
-            className="h-8 border-white/10 bg-black/20 pr-7 pl-7 text-xs text-white placeholder:text-white/28"
+            className="h-8 border-[color:var(--border)] bg-black/40 pr-7 pl-7 font-mono text-xs text-white placeholder:text-white/28"
           />
           {query ? (
             <button
@@ -223,12 +217,12 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
               <HugeiconsIcon icon={Cancel01Icon} size={11} strokeWidth={2} />
             </button>
           ) : null}
-        </motion.div>
+        </div>
       ) : null}
 
       {active ? (
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="py-1" ref={scrollRef}>
+        <ScrollArea className="min-h-0 min-w-0 flex-1">
+          <div className="min-w-0 py-1" ref={scrollRef}>
             {searching && results.length === 0 ? (
               <div className="px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-white/34">
                 Searching…
@@ -254,9 +248,9 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                           }
                         }}
                         className={cn(
-                          "flex w-full items-center gap-2 border-l border-transparent px-2.5 py-1.5 text-left text-xs transition-[background-color,color,border-color] duration-100",
+                          "flex w-full min-w-0 items-center gap-2 overflow-hidden border-l border-transparent px-2.5 py-1.5 text-left text-xs transition-[background-color,color,border-color] duration-100",
                           isSelected
-                            ? "border-l-primary bg-white/[0.055] text-white"
+                            ? "border-l-primary bg-primary/10 text-white"
                             : "text-white/74 hover:bg-white/[0.03] hover:text-white"
                         )}
                         title={hit.path}
@@ -271,8 +265,8 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                             className="shrink-0 text-muted-foreground"
                           />
                         )}
-                        <span className="truncate">{hit.name}</span>
-                        <span className="ml-auto truncate font-mono text-[10px] text-white/28">
+                        <span className="min-w-0 flex-1 truncate">{hit.name}</span>
+                        <span className="hidden max-w-[42%] shrink truncate font-mono text-[10px] text-white/28 sm:block">
                           {hit.rel}
                         </span>
                       </button>

@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 AGENTS.md
+effects.html
 
 node_modules
 dist
@@ -14,6 +15,7 @@ dist-ssr
 *.localc
 src-tauri/target-test
 testcommit
+src2/src
 
 # Editor directories and files
 .vscode/*

@@ -24,5 +24,9 @@
     }
   },
   "include": ["src"],
+  "exclude": [
+    "src/modules/ai/lib/agent2.ts",
+    "src/modules/ai/lib/config2.ts"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

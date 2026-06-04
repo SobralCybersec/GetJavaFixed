@@ -105,7 +105,7 @@ export function TabBar({
                     if (e.button === 1) e.preventDefault();
                   }}
                   className={cn(
-                    "group h-8 shrink-0 justify-between gap-1.5 rounded-lg border border-transparent bg-white/[0.01] text-xs text-white/46 transition-[background-color,border-color,color,opacity] duration-100 data-[state=active]:border-white/12 data-[state=active]:bg-white/[0.05] data-[state=active]:text-white hover:border-white/8 hover:bg-white/[0.03] hover:text-white/82",
+                    "group h-8 shrink-0 justify-between gap-1.5 border border-[color:var(--border)] bg-black/28 text-xs font-mono uppercase tracking-[0.08em] text-white/42 transition-[background-color,border-color,color,opacity] duration-75 data-[state=active]:border-primary/50 data-[state=active]:bg-primary/8 data-[state=active]:text-white hover:border-primary/30 hover:bg-white/[0.03] hover:text-white/82",
                     compact
                       ? "px-1.5!"
                       : tabs.length === 1
@@ -140,7 +140,7 @@ export function TabBar({
                         e.stopPropagation();
                         onClose(t.id);
                       }}
-                      className="rounded-md p-0.5 opacity-0 transition-opacity hover:bg-white/[0.06] hover:opacity-100 group-hover:opacity-60"
+                      className="p-0.5 opacity-0 transition-opacity hover:bg-white/[0.06] hover:opacity-100 group-hover:opacity-60"
                     >
                       <HugeiconsIcon
                         icon={Cancel01Icon}
@@ -159,7 +159,7 @@ export function TabBar({
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 shrink-0 rounded-lg border border-white/8 bg-white/[0.02] text-white/56 hover:border-white/12 hover:bg-white/[0.04] hover:text-white"
+              className="size-8 shrink-0 border border-[color:var(--border)] bg-black/28 text-white/56 hover:border-primary/35 hover:bg-primary/10 hover:text-white"
               title="New tab"
             >
               <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
