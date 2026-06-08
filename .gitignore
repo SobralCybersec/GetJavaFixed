@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 AGENTS.md
 effects.html
+needhavesupport/*
 
 node_modules
 dist
