@@ -2,6 +2,7 @@ import { routeAgentNotification } from "@/modules/agents/lib/route";
 import { useWindowFocus } from "@/modules/agents/lib/useWindowFocus";
 import { useAgentStore } from "@/modules/agents/store/agentStore";
 import type { AgentStatus } from "@/modules/agents/lib/types";
+import { playInteractionSound } from "@/modules/sound/interactionSounds";
 import { useEffect, useRef } from "react";
 import { useChatStore } from "../store/chatStore";
 
@@ -49,7 +50,8 @@ export function LocalAgentNotificationsBridge() {
       kind: "attention" | "finished" | "error",
       title: string,
       body?: string,
-    ) =>
+    ) => {
+      playInteractionSound(kind === "finished" ? "done" : kind);
       routeAgentNotification({
         source: "local",
         agent: AGENT,
@@ -61,6 +63,7 @@ export function LocalAgentNotificationsBridge() {
         allowToast: true,
         onActivate: () => useChatStore.getState().openPanel(),
       });
+    };
 
     if (status === "awaiting-approval") {
       fire("attention", "JavaRf needs your approval", "Approve a tool to continue");

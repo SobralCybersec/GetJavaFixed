@@ -12,7 +12,12 @@ type ToolPart = {
   [k: string]: unknown;
 };
 
-function approxBytes(messages: ModelMessage[]): number {
+// Web search results (JSON, URLs, HTML) are token-dense: ~6 bytes/token.
+// Plain prose is ~4 bytes/token. Using 4 here causes a 40-100% undercount
+// that prevents the compaction thresholds from ever triggering.
+const BYTES_PER_TOKEN = 6;
+
+function approxTokens(messages: ModelMessage[]): number {
   let n = 0;
   for (const m of messages) {
     if (typeof m.content === "string") n += m.content.length;
@@ -28,7 +33,7 @@ function approxBytes(messages: ModelMessage[]): number {
       }
     }
   }
-  return n;
+  return n / BYTES_PER_TOKEN;
 }
 
 function elideToolResult(part: ToolPart): { changed: boolean; part: ToolPart } {
@@ -154,24 +159,24 @@ export function compactModelMessagesDetailed(
   messages: ModelMessage[],
   contextLimit: number,
 ): CompactResult {
-  let dropped = 0;
+  let elided = 0;
   let working = messages;
-  let approxTokens = approxBytes(working) / 4;
+  let tokens = approxTokens(working);
 
-  if (approxTokens >= 0.55 * contextLimit) {
+  if (tokens >= 0.55 * contextLimit) {
     const r = dropSupersededReads(working);
     if (r.touched) {
       working = r.out;
-      dropped++;
-      approxTokens = approxBytes(working) / 4;
+      tokens = approxTokens(working);
+      elided++;
     }
   }
 
-  if (approxTokens < 0.7 * contextLimit) {
+  if (tokens < 0.7 * contextLimit) {
     return {
       messages: working,
-      compacted: dropped > 0,
-      droppedCount: dropped,
+      compacted: elided > 0,
+      droppedCount: elided,
     };
   }
 
@@ -183,19 +188,18 @@ export function compactModelMessagesDetailed(
     let local = false;
     const next = (out[i].content as ToolPart[]).map((part) => {
       const r = elideToolResult(part);
-      if (r.changed) local = true;
+      if (r.changed) { local = true; elided++; }
       return r.part;
     });
     if (local) {
       out[i] = { ...out[i], content: next } as ModelMessage;
-      dropped++;
-      if (approxBytes(out) / 4 < 0.6 * contextLimit) break;
+      if (approxTokens(out) < 0.6 * contextLimit) break;
     }
   }
 
   return {
     messages: out,
-    compacted: dropped > 0,
-    droppedCount: dropped,
+    compacted: elided > 0,
+    droppedCount: elided,
   };
 }

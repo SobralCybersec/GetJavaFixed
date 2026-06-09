@@ -162,9 +162,10 @@ export function createContextAwareTransport(deps: Deps) {
         }
         console.warn("[javarf][agent] MCP bootstrap failed; continuing without MCP tools", error);
       }
+      const WEB_SEARCH_TOOLS = ["web_search_exa", "web_search_advanced_exa", "web_fetch_exa"];
       if (
         messageLikelyNeedsResearchMcpTools(messagesForRun) &&
-        (mcpBundle?.toolNames.length ?? 0) === 0
+        !mcpBundle?.toolNames.some((name) => WEB_SEARCH_TOOLS.includes(name))
       ) {
         runtimeNotices.push(LIVE_RESEARCH_UNAVAILABLE_NOTICE);
       }

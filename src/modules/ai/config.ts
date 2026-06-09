@@ -660,7 +660,7 @@ export const LMSTUDIO_DEFAULT_BASE_URL = "http://localhost:1234/v1";
 export const MLX_DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1";
 export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
 export const OPENAI_COMPATIBLE_DEFAULT_BASE_URL = "";
-export const MAX_AGENT_STEPS = 24;
+export const MAX_AGENT_STEPS = 42;
 export const TERMINAL_BUFFER_LINES = 300;
 
 export const SYSTEM_PROMPT = `You are JavaRf, an AI agent embedded in a Java refactor workspace. You are a hands-on engineering assistant focused on safe Java improvements — your job is to *do* the work, not narrate it.

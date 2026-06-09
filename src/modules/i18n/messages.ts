@@ -62,6 +62,9 @@ export const messages = {
     "general.agents.notifications.title": "Coding agent notifications",
     "general.agents.notifications.description":
       "Alert when Claude Code or Codex running in a terminal needs your input or finishes. Desktop notification when JavaRf is unfocused, in-app otherwise.",
+    "general.agents.sounds.title": "Interaction sounds",
+    "general.agents.sounds.description":
+      "Play quiet clicks, approval cues, and completion chimes after you interact with the app.",
     "general.startup": "Startup",
     "general.startup.autostart.title": "Launch at login",
     "general.startup.autostart.description":
@@ -234,6 +237,15 @@ export const messages = {
     "home.ruleBase.title": "Rule base",
     "home.ruleBase.description":
       "Markdown rules stay editable, inspectable, and tied to refactor discovery.",
+    "home.chart.ops.title": "Live operations curve",
+    "home.chart.ops.description":
+      "Projected flow from repository mount through preview and apply.",
+    "home.chart.readiness.title": "System readiness",
+    "home.chart.readiness.description":
+      "Workspace, model, MCP, rules, and preview signals in one glance.",
+    "home.chart.workflow.title": "Refactor loop rhythm",
+    "home.chart.workflow.description":
+      "How scan, context, review, and apply work balance during a run.",
     "home.workflow.title": "Product workflow",
     "home.workflow.description":
       "Organize the app by phases instead of stacking every state in one surface.",
@@ -333,6 +345,9 @@ export const messages = {
     "general.agents.notifications.title": "Notificacoes dos agentes de codigo",
     "general.agents.notifications.description":
       "Avisa quando Claude Code ou Codex em um terminal precisa da sua entrada ou termina. Notificacao desktop quando o JavaRf estiver desfocado, interna caso contrario.",
+    "general.agents.sounds.title": "Sons da interface",
+    "general.agents.sounds.description":
+      "Toca cliques sutis, avisos de aprovacao e sinais de conclusao depois que voce interagir com o app.",
     "general.startup": "Inicializacao",
     "general.startup.autostart.title": "Abrir ao entrar",
     "general.startup.autostart.description":
@@ -505,6 +520,15 @@ export const messages = {
     "home.ruleBase.title": "Base de regras",
     "home.ruleBase.description":
       "As regras em markdown continuam editaveis, inspecionaveis e ligadas a descoberta de refatoracoes.",
+    "home.chart.ops.title": "Curva operacional ao vivo",
+    "home.chart.ops.description":
+      "Fluxo projetado do repositorio montado ate preview e aplicacao.",
+    "home.chart.readiness.title": "Prontidao do sistema",
+    "home.chart.readiness.description":
+      "Workspace, modelo, MCP, regras e preview em uma unica leitura.",
+    "home.chart.workflow.title": "Ritmo do loop de refatoracao",
+    "home.chart.workflow.description":
+      "Como scan, contexto, revisao e aplicacao se equilibram durante uma rodada.",
     "home.workflow.title": "Fluxo do produto",
     "home.workflow.description":
       "Organize o app por fases em vez de empilhar todos os estados numa unica superficie.",

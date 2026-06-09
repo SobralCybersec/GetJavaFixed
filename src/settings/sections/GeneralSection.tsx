@@ -25,6 +25,7 @@ import {
   setAutostart,
   setEditorAutoSave,
   setEditorAutoSaveDelay,
+  setInteractionSounds,
   setRestoreWindowState,
   setShowHidden,
   setTerminalFontFamily,
@@ -87,6 +88,7 @@ export function GeneralSection() {
   const terminalScrollback = usePreferencesStore((s) => s.terminalScrollback);
   const zoomLevel = usePreferencesStore((s) => s.zoomLevel);
   const agentNotifications = usePreferencesStore((s) => s.agentNotifications);
+  const interactionSounds = usePreferencesStore((s) => s.interactionSounds);
 
   const appearanceLabels: Record<ThemePref, string> = {
     system: t("general.appearance.system"),
@@ -370,6 +372,15 @@ export function GeneralSection() {
           <Switch
             checked={agentNotifications}
             onCheckedChange={(value) => void setAgentNotifications(value)}
+          />
+        </SettingRow>
+        <SettingRow
+          title={t("general.agents.sounds.title")}
+          description={t("general.agents.sounds.description")}
+        >
+          <Switch
+            checked={interactionSounds}
+            onCheckedChange={(value) => void setInteractionSounds(value)}
           />
         </SettingRow>
       </div>

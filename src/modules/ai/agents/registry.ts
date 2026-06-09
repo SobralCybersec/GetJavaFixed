@@ -15,6 +15,7 @@ export type SubagentDef = {
 };
 
 const READ_ONLY_TOOLS = ["read_file", "list_directory", "grep", "glob"];
+const RESEARCH_TOOLS = [...READ_ONLY_TOOLS, "web_search_exa", "web_fetch_exa", "web_search_advanced_exa"];
 
 export const SUBAGENTS: Record<SubagentType, SubagentDef> = {
   explore: {
@@ -53,7 +54,7 @@ export const SUBAGENTS: Record<SubagentType, SubagentDef> = {
     label: "Kishou Arima · Research",
     description:
       "General-purpose worker for multi-step research questions that span many files.",
-    tools: READ_ONLY_TOOLS,
+    tools: RESEARCH_TOOLS,
     systemPrompt:
       'You are Kishou Arima, a general-purpose research subagent. If asked who you are, answer with "Kishou Arima". Answer the spawn question by verifying against available sources. Read the codebase first; if live web/docs tools are available and directly relevant, you may use them too. Do not speculate - verify. Return a tight summary with the evidence you used (paths, line numbers, or cited tool results).',
   },

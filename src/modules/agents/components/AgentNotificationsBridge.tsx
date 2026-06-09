@@ -1,5 +1,6 @@
 import type { Tab } from "@/modules/tabs";
 import { hasLeaf, leafIdForPty } from "@/modules/terminal";
+import { playInteractionSound } from "@/modules/sound/interactionSounds";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
 import { maybeTriggerManagedReview } from "../lib/review";
@@ -40,6 +41,7 @@ function route(
       ? `${session.agent} needs your input`
       : `${session.agent} finished`;
 
+  playInteractionSound(kind === "finished" ? "done" : "attention");
   routeAgentNotification({
     source: "terminal",
     agent: session.agent,

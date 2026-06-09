@@ -8,10 +8,17 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/modules/i18n";
+import {
+  DASHBOARD_CHART_COLORS,
+  chartAnimation,
+  getDashboardChartTheme,
+} from "@/modules/dashboard/chartSetup";
 import { GridViewIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { ChartData, ChartOptions } from "chart.js";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
+import { Bar, Line, Radar } from "react-chartjs-2";
 import {
   ease,
   fadeUp,
@@ -35,6 +42,169 @@ export function HomeDashboard({
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("launch");
   const reduced = useReducedMotion();
+
+  const launchFlowData = useMemo<ChartData<"line">>(
+    () => ({
+      labels: ["Mount", "Index", "Scan", "Preview", "Apply"],
+      datasets: [
+        {
+          label: "Operational confidence",
+          data: hasModelAccess ? [18, 46, 71, 88, 94] : [18, 38, 52, 48, 36],
+          borderColor: DASHBOARD_CHART_COLORS[0],
+          backgroundColor: "rgba(34, 211, 238, 0.16)",
+          borderWidth: 2,
+          fill: true,
+          pointBackgroundColor: DASHBOARD_CHART_COLORS[1],
+          pointBorderColor: "#0f172a",
+          pointHoverRadius: 6,
+          pointRadius: 3,
+          tension: 0.42,
+        },
+      ],
+    }),
+    [hasModelAccess],
+  );
+
+  const readinessData = useMemo<ChartData<"bar">>(
+    () => ({
+      labels: ["Workspace", "Model", "MCP", "Rules", "Preview"],
+      datasets: [
+        {
+          label: "Ready",
+          data: hasModelAccess ? [64, 92, 76, 88, 84] : [64, 28, 54, 88, 34],
+          backgroundColor: [
+            DASHBOARD_CHART_COLORS[0],
+            hasModelAccess ? DASHBOARD_CHART_COLORS[2] : DASHBOARD_CHART_COLORS[1],
+            DASHBOARD_CHART_COLORS[6],
+            DASHBOARD_CHART_COLORS[3],
+            DASHBOARD_CHART_COLORS[5],
+          ],
+          borderColor: "rgba(255, 255, 255, 0.22)",
+          borderWidth: 1,
+          borderRadius: 3,
+        },
+      ],
+    }),
+    [hasModelAccess],
+  );
+
+  const workflowData = useMemo<ChartData<"radar">>(
+    () => ({
+      labels: ["Scan", "Context", "Review", "Diff", "Apply", "Safety"],
+      datasets: [
+        {
+          label: "Refactor loop",
+          data: hasModelAccess ? [82, 78, 88, 76, 68, 94] : [72, 54, 82, 42, 34, 90],
+          backgroundColor: "rgba(251, 146, 60, 0.16)",
+          borderColor: DASHBOARD_CHART_COLORS[1],
+          borderWidth: 2,
+          pointBackgroundColor: DASHBOARD_CHART_COLORS[3],
+          pointBorderColor: "#0f172a",
+          pointHoverRadius: 5,
+          pointRadius: 3,
+        },
+      ],
+    }),
+    [hasModelAccess],
+  );
+
+  const lineOptions = useMemo<ChartOptions<"line">>(() => {
+    const theme = getDashboardChartTheme();
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: chartAnimation(reduced),
+      interaction: { intersect: false, mode: "index" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: theme.surface,
+          bodyColor: theme.text,
+          borderColor: theme.border,
+          borderWidth: 1,
+          displayColors: false,
+          titleColor: theme.text,
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: theme.grid },
+          ticks: { color: theme.text },
+        },
+        y: {
+          beginAtZero: true,
+          max: 100,
+          grid: { color: theme.grid },
+          ticks: { color: theme.text, precision: 0 },
+        },
+      },
+    };
+  }, [reduced]);
+
+  const barOptions = useMemo<ChartOptions<"bar">>(() => {
+    const theme = getDashboardChartTheme();
+    return {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: chartAnimation(reduced),
+      interaction: { axis: "y", intersect: false, mode: "nearest" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: theme.surface,
+          bodyColor: theme.text,
+          borderColor: theme.border,
+          borderWidth: 1,
+          displayColors: false,
+          titleColor: theme.text,
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          max: 100,
+          grid: { color: theme.grid },
+          ticks: { color: theme.text, precision: 0 },
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: theme.text },
+        },
+      },
+    };
+  }, [reduced]);
+
+  const radarOptions = useMemo<ChartOptions<"radar">>(() => {
+    const theme = getDashboardChartTheme();
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: chartAnimation(reduced),
+      interaction: { intersect: false, mode: "nearest" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: theme.surface,
+          bodyColor: theme.text,
+          borderColor: theme.border,
+          borderWidth: 1,
+          displayColors: false,
+          titleColor: theme.text,
+        },
+      },
+      scales: {
+        r: {
+          angleLines: { color: theme.grid },
+          grid: { color: theme.grid },
+          pointLabels: { color: theme.text, font: { size: 10 } },
+          suggestedMax: 100,
+          suggestedMin: 0,
+          ticks: { backdropColor: "transparent", display: false, stepSize: 25 },
+        },
+      },
+    };
+  }, [reduced]);
 
   const kpiCards = useMemo(
     () => [
@@ -100,51 +270,67 @@ export function HomeDashboard({
               >
                 <DashboardWidget title={t("home.tabs.launch")}>
                   <section className="javarf-terminal-frame ops-card ops-hero border border-border/70 p-5 sm:p-6 lg:p-7">
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,430px)] xl:items-stretch">
+                      <div className="flex min-w-0 flex-col justify-between gap-5">
+                        <motion.div
+                          className="min-w-0 max-w-3xl space-y-4"
+                          variants={reduced ? undefined : staggerContainer}
+                          initial="hidden"
+                          animate="visible"
+                        >
+                          <motion.div variants={reduced ? undefined : fadeUp}>
+                            <DashboardEyebrow
+                              label="Refactoring Java"
+                              value={t("home.hero.badge")}
+                            />
+                          </motion.div>
+                          <motion.div variants={reduced ? undefined : fadeUp} className="space-y-3">
+                            <h1 className="font-heading text-balance text-4xl font-semibold uppercase leading-[0.88] tracking-[0.08em] text-foreground sm:text-5xl xl:text-6xl">
+                              {t("home.hero.title")}
+                            </h1>
+                            <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground sm:text-base">
+                              {t("home.hero.description")}
+                            </p>
+                          </motion.div>
+                        </motion.div>
+
+                        <motion.div
+                          className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap"
+                          variants={reduced ? undefined : { hidden: { opacity: 0, x: 16 }, visible: { opacity: 1, x: 0, transition: { duration: 0.45, ease, delay: 0.2 } } }}
+                          initial="hidden"
+                          animate="visible"
+                        >
+                          <Button
+                            size="lg"
+                            className="min-w-[170px] border border-primary/40 bg-primary/10 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:bg-primary/20 hover:shadow-[0_0_16px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
+                            onClick={onOpenWorkspace}
+                          >
+                            {t("home.openWorkspace")}
+                          </Button>
+                          <Button
+                            size="lg"
+                            variant="outline"
+                            className="min-w-[170px] border border-border/80 bg-background/70 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:border-primary/40"
+                            onClick={onOpenJavaRefactor}
+                            disabled={!hasModelAccess}
+                            title={!hasModelAccess ? t("home.javaRefactorDisabled") : undefined}
+                          >
+                            {t("home.javaRefactor")}
+                          </Button>
+                        </motion.div>
+                      </div>
+
                       <motion.div
-                        className="min-w-0 max-w-3xl space-y-4"
-                        variants={reduced ? undefined : staggerContainer}
+                        variants={reduced ? undefined : scaleIn}
                         initial="hidden"
                         animate="visible"
                       >
-                        <motion.div variants={reduced ? undefined : fadeUp}>
-                          <DashboardEyebrow
-                            label="Refactoring Java"
-                            value={t("home.hero.badge")}
-                          />
-                        </motion.div>
-                        <motion.div variants={reduced ? undefined : fadeUp} className="space-y-3">
-                          <h1 className="font-heading text-balance text-4xl font-semibold uppercase leading-[0.88] tracking-[0.08em] text-foreground sm:text-5xl xl:text-6xl">
-                            {t("home.hero.title")}
-                          </h1>
-                          <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground sm:text-base">
-                            {t("home.hero.description")}
-                          </p>
-                        </motion.div>
-                      </motion.div>
-                      <motion.div
-                        className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end"
-                        variants={reduced ? undefined : { hidden: { opacity: 0, x: 16 }, visible: { opacity: 1, x: 0, transition: { duration: 0.45, ease, delay: 0.2 } } }}
-                        initial="hidden"
-                        animate="visible"
-                      >
-                        <Button
-                          size="lg"
-                          className="min-w-[170px] border border-primary/40 bg-primary/10 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:bg-primary/20 hover:shadow-[0_0_16px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
-                          onClick={onOpenWorkspace}
+                        <DashboardChartSurface
+                          title={t("home.chart.ops.title")}
+                          description={t("home.chart.ops.description")}
                         >
-                          {t("home.openWorkspace")}
-                        </Button>
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          className="min-w-[170px] border border-border/80 bg-background/70 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:border-primary/40"
-                          onClick={onOpenJavaRefactor}
-                          disabled={!hasModelAccess}
-                          title={!hasModelAccess ? t("home.javaRefactorDisabled") : undefined}
-                        >
-                          {t("home.javaRefactor")}
-                        </Button>
+                          <Line data={launchFlowData} options={lineOptions} />
+                        </DashboardChartSurface>
                       </motion.div>
                     </div>
                   </section>
@@ -214,6 +400,13 @@ export function HomeDashboard({
                           <div className="ops-inset-panel border border-border/60 bg-background/65 p-4 text-sm leading-6 text-muted-foreground">
                             {t("home.readiness.summary")}
                           </div>
+                          <DashboardChartSurface
+                            title={t("home.chart.readiness.title")}
+                            description={t("home.chart.readiness.description")}
+                            chartClassName="h-[220px]"
+                          >
+                            <Bar data={readinessData} options={barOptions} />
+                          </DashboardChartSurface>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div className="ops-inset-panel border border-border/60 bg-card/70 p-4">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -254,28 +447,37 @@ export function HomeDashboard({
                     size="sm"
                     className="javarf-terminal-frame java-panel ops-card border-border/70"
                   >
-                    <CardHeader className="border-b border-border/60 bg-background/55">
-                      <CardTitle>{t("home.workflow.title")}</CardTitle>
-                      <CardDescription>{t("home.workflow.description")}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-3 lg:grid-cols-3">
-                      {(["intake", "analysis", "refactor"] as const).map((step, i) => (
-                        <motion.div
-                          key={step}
-                          className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 p-4"
-                          variants={reduced ? undefined : fadeUp}
-                          initial="hidden"
-                          animate="visible"
-                          transition={{ delay: i * 0.08 }}
-                        >
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-                            {t(`home.workflow.${step}.title`)}
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                            {t(`home.workflow.${step}.description`)}
-                          </p>
-                        </motion.div>
-                      ))}
+                      <CardHeader className="border-b border-border/60 bg-background/55">
+                        <CardTitle>{t("home.workflow.title")}</CardTitle>
+                        <CardDescription>{t("home.workflow.description")}</CardDescription>
+                      </CardHeader>
+                    <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
+                      <div className="grid gap-3 lg:grid-cols-3 xl:grid-cols-1">
+                        {(["intake", "analysis", "refactor"] as const).map((step, i) => (
+                          <motion.div
+                            key={step}
+                            className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 p-4"
+                            variants={reduced ? undefined : fadeUp}
+                            initial="hidden"
+                            animate="visible"
+                            transition={{ delay: i * 0.08 }}
+                          >
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                              {t(`home.workflow.${step}.title`)}
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                              {t(`home.workflow.${step}.description`)}
+                            </p>
+                          </motion.div>
+                        ))}
+                      </div>
+                      <DashboardChartSurface
+                        title={t("home.chart.workflow.title")}
+                        description={t("home.chart.workflow.description")}
+                        chartClassName="h-[300px]"
+                      >
+                        <Radar data={workflowData} options={radarOptions} />
+                      </DashboardChartSurface>
                     </CardContent>
                   </Card>
                 </DashboardWidget>
@@ -321,6 +523,35 @@ function DashboardEyebrow({
       <span className="border border-border/70 bg-background/45 px-2 py-1">
         {value}
       </span>
+    </div>
+  );
+}
+
+function DashboardChartSurface({
+  title,
+  description,
+  chartClassName = "h-[240px]",
+  children,
+}: {
+  title: string;
+  description: string;
+  chartClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="javarf-terminal-panel ops-chart-surface ops-inset-panel border border-border/70 bg-background/60 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold leading-tight">{title}</div>
+          <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <span className="shrink-0 border border-primary/30 bg-primary/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-primary">
+          Chart.js
+        </span>
+      </div>
+      <div className={`mt-4 min-h-0 ${chartClassName}`}>{children}</div>
     </div>
   );
 }

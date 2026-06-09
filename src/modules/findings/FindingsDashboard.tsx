@@ -12,6 +12,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { ChartData, ChartOptions } from "chart.js";
+import { Bar, Doughnut } from "react-chartjs-2";
 import {
   motion,
   useInView,
@@ -27,6 +29,11 @@ import {
   scaleIn,
   staggerFast,
 } from "@/modules/dashboard/animations";
+import {
+  DASHBOARD_CHART_COLORS,
+  chartAnimation,
+  getDashboardChartTheme,
+} from "@/modules/dashboard/chartSetup";
 
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import {
@@ -513,13 +520,7 @@ export function FindingsDashboard({
   );
 }
 
-const CHART_COLORS = [
-  "var(--color-chart-1)",
-  "var(--color-chart-2)",
-  "var(--color-chart-3)",
-  "var(--color-chart-4)",
-  "var(--color-chart-5)",
-];
+const CHART_COLORS = DASHBOARD_CHART_COLORS;
 
 function DashboardWidget({
   title,
@@ -875,52 +876,62 @@ function KpiCard({
 }
 
 function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
-  const ref = useRef<SVGSVGElement>(null);
-  const isInView = useInView(ref, { once: true });
   const reduced = useReducedMotion();
-
   const total = Math.max(
     1,
     buckets.reduce((sum, bucket) => sum + bucket.count, 0),
   );
-  const radius = 52;
-  const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const theme = getDashboardChartTheme();
+  const data = useMemo<ChartData<"doughnut">>(
+    () => ({
+      labels: buckets.length > 0 ? buckets.map((bucket) => bucket.label) : ["No findings"],
+      datasets: [
+        {
+          data: buckets.length > 0 ? buckets.map((bucket) => bucket.count) : [1],
+          backgroundColor:
+            buckets.length > 0
+              ? buckets.map((_, index) => CHART_COLORS[index % CHART_COLORS.length])
+              : ["rgba(148, 163, 184, 0.28)"],
+          borderColor: theme.surface,
+          borderWidth: 2,
+          hoverOffset: 8,
+          spacing: 2,
+        },
+      ],
+    }),
+    [buckets, theme.surface],
+  );
+  const options = useMemo<ChartOptions<"doughnut">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: chartAnimation(reduced),
+      cutout: "70%",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: theme.surface,
+          bodyColor: theme.text,
+          borderColor: theme.border,
+          borderWidth: 1,
+          displayColors: true,
+          titleColor: theme.text,
+          callbacks: {
+            label: (item) => {
+              const count = buckets[item.dataIndex]?.count ?? 0;
+              const percent = Math.round((count / total) * 100);
+              return `${item.label}: ${count} (${percent}%)`;
+            },
+          },
+        },
+      },
+    }),
+    [buckets, reduced, theme.border, theme.surface, theme.text, total],
+  );
 
   return (
     <div className="relative flex h-36 w-36 items-center justify-center self-center sm:h-44 sm:w-44">
-      <svg ref={ref} viewBox="0 0 140 140" className="h-32 w-32 -rotate-90 sm:h-40 sm:w-40">
-        <circle
-          cx="70"
-          cy="70"
-          r={radius}
-          fill="none"
-          stroke="color-mix(in oklab, var(--muted) 80%, transparent)"
-          strokeWidth="18"
-        />
-        {buckets.map((bucket, index) => {
-          const length = (bucket.count / total) * circumference;
-          const segmentOffset = offset;
-          offset += length;
-          return (
-            <motion.circle
-              key={bucket.key}
-              cx="70"
-              cy="70"
-              r={radius}
-              fill="none"
-              stroke={CHART_COLORS[index % CHART_COLORS.length]}
-              strokeWidth="18"
-              strokeLinecap="butt"
-              strokeDasharray={`${length} ${circumference - length}`}
-              strokeDashoffset={reduced || !isInView ? -segmentOffset : undefined}
-              initial={reduced ? undefined : { strokeDashoffset: -segmentOffset + circumference, opacity: 0 }}
-              animate={isInView ? { strokeDashoffset: -segmentOffset, opacity: 1 } : {}}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: index * 0.08 }}
-            />
-          );
-        })}
-      </svg>
+      <Doughnut data={data} options={options} />
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <div className="text-3xl font-semibold">{buckets.reduce((sum, bucket) => sum + bucket.count, 0)}</div>
         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -1002,29 +1013,126 @@ function MetricBars({
         {title}
       </div>
       {buckets.length > 0 ? (
-        buckets.map((bucket, index) => (
-          <div key={`${title}-${bucket.key}`} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className={cn("truncate", monospaceLabels && "font-mono text-[12px]")}>
-                {bucket.label}
-              </span>
-              <span className="text-muted-foreground">{bucket.count}</span>
+        <>
+          <BucketBarChart
+            title={title}
+            buckets={buckets}
+            monospaceLabels={monospaceLabels}
+          />
+          {buckets.map((bucket, index) => (
+            <div key={`${title}-${bucket.key}`} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className={cn("truncate", monospaceLabels && "font-mono text-[12px]")}>
+                  {bucket.label}
+                </span>
+                <span className="text-muted-foreground">{bucket.count}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted/50">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(bucket.count / max) * 100}%`,
+                    backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                  }}
+                />
+              </div>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted/50">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${(bucket.count / max) * 100}%`,
-                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                }}
-              />
-            </div>
-          </div>
-        ))
+          ))}
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">{empty}</p>
       )}
     </section>
+  );
+}
+
+function BucketBarChart({
+  title,
+  buckets,
+  monospaceLabels,
+}: {
+  title: string;
+  buckets: FindingsAnalyticsBucket[];
+  monospaceLabels: boolean;
+}) {
+  const reduced = useReducedMotion();
+  const theme = getDashboardChartTheme();
+  const visibleBuckets = buckets.slice(0, 5);
+  const data = useMemo<ChartData<"bar">>(
+    () => ({
+      labels: visibleBuckets.map((bucket) =>
+        bucket.label.length > 28 ? `${bucket.label.slice(0, 25)}...` : bucket.label,
+      ),
+      datasets: [
+        {
+          label: title,
+          data: visibleBuckets.map((bucket) => bucket.count),
+          backgroundColor: visibleBuckets.map(
+            (_, index) => CHART_COLORS[index % CHART_COLORS.length],
+          ),
+          borderColor: "rgba(255, 255, 255, 0.22)",
+          borderWidth: 1,
+          borderRadius: 3,
+        },
+      ],
+    }),
+    [title, visibleBuckets],
+  );
+  const options = useMemo<ChartOptions<"bar">>(
+    () => ({
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: chartAnimation(reduced),
+      interaction: { axis: "y", intersect: false, mode: "nearest" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: theme.surface,
+          bodyColor: theme.text,
+          borderColor: theme.border,
+          borderWidth: 1,
+          displayColors: false,
+          titleColor: theme.text,
+          callbacks: {
+            title: (items) => {
+              const index = items[0]?.dataIndex ?? 0;
+              return visibleBuckets[index]?.label ?? title;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: theme.grid },
+          ticks: { color: theme.text, precision: 0 },
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            color: theme.text,
+            font: { family: monospaceLabels ? "var(--font-mono)" : undefined },
+          },
+        },
+      },
+    }),
+    [
+      monospaceLabels,
+      reduced,
+      theme.border,
+      theme.grid,
+      theme.surface,
+      theme.text,
+      title,
+      visibleBuckets,
+    ],
+  );
+
+  return (
+    <div className="ops-chart-surface javarf-terminal-panel h-[180px] border border-border/60 bg-background/45 p-3">
+      <Bar data={data} options={options} />
+    </div>
   );
 }
 
@@ -1056,7 +1164,7 @@ function RefactorPreviewInline({
 
 function maskKey(value: string): string {
   if (value.length <= 8) return "Saved";
-  return `${value.slice(0, 4)}${"•".repeat(8)}${value.slice(-4)}`;
+  return `${value.slice(0, 4)}${"*".repeat(8)}${value.slice(-4)}`;
 }
 
 function McpResearchCard({
