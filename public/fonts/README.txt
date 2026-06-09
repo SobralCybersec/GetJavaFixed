@@ -1,6 +1,5 @@
-Drop the licensed CC Wild Words Roman webfont here as:
+Optional licensed font drop-ins can live here.
 
-cc-wild-words-roman.woff2
-
-The UI already tries local("CC Wild Words Roman") first and falls back to Inter
-until the bundled file is present.
+Do not commit third-party font binaries unless the license allows
+redistribution. The app currently bundles open-source Inter and JetBrains Mono
+fonts from npm packages.

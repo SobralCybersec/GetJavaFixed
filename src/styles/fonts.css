@@ -1,15 +1,4 @@
 @font-face {
-  font-family: 'CC Wild Words Roman';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src:
-    local('CC Wild Words Roman'),
-    local('CCWildWordsRoman'),
-    url('/fonts/cc-wild-words-roman.woff2') format('woff2');
-}
-
-@font-face {
   font-family: 'Inter Variable';
   font-style: normal;
   font-display: swap;

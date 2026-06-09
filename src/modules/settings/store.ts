@@ -9,9 +9,23 @@ import {
   type AutocompleteProviderId,
   type ModelId,
 } from "@/modules/ai/config";
+import {
+  DEFAULT_MANAGED_MCP_PRESETS,
+  DEFAULT_MCP_PROVIDERS,
+  DEFAULT_CONTEXT7_MCP_URL,
+  getManagedMcpPresetConfig,
+  getRemoteMcpProviderConfig,
+  normalizeManagedMcpPresets,
+  normalizeMcpProviders,
+  type ManagedMcpPresetConfig,
+  type ManagedMcpPresetId,
+  type McpProviderConfig,
+  type RemoteMcpProviderId,
+} from "@/modules/ai/lib/mcpRegistry";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
+import type { UiLocale } from "@/modules/i18n";
 
 export type ThemePref = "system" | "light" | "dark";
 
@@ -55,6 +69,7 @@ export type Preferences = {
   deepsproxyPath: string;
   kimiproxyPath: string;
   theme: ThemePref;
+  uiLocale: UiLocale;
   themeId: string;
   backgroundKind: BackgroundKind;
   backgroundImageId: string | null;
@@ -80,6 +95,8 @@ export type Preferences = {
   openaiCompatibleModelId: string;
   openaiCompatibleContextLimit: number;
   openrouterModelId: string;
+  mcpProviders: McpProviderConfig[];
+  managedMcpPresets: ManagedMcpPresetConfig[];
   context7Url: string;
   refactorMcpEnabled: boolean;
   favoriteModelIds: string[];
@@ -107,6 +124,7 @@ const KEY_PROXY_PRESET_PATHS = "proxyPresetPaths";
 const KEY_DEEPSPROXY_PATH = "deepsproxyPath";
 const KEY_KIMIPROXY_PATH = "kimiproxyPath";
 const KEY_THEME = "theme";
+const KEY_UI_LOCALE = "uiLocale";
 const KEY_THEME_ID = "themeId";
 const KEY_BG_KIND = "backgroundKind";
 const KEY_BG_IMAGE_ID = "backgroundImageId";
@@ -132,6 +150,8 @@ const KEY_OPENAI_COMPAT_BASE_URL = "openaiCompatibleBaseURL";
 const KEY_OPENAI_COMPAT_MODEL_ID = "openaiCompatibleModelId";
 const KEY_OPENAI_COMPAT_CONTEXT_LIMIT = "openaiCompatibleContextLimit";
 const KEY_OPENROUTER_MODEL_ID = "openrouterModelId";
+const KEY_MCP_PROVIDERS = "mcpProviders";
+const KEY_MANAGED_MCP_PRESETS = "managedMcpPresets";
 const KEY_CONTEXT7_URL = "context7Url";
 const KEY_REFACTOR_MCP_ENABLED = "refactorMcpEnabled";
 const KEY_FAVORITE_MODELS = "favoriteModelIds";
@@ -174,6 +194,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   deepsproxyPath: "",
   kimiproxyPath: "",
   theme: "system",
+  uiLocale: "system",
   themeId: DEFAULT_THEME_ID,
   backgroundKind: "none",
   backgroundImageId: null,
@@ -199,7 +220,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   openaiCompatibleModelId: "",
   openaiCompatibleContextLimit: 128_000,
   openrouterModelId: "",
-  context7Url: "https://mcp.context7.com/mcp",
+  mcpProviders: DEFAULT_MCP_PROVIDERS.map((entry) => ({ ...entry })),
+  managedMcpPresets: DEFAULT_MANAGED_MCP_PRESETS.map((entry) => ({ ...entry })),
+  context7Url: DEFAULT_CONTEXT7_MCP_URL,
   refactorMcpEnabled: true,
   favoriteModelIds: [],
   recentModelIds: [],
@@ -262,6 +285,7 @@ export async function loadPreferences(): Promise<Preferences> {
     kimiproxyPath:
       get<string>(KEY_KIMIPROXY_PATH) ?? DEFAULT_PREFERENCES.kimiproxyPath,
     theme: get<ThemePref>(KEY_THEME) ?? DEFAULT_PREFERENCES.theme,
+    uiLocale: get<UiLocale>(KEY_UI_LOCALE) ?? DEFAULT_PREFERENCES.uiLocale,
     themeId: get<string>(KEY_THEME_ID) ?? DEFAULT_PREFERENCES.themeId,
     backgroundKind:
       get<BackgroundKind>(KEY_BG_KIND) ?? DEFAULT_PREFERENCES.backgroundKind,
@@ -328,6 +352,19 @@ export async function loadPreferences(): Promise<Preferences> {
     openrouterModelId:
       get<string>(KEY_OPENROUTER_MODEL_ID) ??
       DEFAULT_PREFERENCES.openrouterModelId,
+    mcpProviders: normalizeMcpProviders(
+      get<McpProviderConfig[]>(KEY_MCP_PROVIDERS),
+      {
+        enabled:
+          get<boolean>(KEY_REFACTOR_MCP_ENABLED) ??
+          DEFAULT_PREFERENCES.refactorMcpEnabled,
+        context7Url:
+          get<string>(KEY_CONTEXT7_URL) ?? DEFAULT_PREFERENCES.context7Url,
+      },
+    ),
+    managedMcpPresets: normalizeManagedMcpPresets(
+      get<ManagedMcpPresetConfig[]>(KEY_MANAGED_MCP_PRESETS),
+    ),
     context7Url:
       get<string>(KEY_CONTEXT7_URL) ?? DEFAULT_PREFERENCES.context7Url,
     refactorMcpEnabled:
@@ -383,6 +420,10 @@ export async function loadPreferences(): Promise<Preferences> {
 
 export async function setTheme(value: ThemePref): Promise<void> {
   await writePref(KEY_THEME, value);
+}
+
+export async function setUiLocale(value: UiLocale): Promise<void> {
+  await writePref(KEY_UI_LOCALE, value);
 }
 
 export async function setThemeId(value: string): Promise<void> {
@@ -507,6 +548,66 @@ export async function setOpenrouterModelId(value: string): Promise<void> {
   await writePref(KEY_OPENROUTER_MODEL_ID, value);
 }
 
+export async function setMcpProviders(
+  value: McpProviderConfig[],
+): Promise<void> {
+  const normalized = normalizeMcpProviders(value);
+  await writePref(KEY_MCP_PROVIDERS, normalized);
+  const context7 = getRemoteMcpProviderConfig(normalized, "context7");
+  await writePref(KEY_CONTEXT7_URL, context7.url ?? DEFAULT_CONTEXT7_MCP_URL);
+  const exa = getRemoteMcpProviderConfig(normalized, "exa");
+  await writePref(
+    KEY_REFACTOR_MCP_ENABLED,
+    Boolean(exa.enabled || context7.enabled),
+  );
+}
+
+export async function upsertMcpProvider(
+  id: RemoteMcpProviderId,
+  patch: Partial<McpProviderConfig>,
+): Promise<void> {
+  const prefs = await loadPreferences();
+  const current = getRemoteMcpProviderConfig(prefs.mcpProviders, id);
+  const next = normalizeMcpProviders(
+    prefs.mcpProviders.map((entry) =>
+      entry.id === id
+        ? {
+            ...current,
+            ...patch,
+            id,
+          }
+        : entry,
+    ),
+  );
+  await setMcpProviders(next);
+}
+
+export async function setManagedMcpPresets(
+  value: ManagedMcpPresetConfig[],
+): Promise<void> {
+  await writePref(KEY_MANAGED_MCP_PRESETS, normalizeManagedMcpPresets(value));
+}
+
+export async function upsertManagedMcpPreset(
+  id: ManagedMcpPresetId,
+  patch: Partial<ManagedMcpPresetConfig>,
+): Promise<void> {
+  const prefs = await loadPreferences();
+  const current = getManagedMcpPresetConfig(prefs.managedMcpPresets, id);
+  const next = normalizeManagedMcpPresets(
+    prefs.managedMcpPresets.map((entry) =>
+      entry.id === id
+        ? {
+            ...current,
+            ...patch,
+            id,
+          }
+        : entry,
+    ),
+  );
+  await setManagedMcpPresets(next);
+}
+
 export async function setFirstRunSetupDone(value: boolean): Promise<void> {
   await writePref(KEY_FIRST_RUN_SETUP_DONE, value);
 }
@@ -546,11 +647,31 @@ export async function setKimiproxyPath(value: string): Promise<void> {
 }
 
 export async function setContext7Url(value: string): Promise<void> {
-  await writePref(KEY_CONTEXT7_URL, value.trim());
+  const trimmed = value.trim() || DEFAULT_CONTEXT7_MCP_URL;
+  await writePref(KEY_CONTEXT7_URL, trimmed);
+  await upsertMcpProvider("context7", { url: trimmed });
 }
 
 export async function setRefactorMcpEnabled(value: boolean): Promise<void> {
   await writePref(KEY_REFACTOR_MCP_ENABLED, value);
+  await setMcpProviders(
+    normalizeMcpProviders([
+      {
+        ...getRemoteMcpProviderConfig(
+          (await loadPreferences()).mcpProviders,
+          "exa",
+        ),
+        enabled: value,
+      },
+      {
+        ...getRemoteMcpProviderConfig(
+          (await loadPreferences()).mcpProviders,
+          "context7",
+        ),
+        enabled: value,
+      },
+    ]),
+  );
 }
 
 export async function setFavoriteModelIds(value: string[]): Promise<void> {
@@ -653,6 +774,7 @@ export async function onPreferencesChange(
     [KEY_DEEPSPROXY_PATH]: "deepsproxyPath",
     [KEY_KIMIPROXY_PATH]: "kimiproxyPath",
     [KEY_THEME]: "theme",
+    [KEY_UI_LOCALE]: "uiLocale",
     [KEY_THEME_ID]: "themeId",
     [KEY_BG_KIND]: "backgroundKind",
     [KEY_BG_IMAGE_ID]: "backgroundImageId",
@@ -678,6 +800,8 @@ export async function onPreferencesChange(
     [KEY_OPENAI_COMPAT_MODEL_ID]: "openaiCompatibleModelId",
     [KEY_OPENAI_COMPAT_CONTEXT_LIMIT]: "openaiCompatibleContextLimit",
     [KEY_OPENROUTER_MODEL_ID]: "openrouterModelId",
+    [KEY_MCP_PROVIDERS]: "mcpProviders",
+    [KEY_MANAGED_MCP_PRESETS]: "managedMcpPresets",
     [KEY_CONTEXT7_URL]: "context7Url",
     [KEY_REFACTOR_MCP_ENABLED]: "refactorMcpEnabled",
     [KEY_FAVORITE_MODELS]: "favoriteModelIds",

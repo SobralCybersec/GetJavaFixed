@@ -1,6 +1,10 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_PROVIDER_KEYS } from "./keyring";
+import {
+  DEFAULT_CONTEXT7_MCP_URL,
+  EXA_MCP_URL,
+} from "./mcpRegistry";
 
 const runAgentStreamMock = vi.fn();
 const planAgentTurnCapabilitiesMock = vi.fn();
@@ -9,6 +13,9 @@ const invalidateCachedMcpToolBundleMock = vi.fn();
 const getRefactorToolKeyMock = vi.fn();
 
 vi.mock("./agent", () => ({
+  LIVE_RESEARCH_UNAVAILABLE_NOTICE:
+    "Live web/docs research was explicitly requested, but MCP research tools were unavailable this turn. Do not answer that research request from memory or local workspace files as a substitute. State clearly that live web research could not be performed, and only add clearly-labeled local workspace context as an optional fallback.",
+  messageLikelyNeedsResearchMcpTools: vi.fn(() => true),
   runAgentStream: runAgentStreamMock,
   planAgentTurnCapabilities: planAgentTurnCapabilitiesMock,
 }));
@@ -23,6 +30,27 @@ vi.mock("./toolKeyring", () => ({
 }));
 
 const { createContextAwareTransport } = await import("./transport");
+
+function buildMcpConfig() {
+  return {
+    providers: [
+      {
+        id: "exa",
+        label: "Exa",
+        enabled: true,
+        url: EXA_MCP_URL,
+        auth: "x-api-key" as const,
+      },
+      {
+        id: "context7",
+        label: "Context7",
+        enabled: true,
+        url: DEFAULT_CONTEXT7_MCP_URL,
+        auth: "bearer" as const,
+      },
+    ],
+  };
+}
 
 function userMessage(text: string): UIMessage {
   return {
@@ -56,11 +84,7 @@ function makeDeps() {
       workspaceRoot: null,
       activeFile: null,
     }),
-    getMcpConfig: () => ({
-      exaEnabled: true,
-      context7Enabled: true,
-      context7Url: "https://mcp.context7.com/mcp",
-    }),
+    getMcpConfig: () => buildMcpConfig(),
   };
 }
 
@@ -86,6 +110,7 @@ describe("context-aware transport", () => {
     expect(planAgentTurnCapabilitiesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         modelId: "gpt-5.4-mini",
+        selectedAgentRequiresManagedMcp: null,
       }),
     );
     expect(getCachedMcpToolBundleMock).not.toHaveBeenCalled();
@@ -94,6 +119,35 @@ describe("context-aware transport", () => {
       expect.objectContaining({
         mcpTools: undefined,
         mcpToolNames: undefined,
+      }),
+    );
+  });
+
+  it("passes the selected agent MCP requirement into turn planning", async () => {
+    const transport = createContextAwareTransport({
+      ...makeDeps(),
+      getAgentPersona: () => ({
+        name: "Juuzou Suzuya",
+        instructions: "Debugger-first reverse-engineering specialist.",
+        requiresManagedMcp: "x64dbg",
+      }),
+    });
+
+    await transport.sendMessages({
+      messages: [userMessage("What's wrong here?")],
+    });
+
+    expect(planAgentTurnCapabilitiesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedAgentRequiresManagedMcp: "x64dbg",
+      }),
+    );
+    expect(runAgentStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentPersona: expect.objectContaining({
+          name: "Juuzou Suzuya",
+          requiresManagedMcp: "x64dbg",
+        }),
       }),
     );
   });
@@ -116,11 +170,24 @@ describe("context-aware transport", () => {
     });
 
     expect(getCachedMcpToolBundleMock).toHaveBeenCalledWith({
-      exaEnabled: true,
-      exaApiKey: "exa-key",
-      context7Enabled: true,
-      context7ApiKey: "context7-key",
-      context7Url: "https://mcp.context7.com/mcp",
+      providers: [
+        {
+          id: "exa",
+          label: "Exa",
+          enabled: true,
+          url: EXA_MCP_URL,
+          auth: "x-api-key",
+          apiKey: "exa-key",
+        },
+        {
+          id: "context7",
+          label: "Context7",
+          enabled: true,
+          url: DEFAULT_CONTEXT7_MCP_URL,
+          auth: "bearer",
+          apiKey: "context7-key",
+        },
+      ],
     });
     expect(runAgentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -149,11 +216,24 @@ describe("context-aware transport", () => {
     await pending;
 
     expect(invalidateCachedMcpToolBundleMock).toHaveBeenCalledWith({
-      exaEnabled: true,
-      exaApiKey: "exa-key",
-      context7Enabled: true,
-      context7ApiKey: "context7-key",
-      context7Url: "https://mcp.context7.com/mcp",
+      providers: [
+        {
+          id: "exa",
+          label: "Exa",
+          enabled: true,
+          url: EXA_MCP_URL,
+          auth: "x-api-key",
+          apiKey: "exa-key",
+        },
+        {
+          id: "context7",
+          label: "Context7",
+          enabled: true,
+          url: DEFAULT_CONTEXT7_MCP_URL,
+          auth: "bearer",
+          apiKey: "context7-key",
+        },
+      ],
     });
     expect(runAgentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -186,7 +266,8 @@ describe("context-aware transport", () => {
     expect(runAgentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
         runtimeNotices: expect.arrayContaining([
-          expect.stringContaining("Do not claim you searched the web"),
+          expect.stringContaining("Do not answer that research request from memory"),
+          expect.stringContaining("live web research could not be performed"),
         ]),
       }),
     );

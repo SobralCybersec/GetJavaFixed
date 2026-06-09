@@ -102,7 +102,67 @@ describe("runSubagent", () => {
     );
   });
 
-  it("filters out unsupported MCP tools from the subagent runtime", async () => {
+  it("gives subagents their own named identity in the prompt", async () => {
+    await runSubagent({
+      type: "security",
+      prompt: "Audit this code",
+      keys: { ...EMPTY_PROVIDER_KEYS },
+      modelId: "gpt-5.4-mini",
+      toolContext: {
+        getCwd: () => null,
+        getWorkspaceRoot: () => null,
+        getTerminalContext: () => null,
+        isActiveTerminalPrivate: () => false,
+        injectIntoActivePty: () => false,
+        openPreview: () => false,
+        spawnAgent: () => null,
+        readAgentOutput: () => null,
+        readCache: new Map(),
+        getSessionId: () => "session-1",
+      },
+    });
+
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        system: expect.stringContaining("You are Koutarou Amon"),
+      }),
+    );
+  });
+
+  it("passes safe managed MCP tools into subagents", async () => {
+    await runSubagent({
+      type: "general",
+      prompt: "Inspect the current registers in x64dbg",
+      keys: { ...EMPTY_PROVIDER_KEYS },
+      modelId: "gpt-5.4-mini",
+      toolContext: {
+        getCwd: () => null,
+        getWorkspaceRoot: () => null,
+        getTerminalContext: () => null,
+        isActiveTerminalPrivate: () => false,
+        injectIntoActivePty: () => false,
+        openPreview: () => false,
+        spawnAgent: () => null,
+        readAgentOutput: () => null,
+        readCache: new Map(),
+        getSessionId: () => "session-1",
+      },
+      mcpTools: {
+        GetRegisterDump: { description: "register dump" },
+      },
+      mcpToolNames: ["GetRegisterDump"],
+    });
+
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: expect.objectContaining({
+          GetRegisterDump: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("only exposes MCP tools explicitly approved by the parent runtime", async () => {
     await runSubagent({
       type: "explore",
       prompt: "Inspect repo",
@@ -121,12 +181,14 @@ describe("runSubagent", () => {
         getSessionId: () => "session-1",
       },
       mcpTools: {
+        web_search_exa: { description: "search" },
         made_up_tool: { description: "nope" },
       },
-      mcpToolNames: ["made_up_tool"],
+      mcpToolNames: ["web_search_exa"],
     });
 
     const call = generateTextMock.mock.calls[0]?.[0];
+    expect(call.tools).toHaveProperty("web_search_exa");
     expect(call.tools).not.toHaveProperty("made_up_tool");
   });
 });

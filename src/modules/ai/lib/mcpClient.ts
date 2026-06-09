@@ -1,42 +1,17 @@
 import { createMCPClient } from "@ai-sdk/mcp";
-import { safeWindowFetch } from "./proxyFetch";
+import {
+  getManagedMcpSafeToolNames,
+  type HttpMcpProviderRuntimeConfig,
+} from "./mcpRegistry";
+import { createProxyFetch, safeWindowFetch } from "./proxyFetch";
 
 export type McpConfig = {
-  exaEnabled?: boolean;
-  exaApiKey?: string;
-  context7Enabled?: boolean;
-  context7Url?: string;
-  context7ApiKey?: string;
+  providers: HttpMcpProviderRuntimeConfig[];
 };
 
 type McpToolSet = Awaited<
   ReturnType<Awaited<ReturnType<typeof createMCPClient>>["tools"]>
 >;
-
-export function createExaClient(apiKey: string) {
-  return createMCPClient({
-    transport: {
-      type: "http",
-      url: "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,web_fetch_exa",
-      headers: { "x-api-key": apiKey },
-      fetch: safeWindowFetch,
-    },
-  });
-}
-
-export function createContext7Client(
-  baseUrl = "https://mcp.context7.com/mcp",
-  apiKey?: string,
-) {
-  return createMCPClient({
-    transport: {
-      type: "http",
-      url: baseUrl,
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
-      fetch: safeWindowFetch,
-    },
-  });
-}
 
 type RefactorMcpTools = {
   tools: McpToolSet;
@@ -55,28 +30,107 @@ type McpCacheEntry = {
   disposed: boolean;
 };
 
+type LoadableClient = Awaited<ReturnType<typeof createMCPClient>>;
+
+type McpProviderResult = Awaited<ReturnType<typeof loadMcpProvider>>;
+
 const mcpBundleCache = new Map<string, McpCacheEntry>();
 const MAX_CACHED_MCP_BUNDLES = 1;
 const MCP_PROVIDER_TIMEOUT_MS = 3_500;
+const loopbackMcpFetch = createProxyFetch({ allowPrivateNetwork: true });
 const EMPTY_CACHED_MCP_BUNDLE: CachedMcpBundle = {
   tools: {} as McpToolSet,
   toolNames: [],
   close: async () => {},
 };
 
-function normalizeMcpConfig(config: McpConfig): McpConfig {
+export function createHttpMcpClient(
+  provider: HttpMcpProviderRuntimeConfig,
+): Promise<LoadableClient> {
+  const apiHeaders: Record<string, string> = {};
+  if (provider.apiKey) {
+    if (provider.auth === "x-api-key") {
+      apiHeaders["x-api-key"] = provider.apiKey;
+    } else if (provider.auth === "bearer") {
+      apiHeaders.Authorization = `Bearer ${provider.apiKey}`;
+    }
+  }
+
+  return createMCPClient({
+    transport: {
+      type: "http",
+      url: provider.url,
+      headers: {
+        ...provider.headers,
+        ...apiHeaders,
+      },
+      fetch: selectMcpFetch(provider.url),
+    },
+  });
+}
+
+function selectMcpFetch(url: string): typeof fetch {
+  return isLoopbackHttpUrl(url) ? loopbackMcpFetch : safeWindowFetch;
+}
+
+function isLoopbackHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    const host = parsed.hostname.toLowerCase();
+    return host === "127.0.0.1" || host === "localhost" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
+export async function probeMcpProvider(
+  provider: HttpMcpProviderRuntimeConfig,
+): Promise<{
+  ok: boolean;
+  toolNames: string[];
+  errorMessage?: string;
+}> {
+  const result = await loadMcpProvider(provider, () => createHttpMcpClient(provider));
+  if (!result.ok) {
+    return {
+      ok: false,
+      toolNames: [],
+      errorMessage:
+        result.error instanceof Error ? result.error.message : String(result.error),
+    };
+  }
+  await result.client.close().catch(() => undefined);
   return {
-    exaEnabled: !!config.exaEnabled && !!config.exaApiKey?.trim(),
-    exaApiKey: config.exaApiKey?.trim() || undefined,
-    context7Enabled: config.context7Enabled !== false,
-    context7Url: config.context7Url?.trim() || undefined,
-    context7ApiKey: config.context7ApiKey?.trim() || undefined,
+    ok: true,
+    toolNames: Object.keys(result.tools),
   };
 }
 
+function normalizeMcpConfig(config: McpConfig): McpConfig {
+  const providers = (config.providers ?? [])
+    .filter(
+      (provider): provider is HttpMcpProviderRuntimeConfig =>
+        !!provider &&
+        provider.enabled !== false &&
+        typeof provider.id === "string" &&
+        typeof provider.url === "string" &&
+        provider.url.trim().length > 0,
+    )
+    .map((provider) => ({
+      ...provider,
+      url: provider.url.trim(),
+      apiKey: provider.apiKey?.trim() || undefined,
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+
+  return { providers };
+}
+
 function mcpConfigCacheKey(config: McpConfig): string {
-  const normalized = normalizeMcpConfig(config);
-  return JSON.stringify(normalized);
+  return JSON.stringify(normalizeMcpConfig(config));
 }
 
 async function disposeCacheEntry(entry: McpCacheEntry | undefined): Promise<void> {
@@ -90,10 +144,7 @@ async function disposeCacheEntry(entry: McpCacheEntry | undefined): Promise<void
   }
 }
 
-function createCacheEntry(
-  cacheKey: string,
-  config: McpConfig,
-): McpCacheEntry {
+function createCacheEntry(cacheKey: string, config: McpConfig): McpCacheEntry {
   const entry: McpCacheEntry = {
     promise: Promise.resolve(EMPTY_CACHED_MCP_BUNDLE),
     bundle: null,
@@ -153,17 +204,27 @@ function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
   message: string,
+  onLateResolve?: (value: T) => void,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    let settled = false;
     const timeout = setTimeout(() => {
+      settled = true;
       reject(new Error(message));
     }, timeoutMs);
     promise.then(
       (value) => {
+        if (settled) {
+          onLateResolve?.(value);
+          return;
+        }
+        settled = true;
         clearTimeout(timeout);
         resolve(value);
       },
       (error) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
         reject(error);
       },
@@ -172,12 +233,12 @@ function withTimeout<T>(
 }
 
 async function loadMcpProvider(
-  providerName: string,
-  loadClient: () => Promise<Awaited<ReturnType<typeof createMCPClient>>>,
+  provider: HttpMcpProviderRuntimeConfig,
+  loadClient: () => Promise<LoadableClient>,
 ): Promise<
   | {
       ok: true;
-      client: Awaited<ReturnType<typeof createMCPClient>>;
+      client: LoadableClient;
       tools: Record<string, unknown>;
     }
   | {
@@ -185,19 +246,26 @@ async function loadMcpProvider(
       error: unknown;
     }
 > {
-  let client: Awaited<ReturnType<typeof createMCPClient>> | null = null;
+  let client: LoadableClient | null = null;
   try {
     client = await withTimeout(
       loadClient(),
       MCP_PROVIDER_TIMEOUT_MS,
-      `${providerName} MCP client bootstrap timed out`,
+      `${provider.label} MCP client bootstrap timed out`,
+      (lateClient) => {
+        void lateClient.close().catch(() => undefined);
+      },
     );
     const tools = await withTimeout(
       client.tools(),
       MCP_PROVIDER_TIMEOUT_MS,
-      `${providerName} MCP tool discovery timed out`,
+      `${provider.label} MCP tool discovery timed out`,
     );
-    return { ok: true, client, tools: tools as Record<string, unknown> };
+    const filteredTools = filterProviderTools(
+      provider.id,
+      tools as Record<string, unknown>,
+    );
+    return { ok: true, client, tools: filteredTools };
   } catch (error) {
     if (client) {
       try {
@@ -210,28 +278,26 @@ async function loadMcpProvider(
   }
 }
 
-type McpProviderResult = Awaited<ReturnType<typeof loadMcpProvider>>;
+function filterProviderTools(
+  providerId: string,
+  tools: Record<string, unknown>,
+): Record<string, unknown> {
+  const allowlist = getManagedMcpSafeToolNames(providerId);
+  if (!allowlist) return tools;
+  return Object.fromEntries(
+    Object.entries(tools).filter(([name]) => allowlist.has(name)),
+  );
+}
 
 export async function createRefactorMcpTools(
   config: McpConfig,
 ): Promise<RefactorMcpTools> {
-  const providers: Array<Promise<McpProviderResult>> = [];
-
-  if (config.exaEnabled && config.exaApiKey) {
-    providers.push(
-      loadMcpProvider("Exa", () => createExaClient(config.exaApiKey!)),
-    );
-  }
-
-  if (config.context7Enabled !== false) {
-    providers.push(
-      loadMcpProvider("Context7", () =>
-        createContext7Client(config.context7Url, config.context7ApiKey),
-      ),
-    );
-  }
-
+  const normalized = normalizeMcpConfig(config);
+  const providers = normalized.providers.map((provider) =>
+    loadMcpProvider(provider, () => createHttpMcpClient(provider)),
+  );
   const results = await Promise.all(providers);
+
   const successes = results.filter(
     (result): result is Extract<McpProviderResult, { ok: true }> => result.ok,
   );
@@ -254,9 +320,7 @@ export async function createRefactorMcpTools(
       ...successes.map((result) => result.tools),
     ) as RefactorMcpTools["tools"],
     close: async () => {
-      await Promise.allSettled(
-        successes.map((result) => result.client.close()),
-      );
+      await Promise.allSettled(successes.map((result) => result.client.close()));
     },
   };
 }
@@ -265,7 +329,7 @@ export async function getCachedMcpToolBundle(
   config: McpConfig,
 ): Promise<CachedMcpBundle> {
   const normalized = normalizeMcpConfig(config);
-  if (!normalized.exaEnabled && normalized.context7Enabled === false) {
+  if (normalized.providers.length === 0) {
     if (mcpBundleCache.size > 0) {
       await closeAllCachedMcpToolBundles();
     }

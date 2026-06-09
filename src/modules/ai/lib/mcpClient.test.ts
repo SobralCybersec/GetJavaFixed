@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  DEFAULT_CONTEXT7_MCP_URL,
+  EXA_MCP_URL,
+} from "./mcpRegistry";
+import type { McpConfig } from "./mcpClient";
 
 const createMCPClientMock = vi.fn();
 
@@ -7,6 +12,7 @@ vi.mock("@ai-sdk/mcp", () => ({
 }));
 
 vi.mock("./proxyFetch", () => ({
+  createProxyFetch: vi.fn(() => vi.fn()),
   safeWindowFetch: vi.fn(),
 }));
 
@@ -25,11 +31,37 @@ function makeClient(toolName: string) {
   };
 }
 
-const baseConfig = {
-  exaEnabled: true,
-  exaApiKey: "exa-key",
-  context7Enabled: false,
-};
+function makeConfig(args: {
+  exaApiKey?: string;
+  includeContext7?: boolean;
+  context7ApiKey?: string;
+  context7Url?: string;
+} = {}): McpConfig {
+  return {
+    providers: [
+      {
+        id: "exa",
+        label: "Exa",
+        enabled: true,
+        url: EXA_MCP_URL,
+        auth: "x-api-key",
+        apiKey: args.exaApiKey ?? "exa-key",
+      },
+      ...(args.includeContext7
+        ? [
+            {
+              id: "context7",
+              label: "Context7",
+              enabled: true,
+              url: args.context7Url ?? DEFAULT_CONTEXT7_MCP_URL,
+              auth: "bearer" as const,
+              apiKey: args.context7ApiKey,
+            },
+          ]
+        : []),
+    ],
+  };
+}
 
 describe("mcp client cache", () => {
   beforeEach(async () => {
@@ -38,6 +70,7 @@ describe("mcp client cache", () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     await closeAllCachedMcpToolBundles();
   });
 
@@ -45,8 +78,8 @@ describe("mcp client cache", () => {
     const client = makeClient("web_search_exa");
     createMCPClientMock.mockResolvedValue(client);
 
-    const first = await getCachedMcpToolBundle(baseConfig);
-    const second = await getCachedMcpToolBundle(baseConfig);
+    const first = await getCachedMcpToolBundle(makeConfig());
+    const second = await getCachedMcpToolBundle(makeConfig());
 
     expect(first).toBe(second);
     expect(first.toolNames).toEqual(["web_search_exa"]);
@@ -69,14 +102,8 @@ describe("mcp client cache", () => {
       .mockResolvedValueOnce(firstClient)
       .mockResolvedValueOnce(secondClient);
 
-    await getCachedMcpToolBundle({
-      ...baseConfig,
-      exaApiKey: "exa-key-a",
-    });
-    const next = await getCachedMcpToolBundle({
-      ...baseConfig,
-      exaApiKey: "exa-key-b",
-    });
+    await getCachedMcpToolBundle(makeConfig({ exaApiKey: "exa-key-a" }));
+    const next = await getCachedMcpToolBundle(makeConfig({ exaApiKey: "exa-key-b" }));
 
     expect(firstClient.close).toHaveBeenCalledTimes(1);
     expect(secondClient.close).not.toHaveBeenCalled();
@@ -90,9 +117,9 @@ describe("mcp client cache", () => {
       .mockResolvedValueOnce(firstClient)
       .mockResolvedValueOnce(secondClient);
 
-    await getCachedMcpToolBundle(baseConfig);
-    await invalidateCachedMcpToolBundle(baseConfig);
-    const rebuilt = await getCachedMcpToolBundle(baseConfig);
+    await getCachedMcpToolBundle(makeConfig());
+    await invalidateCachedMcpToolBundle(makeConfig());
+    const rebuilt = await getCachedMcpToolBundle(makeConfig());
 
     expect(firstClient.close).toHaveBeenCalledTimes(1);
     expect(createMCPClientMock).toHaveBeenCalledTimes(2);
@@ -105,13 +132,65 @@ describe("mcp client cache", () => {
       .mockResolvedValueOnce(exaClient)
       .mockRejectedValueOnce(new Error("context7 down"));
 
-    const bundle = await getCachedMcpToolBundle({
-      ...baseConfig,
-      context7Enabled: true,
-      context7Url: "https://mcp.context7.com/mcp",
-    });
+    const bundle = await getCachedMcpToolBundle(
+      makeConfig({
+        includeContext7: true,
+        context7Url: "https://mcp.context7.com/mcp",
+      }),
+    );
 
     expect(bundle.toolNames).toEqual(["web_search_exa"]);
     expect(exaClient.close).not.toHaveBeenCalled();
+  });
+
+  it("closes clients that resolve after provider bootstrap timeout", async () => {
+    vi.useFakeTimers();
+    const lateClient = makeClient("web_search_exa");
+    let resolveClient!: (client: ReturnType<typeof makeClient>) => void;
+    createMCPClientMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveClient = resolve;
+      }),
+    );
+
+    const pending = getCachedMcpToolBundle(makeConfig());
+    const timeoutAssertion = expect(pending).rejects.toThrow(
+      /bootstrap timed out/,
+    );
+    await vi.advanceTimersByTimeAsync(3_500);
+    await timeoutAssertion;
+
+    resolveClient(lateClient);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(lateClient.close).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("filters managed x64dbg tools down to the app-safe allowlist", async () => {
+    createMCPClientMock.mockResolvedValue({
+      tools: vi.fn().mockResolvedValue({
+        GetRegisterDump: { description: "safe" },
+        GetCallStack: { description: "safe" },
+        MemoryWrite: { description: "unsafe" },
+        ExecCommand: { description: "unsafe" },
+      }),
+      close: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const bundle = await getCachedMcpToolBundle({
+      providers: [
+        {
+          id: "x64dbg",
+          label: "x64dbg MCP",
+          enabled: true,
+          url: "http://127.0.0.1:8877/mcp",
+          auth: "none",
+        },
+      ],
+    });
+
+    expect(bundle.toolNames).toEqual(["GetRegisterDump", "GetCallStack"]);
   });
 });

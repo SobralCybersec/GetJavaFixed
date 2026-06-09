@@ -11,8 +11,22 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useDragControls, useReducedMotion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  motion,
+  useInView,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+  useDragControls,
+} from "motion/react";
+import {
+  fadeUp,
+  hoverLift,
+  scaleIn,
+  staggerFast,
+} from "@/modules/dashboard/animations";
 
 import { PlanDiffReview } from "@/modules/ai/components/PlanDiffReview";
 import {
@@ -33,6 +47,15 @@ import {
   type FindingsRepo,
 } from "@/modules/findings/lib/useFindings";
 import { useRefactorGeneration } from "@/modules/findings/lib/useRefactorGeneration";
+import {
+  getManagedMcpHealthSnapshots,
+  useManagedMcpStore,
+} from "@/modules/ai/lib/managedMcp";
+import {
+  buildRuntimeMcpConfig,
+  getManagedMcpPresetConfig,
+  getRemoteMcpProviderConfig,
+} from "@/modules/ai/lib/mcpRegistry";
 import { useChatStore } from "@/modules/ai/store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
@@ -81,7 +104,10 @@ export function FindingsDashboard({
   const selectedModelId = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const prefs = usePreferencesStore();
+  const x64dbgStatus = useManagedMcpStore((s) => s.statuses.x64dbg);
   const reduceMotion = useReducedMotion();
+  const context7Provider = getRemoteMcpProviderConfig(prefs.mcpProviders, "context7");
+  const x64dbgPreset = getManagedMcpPresetConfig(prefs.managedMcpPresets, "x64dbg");
 
   useEffect(() => {
     let alive = true;
@@ -113,13 +139,15 @@ export function FindingsDashboard({
       openrouterModelId: prefs.openrouterModelId,
       refactorCustomInstructions: prefs.refactorCustomInstructions,
     },
-    {
-      exaEnabled: prefs.refactorMcpEnabled,
-      exaApiKey: exaApiKey ?? undefined,
-      context7Enabled: prefs.refactorMcpEnabled,
-      context7Url: prefs.context7Url,
-      context7ApiKey: context7ApiKey ?? undefined,
-    },
+    buildRuntimeMcpConfig({
+      providers: prefs.mcpProviders,
+      managedPresets: prefs.managedMcpPresets,
+      managedHealth: getManagedMcpHealthSnapshots(),
+      toolKeys: {
+        exa: exaApiKey,
+        context7: context7ApiKey,
+      },
+    }),
   );
   const { reset: resetRefactor } = refactor;
 
@@ -145,7 +173,7 @@ export function FindingsDashboard({
     <div className="javarf-ops-dashboard relative flex h-full min-h-0 flex-col overflow-auto bg-background text-foreground">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_8%,color-mix(in_oklab,var(--primary)_10%,transparent),transparent_26%),radial-gradient(circle_at_88%_4%,color-mix(in_oklab,var(--accent)_8%,transparent),transparent_24%),linear-gradient(180deg,color-mix(in_oklab,var(--card)_86%,transparent),transparent_58%)]"
+        className="dashboard-findings-gradient pointer-events-none absolute inset-0"
       />
       {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border/60 bg-card/92 px-4 py-3 backdrop-blur xl:px-6">
@@ -281,11 +309,17 @@ export function FindingsDashboard({
 
               {findings.length > 0 ? (
                 <ScrollArea className="h-[min(56vh,560px)] pr-1 xl:h-[calc(100vh-24rem)]">
-                  <div role="list" className="space-y-2">
+                  <motion.div
+                    role="list"
+                    className="space-y-2"
+                    variants={reduceMotion ? undefined : staggerFast}
+                    initial="hidden"
+                    animate="visible"
+                  >
                     {findings.map((finding) => {
                       const active = selectedFinding?.id === finding.id;
                       return (
-                        <button
+                        <motion.button
                           key={finding.id}
                           type="button"
                           role="listitem"
@@ -293,6 +327,8 @@ export function FindingsDashboard({
                             handleSelectFinding(finding.id);
                             setDetailOpen(window.innerWidth < 1280);
                           }}
+                          variants={reduceMotion ? undefined : fadeUp}
+                          {...(reduceMotion ? {} : hoverLift)}
                           className={cn(
                             "javarf-terminal-panel flex w-full items-start gap-3 border px-4 py-3 text-left transition-[border-color,background-color] duration-100",
                             active
@@ -314,10 +350,10 @@ export function FindingsDashboard({
                               {finding.affectedFiles.length === 1 ? " file" : " files"}
                             </p>
                           </div>
-                        </button>
+                        </motion.button>
                       );
                     })}
-                  </div>
+                  </motion.div>
                 </ScrollArea>
               ) : null}
             </CardContent>
@@ -446,8 +482,14 @@ export function FindingsDashboard({
                   exaApiKey={exaApiKey}
                   context7ApiKey={context7ApiKey}
                   toolKeysLoaded={toolKeysLoaded}
-                  context7Url={prefs.context7Url}
-                  mcpEnabled={prefs.refactorMcpEnabled}
+                  context7Url={context7Provider.url ?? prefs.context7Url}
+                  mcpEnabled={
+                    prefs.mcpProviders.some((provider) => provider.enabled) ||
+                    prefs.managedMcpPresets.some((preset) => preset.enabled)
+                  }
+                  x64dbgEnabled={x64dbgPreset.enabled}
+                  x64dbgHealthy={x64dbgStatus.healthy}
+                  x64dbgState={x64dbgStatus.state}
                   onExaKeySaved={setExaApiKey}
                   onContext7KeySaved={setContext7ApiKey}
                 />
@@ -787,8 +829,35 @@ function KpiCard({
   hint: string;
   compact?: boolean;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const reduced = useReducedMotion();
+
+  // Animate numeric values; leave strings as-is
+  const isNumeric = typeof value === "number";
+  const motionVal = useMotionValue(0);
+  const spring = useSpring(motionVal, { stiffness: 60, damping: 18 });
+  const displayNum = useTransform(spring, (v) => String(Math.round(v)));
+  const [numStr, setNumStr] = useState(isNumeric ? String(value) : "");
+
+  useEffect(() => {
+    if (!isNumeric || !isInView || reduced) return;
+    motionVal.set(value as number);
+  }, [isInView, isNumeric, value, motionVal, reduced]);
+
+  useEffect(() => {
+    if (!isNumeric) return;
+    const unsub = displayNum.on("change", (v) => setNumStr(v));
+    return unsub;
+  }, [displayNum, isNumeric]);
+
   return (
-    <div
+    <motion.div
+      ref={ref}
+      variants={reduced ? undefined : scaleIn}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "0px 0px -20px 0px" }}
       className={cn(
         "javarf-terminal-panel ops-inset-panel border border-border/70 bg-background/70 px-4 py-3 transition-colors duration-100 hover:border-primary/25",
         compact && "px-3 py-2.5",
@@ -797,13 +866,19 @@ function KpiCard({
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>
-      <div className={cn("mt-2 text-balance text-xl font-semibold leading-tight sm:text-2xl", compact && "text-xl")}>{value}</div>
+      <div className={cn("mt-2 text-balance text-xl font-semibold leading-tight sm:text-2xl", compact && "text-xl")}>
+        {isNumeric ? numStr : value}
+      </div>
       <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">{hint}</p>
-    </div>
+    </motion.div>
   );
 }
 
 function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
+  const ref = useRef<SVGSVGElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const reduced = useReducedMotion();
+
   const total = Math.max(
     1,
     buckets.reduce((sum, bucket) => sum + bucket.count, 0),
@@ -814,7 +889,7 @@ function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
 
   return (
     <div className="relative flex h-36 w-36 items-center justify-center self-center sm:h-44 sm:w-44">
-      <svg viewBox="0 0 140 140" className="h-32 w-32 -rotate-90 sm:h-40 sm:w-40">
+      <svg ref={ref} viewBox="0 0 140 140" className="h-32 w-32 -rotate-90 sm:h-40 sm:w-40">
         <circle
           cx="70"
           cy="70"
@@ -825,8 +900,10 @@ function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
         />
         {buckets.map((bucket, index) => {
           const length = (bucket.count / total) * circumference;
-          const segment = (
-            <circle
+          const segmentOffset = offset;
+          offset += length;
+          return (
+            <motion.circle
               key={bucket.key}
               cx="70"
               cy="70"
@@ -836,11 +913,12 @@ function DonutChart({ buckets }: { buckets: FindingsAnalyticsBucket[] }) {
               strokeWidth="18"
               strokeLinecap="butt"
               strokeDasharray={`${length} ${circumference - length}`}
-              strokeDashoffset={-offset}
+              strokeDashoffset={reduced || !isInView ? -segmentOffset : undefined}
+              initial={reduced ? undefined : { strokeDashoffset: -segmentOffset + circumference, opacity: 0 }}
+              animate={isInView ? { strokeDashoffset: -segmentOffset, opacity: 1 } : {}}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: index * 0.08 }}
             />
           );
-          offset += length;
-          return segment;
         })}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -987,6 +1065,9 @@ function McpResearchCard({
   toolKeysLoaded,
   context7Url,
   mcpEnabled,
+  x64dbgEnabled,
+  x64dbgHealthy,
+  x64dbgState,
   onExaKeySaved,
   onContext7KeySaved,
 }: {
@@ -995,6 +1076,9 @@ function McpResearchCard({
   toolKeysLoaded: boolean;
   context7Url: string;
   mcpEnabled: boolean;
+  x64dbgEnabled: boolean;
+  x64dbgHealthy: boolean;
+  x64dbgState: string;
   onExaKeySaved: (value: string | null) => void;
   onContext7KeySaved: (value: string | null) => void;
 }) {
@@ -1015,6 +1099,11 @@ function McpResearchCard({
             ? "MCP enrichment enabled for the AI agent and refactor previews. Exa tools: web_search_exa + web_fetch_exa."
             : "MCP enrichment disabled in Settings > Models."}
         </div>
+        {x64dbgEnabled ? (
+          <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+            x64dbg managed bridge: {x64dbgHealthy ? "healthy" : x64dbgState}.
+          </div>
+        ) : null}
         <div className="rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>

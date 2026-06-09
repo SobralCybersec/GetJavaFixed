@@ -29,15 +29,12 @@ const DEFAULT_INTRODUCE_PARAMETER_OBJECT: &str =
     include_str!("../../../src/modules/ai/refactoring-db/introduce-parameter-object.md");
 const DEFAULT_LEGACY_COLLECTIONS: &str =
     include_str!("../../../src/modules/ai/refactoring-db/replace-legacy-collections.md");
-const DEFAULT_MODERNIZE_INSTANCEOF: &str = include_str!(
-    "../../../src/modules/ai/refactoring-db/modernize-instanceof-pattern-matching.md"
-);
-const DEFAULT_REFACTOR_SWITCH: &str = include_str!(
-    "../../../src/modules/ai/refactoring-db/refactor-switch-to-pattern-matching.md"
-);
-const DEFAULT_REPLACE_CONDITIONAL: &str = include_str!(
-    "../../../src/modules/ai/refactoring-db/replace-conditional-with-polymorphism.md"
-);
+const DEFAULT_MODERNIZE_INSTANCEOF: &str =
+    include_str!("../../../src/modules/ai/refactoring-db/modernize-instanceof-pattern-matching.md");
+const DEFAULT_REFACTOR_SWITCH: &str =
+    include_str!("../../../src/modules/ai/refactoring-db/refactor-switch-to-pattern-matching.md");
+const DEFAULT_REPLACE_CONDITIONAL: &str =
+    include_str!("../../../src/modules/ai/refactoring-db/replace-conditional-with-polymorphism.md");
 const DEFAULT_REPLACE_EMPTY_CATCH: &str =
     include_str!("../../../src/modules/ai/refactoring-db/replace-empty-catch-with-handling.md");
 const DEFAULT_REPLACE_LOOP_CONCAT: &str = include_str!(
@@ -53,9 +50,8 @@ const DEFAULT_REPLACE_TEMP: &str =
     include_str!("../../../src/modules/ai/refactoring-db/replace-temp-with-query.md");
 const DEFAULT_REPLACE_WILDCARD: &str =
     include_str!("../../../src/modules/ai/refactoring-db/replace-wildcard-imports.md");
-const DEFAULT_SINGLE_RESPONSIBILITY: &str = include_str!(
-    "../../../src/modules/ai/refactoring-db/single-responsibility-extraction.md"
-);
+const DEFAULT_SINGLE_RESPONSIBILITY: &str =
+    include_str!("../../../src/modules/ai/refactoring-db/single-responsibility-extraction.md");
 const DEFAULT_TELL_DONT_ASK: &str =
     include_str!("../../../src/modules/ai/refactoring-db/tell-dont-ask.md");
 
@@ -99,7 +95,10 @@ fn default_file_map() -> HashMap<&'static str, &'static str> {
             "cache-repeated-method-calls.md",
             DEFAULT_CACHE_REPEATED_METHOD_CALLS,
         ),
-        ("extract-duplicate-logic.md", DEFAULT_EXTRACT_DUPLICATE_LOGIC),
+        (
+            "extract-duplicate-logic.md",
+            DEFAULT_EXTRACT_DUPLICATE_LOGIC,
+        ),
         ("extract-method.md", DEFAULT_EXTRACT_METHOD),
         (
             "harden-null-sensitive-calls.md",

@@ -1,6 +1,7 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WindowControls } from "@/components/WindowControls";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { useI18n } from "@/modules/i18n";
 import type { SettingsTab } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
@@ -21,16 +22,6 @@ import { ModelsSection } from "./sections/ModelsSection";
 import { ShortcutsSection } from "./sections/ShortcutsSection";
 import { ThemesSection } from "./sections/ThemesSection";
 
-const TABS: { id: SettingsTab; label: string; icon: typeof Settings01Icon, component: () => JSX.Element }[] =
-  [
-    { id: "general", label: "General", icon: Settings01Icon, component: GeneralSection },
-    { id: "themes", label: "Themes", icon: PaintBoardIcon, component: ThemesSection },
-    { id: "shortcuts", label: "Shortcuts", icon: KeyboardIcon, component: ShortcutsSection },
-    { id: "models", label: "Models", icon: AiScanIcon, component: ModelsSection },
-    { id: "agents", label: "Agents", icon: UserMultiple02Icon, component: AgentsSection },
-    { id: "about", label: "About", icon: InformationCircleIcon, component: AboutSection },
-  ];
-
 const VALID_TABS: SettingsTab[] = [
   "general",
   "themes",
@@ -50,9 +41,53 @@ function readInitialTab(): SettingsTab {
 }
 
 export function SettingsApp() {
+  const { t } = useI18n();
   const [active, setActive] = useState<SettingsTab>(readInitialTab);
   const init = usePreferencesStore((s) => s.init);
-  const ActiveSection = TABS.find(t => t.id === active)?.component;
+  const tabs: {
+    id: SettingsTab;
+    label: string;
+    icon: typeof Settings01Icon;
+    component: () => JSX.Element;
+  }[] = [
+    {
+      id: "general",
+      label: t("settings.tabs.general"),
+      icon: Settings01Icon,
+      component: GeneralSection,
+    },
+    {
+      id: "themes",
+      label: t("settings.tabs.themes"),
+      icon: PaintBoardIcon,
+      component: ThemesSection,
+    },
+    {
+      id: "shortcuts",
+      label: t("settings.tabs.shortcuts"),
+      icon: KeyboardIcon,
+      component: ShortcutsSection,
+    },
+    {
+      id: "models",
+      label: t("settings.tabs.models"),
+      icon: AiScanIcon,
+      component: ModelsSection,
+    },
+    {
+      id: "agents",
+      label: t("settings.tabs.agents"),
+      icon: UserMultiple02Icon,
+      component: AgentsSection,
+    },
+    {
+      id: "about",
+      label: t("settings.tabs.about"),
+      icon: InformationCircleIcon,
+      component: AboutSection,
+    },
+  ];
+  const ActiveSection = tabs.find((tab) => tab.id === active)?.component;
 
   useEffect(() => {
     void init();
@@ -92,14 +127,14 @@ export function SettingsApp() {
           data-tauri-drag-region
         >
           <TabsList className="mx-auto h-7 bg-muted/40 px-2">
-            {TABS.map((t) => (
+            {tabs.map((tab) => (
               <TabsTrigger
-                key={t.id}
-                value={t.id}
+                key={tab.id}
+                value={tab.id}
                 className="h-6 gap-1.5 px-2.5 text-[11.5px]"
               >
-                <HugeiconsIcon icon={t.icon} size={12} strokeWidth={1.75} />
-                <span>{t.label}</span>
+                <HugeiconsIcon icon={tab.icon} size={12} strokeWidth={1.75} />
+                <span>{tab.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>

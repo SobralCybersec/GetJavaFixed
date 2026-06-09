@@ -1,8 +1,509 @@
 <div align="center">
-  <img src="public/java.png" width="144" height="144" alt="" />
-  <h1>GetJavaFix</h1>
 
-  <p><strong>Refactoring Java Lol</strong></p>
+<h1 align="center">
+  JavaRf
+</h1>
 
-  <p>
+Desktop AI workspace for Java refactoring, code review, terminal-driven investigation, MCP-assisted research, and guarded edit workflows.
+
+**English**
+
 </div>
+
+---
+
+<h1 align="center">
+  Demo | Product Walkthrough
+</h1>
+
+JavaRf opens as a Tauri desktop app with a file explorer, terminal, editor, AI chat, findings dashboard, model settings, and a Java refactor preview surface.
+
+Use it to mount a Java repository, scan for refactoring opportunities, ask an AI agent to inspect code with local context, and review generated diffs before any write path is applied.
+
+---
+
+<h1 align="center">
+  Current Result
+</h1>
+
+**JavaRf is a local-first developer tool for Java codebases.**
+
+- Tauri v2 desktop shell with React, TypeScript, Vite, and Rust commands
+- Java repository intake, deterministic findings, and AI refactor previews
+- Multi-provider chat support for cloud, OpenAI-compatible, and local runtimes
+- MCP support for live web/docs research and managed local specialist bridges
+- Settings, themes, shortcuts, localization, and update flow
+
+---
+
+<h1 align="center">
+  Features
+</h1>
+
+* **Java Repository Intake**: Open a workspace, detect Java project context, and keep scan scope visible.
+* **Findings Dashboard**: Rank refactor opportunities with categories, principles, affected files, and impact summaries.
+* **AI Refactor Preview**: Generate reviewable diffs for selected findings before applying changes.
+* **Context-Aware Chat**: Inject active workspace, terminal cwd, active file, and project memory into agent turns.
+* **Tool-Gated Agent Runtime**: Expose read, search, edit, shell, preview, subagent, and MCP tools only when the turn needs them.
+* **MCP Research Providers**: Configure Exa and Context7 for live web search, page fetch, and version-aware docs.
+* **Managed Local MCPs**: Enable local specialist bridges such as x64dbg when healthy and explicitly configured.
+* **Agent Personas**: Switch between built-in and custom agents with focused instructions and optional tool requirements.
+* **Terminal Workspace**: Use integrated terminals with private mode, background jobs, logs, and command suggestions.
+* **Code Editor & Explorer**: Browse files, open tabs, preview markdown, inspect git history, and edit code.
+* **Themes & Localization**: Customize UI themes and use English or Portuguese (Brazil) localization.
+* **Desktop Updater**: Tauri updater integration with platform-specific package guidance.
+
+### Advanced Features
+
+* **Context Repair**: Strip pasted tool traces and keep the latest direct request as the live instruction.
+* **Research Guardrails**: Warn the model when live web/docs research was requested but MCP tools are unavailable.
+* **Subagent Runtime**: Run scoped read/search/research subagents with an explicit tool allowlist.
+* **Managed MCP Allowlists**: Filter local specialist tools to app-safe operations before exposing them to the model.
+* **Prompt Cache Hints**: Keep stable system prompt pieces separate from turn-specific tool and context guidance.
+* **Terminal Privacy**: Mark private terminals so their output is not sent to the AI context.
+
+---
+
+<h1 align="center">
+  Tech Stack
+</h1>
+
+* **Desktop Shell**: Tauri 2
+* **Backend**: Rust 2021, Tauri commands, filesystem/search/git/terminal modules
+* **Frontend**: React 19, TypeScript, Vite 7, Tailwind CSS 4
+* **AI Runtime**: AI SDK 6 with provider adapters and streamed UI messages
+* **MCP Runtime**: `@ai-sdk/mcp` over remote HTTP and local loopback HTTP transports
+* **Editor**: CodeMirror 6 with language packs, diff views, and Vim support
+* **Terminal**: xterm.js with fit, search, serialize, web-links, and optional WebGL
+* **State**: Zustand stores plus Tauri store/keychain-backed settings
+* **Testing**: Vitest for frontend logic and Cargo tests for Rust modules
+* **Platform**: Windows-first desktop workflow with Linux/macOS bundle configuration
+
+---
+
+<h1 align="center">
+  Installation & Setup
+</h1>
+
+```bash
+git clone https://github.com/SobralCybersec/GetJavaFixed.git
+cd GetJavaFixed
+pnpm install
+```
+
+### Requirements
+
+- Node.js 22+ or 24+
+- pnpm 11+
+- Rust stable toolchain
+- Tauri 2 prerequisites for your OS
+- A configured AI provider key or local OpenAI-compatible runtime
+
+### Quick Build
+
+**Development:**
+```bash
+pnpm tauri dev
+```
+
+**Frontend checks:**
+```bash
+pnpm test
+pnpm build
+```
+
+**Rust checks:**
+```bash
+cd src-tauri
+cargo test
+```
+
+### Cross-Platform Build Scripts
+
+JavaRf uses Tauri's build pipeline rather than custom shell scripts.
+
+**Common commands:**
+```bash
+pnpm dev
+pnpm build
+pnpm tauri dev
+pnpm tauri build
+```
+
+**Generated output:**
+- Frontend bundle: `dist/`
+- Tauri artifacts: `src-tauri/target/`
+- Platform installers: generated by `pnpm tauri build`
+
+### Manual Workflow
+
+```bash
+# 1. Install dependencies
+pnpm install
+
+# 2. Run frontend tests
+pnpm test
+
+# 3. Build frontend assets
+pnpm build
+
+# 4. Run Rust tests
+cd src-tauri
+cargo test
+```
+
+### MCP Setup (Optional)
+
+```bash
+# Remote research MCPs are configured in Settings > Models.
+# Exa requires an API key. Context7 can run with or without an optional key.
+
+# Managed x64dbg bridge assets live in:
+mcps/x64dbgmcp/
+```
+
+---
+
+<h1 align="center">
+  Key Features
+</h1>
+
+### Refactor Workflow Pipeline
+
+```text
+Open workspace
+    |
+Run Java repository intake
+    |
+Build findings queue
+    |
+Select finding
+    |
+Generate AI refactor preview
+    |
+Review diff before edits
+```
+
+### Context-Aware Agent Runtime
+
+Every AI turn can include live runtime context:
+- `workspace_root`
+- `active_terminal_cwd`
+- `active_file`
+- private terminal state
+- project memory from `REFACTOR.md`
+
+The agent planner uses that context to decide whether the model needs read, search, edit, shell, preview, subagent, or MCP tools.
+
+### MCP Tool Selection
+
+JavaRf supports remote and local MCP tools:
+- Exa: live web search and page fetch
+- Context7: version-aware library documentation
+- x64dbg: managed local debugger bridge when enabled and healthy
+
+Tool exposure is turn-scoped. Plain chat does not receive tools. Research turns receive research tools. Debugger turns receive safe managed tools.
+
+### Agent Personas
+
+Built-in and custom agents can change:
+- name
+- description
+- icon
+- instructions
+- required managed MCP preset
+
+Agent identity is separated from the JavaRf host app name, so persona answers stay consistent.
+
+### Safe Refactor Preview
+
+The refactor preview path is designed for review-first work:
+- deterministic findings identify the target
+- AI generates a proposed diff
+- large diffs are mounted lazily
+- edits remain visible before application
+
+### Settings & Customization
+
+Settings include:
+- provider keys and local model endpoints
+- remote MCP providers
+- managed MCP presets
+- custom instructions and agents
+- snippets
+- themes and wallpapers
+- shortcuts
+- language
+- terminal options
+
+---
+
+<h1 align="center">
+  Quality Analysis
+</h1>
+
+### What Works
+
+**Tool-Gated Turns** - The agent runtime narrows available tools to match intent.  
+**Local Context** - Active file and terminal cwd are treated as concrete runtime metadata.  
+**Research Fallback** - If live research was requested but MCP tools are unavailable, the model receives an explicit notice.  
+**Managed MCP Filtering** - x64dbg tools are filtered through a safe allowlist before exposure.  
+**Rust Command Coverage** - Filesystem, git, Java intake, shell, and analysis modules have Cargo tests.  
+**Frontend Logic Coverage** - AI planner, MCP registry/client, terminal helpers, findings analytics, and app routing have Vitest coverage.  
+
+### What Needs Care
+
+**Provider Drift** - AI SDK and provider APIs change quickly; keep tests around tool-call repair and MCP bootstrap behavior.  
+**Local Runtime Tool Calls** - OpenAI-compatible local models can emit malformed tool arguments, so repair and strict guidance remain important.  
+**MCP Availability** - Remote research depends on network, keys, and provider health. Managed local MCPs depend on a healthy local bridge.  
+**Large Workspaces** - Scan limits and partial results should stay visible to avoid overclaiming coverage.  
+**Secrets** - Use keychain-backed settings and private terminal mode for sensitive commands or output.  
+
+### Reference Notes
+
+AI SDK's MCP client exposes `tools()` and `close()` methods, and its official example closes the client in a `finally` block. JavaRf follows that lifecycle so cached or timed-out clients do not linger.
+
+---
+
+<h1 align="center">
+  Usage Examples
+</h1>
+
+### Start the Desktop App
+
+```bash
+pnpm tauri dev
+```
+
+### Run Frontend Tests
+
+```bash
+pnpm test
+```
+
+### Build the Frontend
+
+```bash
+pnpm build
+```
+
+### Run Rust Tests
+
+```bash
+cd src-tauri
+cargo test
+```
+
+### Configure Remote MCP Research
+
+1. Open Settings.
+2. Go to Models.
+3. Enable Exa and/or Context7.
+4. Save the Exa key if using Exa.
+5. Ask a research turn such as: `Search the web for the latest official docs for this library.`
+
+### Configure x64dbg Managed MCP
+
+1. Open Settings.
+2. Go to Models.
+3. Enable the x64dbg managed preset.
+4. Install dependencies.
+5. Start the bridge after x64dbg and its HTTP plugin are available.
+6. Use a debugger-focused agent or ask for register, memory, stack, or disassembly inspection.
+
+---
+
+<h1 align="center">
+  Technical Implementation
+</h1>
+
+### Agent Turn Planning
+
+```ts
+const turnPlan = planAgentTurnCapabilities({
+  modelId,
+  messages,
+  availableTools,
+  mcpToolNames,
+  selectedAgentRequiresManagedMcp,
+});
+```
+
+The plan decides:
+- routed model
+- active tools
+- selected tool set
+- MCP bootstrap need
+- first-tool-call requirement
+- active-file context block inclusion
+
+### MCP Client Lifecycle
+
+```ts
+const bundle = await getCachedMcpToolBundle(runtimeMcpConfig);
+try {
+  await runAgentStream({ mcpTools: bundle.tools });
+} finally {
+  await closeAllCachedMcpToolBundles();
+}
+```
+
+MCP bundles are cached by normalized provider config and closed when invalidated, replaced, or when the window unloads.
+
+### Active File Context
+
+```text
+<env>
+workspace_root: C:/repo
+active_terminal_cwd: C:/repo
+active_file: C:/repo/src/main/java/App.java
+</env>
+```
+
+Only the leading `<env>` block is live metadata. Quoted or pasted env blocks later in a transcript are treated as artifacts.
+
+---
+
+<h1 align="center">
+  Limitations & Disclaimer
+</h1>
+
+### What This Tool Does NOT Do
+
+**No Silent Writes** - AI refactor previews are meant to be reviewed before application.  
+**No Secret Isolation Guarantee** - Private terminal mode prevents app-level AI context sharing, but users remain responsible for where they paste secrets.  
+**No Universal Java Correctness Proof** - Findings are heuristics and should be reviewed with project tests.  
+**No Guaranteed MCP Availability** - Remote and managed MCP tools can be unavailable because of keys, network, local health, or provider outages.  
+**No Replacement for Code Review** - JavaRf assists with review and refactoring; it does not replace maintainers.  
+
+### Known Issues
+
+- MCP bootstrap can time out if a provider or local bridge is slow.
+- Local tool-calling models can require retries when they emit malformed arguments.
+- Large repository scans can return partial findings when safety limits are reached.
+- Tauri desktop behavior depends on OS WebView and platform prerequisites.
+
+### Disclaimer
+
+JavaRf is a developer productivity tool for authorized codebases. Use it only on repositories, terminals, and services you are allowed to inspect or modify.
+
+---
+
+<h1 align="center">
+  Safety System
+</h1>
+
+### Guarded AI Operations
+
+This project includes safeguards around AI-assisted development:
+
+**Safety Capabilities:**
+- Turn-scoped tool exposure
+- Local and remote MCP allowlists
+- Runtime notices when requested research cannot be performed
+- Active-file context rules that distinguish live metadata from pasted transcripts
+- Private terminal mode for sensitive output
+- Diff preview before refactor application
+- Key storage through OS-backed key handling
+
+**Quick Start:**
+```bash
+# Run tests before trusting a change
+pnpm test
+pnpm build
+
+# Run Rust module tests
+cd src-tauri
+cargo test
+```
+
+**Quality Gates:**
+- TypeScript strict mode
+- No unused locals or parameters
+- Vitest logic coverage
+- Cargo tests for backend modules
+- Tauri CSP for desktop webview boundaries
+
+**Components:**
+- `src/modules/ai/lib/agent.ts` - tool planning, prompt assembly, tool-call repair
+- `src/modules/ai/lib/transport.ts` - context-aware chat transport and MCP bootstrap
+- `src/modules/ai/lib/mcpClient.ts` - MCP client cache and lifecycle
+- `src/modules/ai/lib/mcpRegistry.ts` - remote and managed MCP provider registry
+- `src/modules/findings/` - Java findings dashboard and refactor preview
+- `src-tauri/src/modules/` - native filesystem, git, terminal, Java intake, and analysis commands
+
+---
+
+<h1 align="center">
+  Roadmap
+</h1>
+
+* [x] Tauri desktop shell
+* [x] React/Vite frontend
+* [x] Java repository intake
+* [x] Findings dashboard
+* [x] AI refactor preview
+* [x] Integrated terminal
+* [x] File explorer and editor tabs
+* [x] Git history and source control panels
+* [x] Multi-provider AI settings
+* [x] Local OpenAI-compatible runtime support
+* [x] MCP provider registry
+* [x] Exa and Context7 remote MCP support
+* [x] Managed x64dbg MCP preset
+* [x] Agent personas and custom snippets
+* [x] English and Portuguese (Brazil) localization
+* [x] Theme and wallpaper customization
+* [x] Tauri updater integration
+* [ ] Broader Java rule coverage
+* [ ] More integration tests around applying generated diffs
+* [ ] Richer MCP health diagnostics
+* [ ] Release packaging documentation per platform
+
+---
+
+<h1 align="center">References</h1>
+
+<h2 align="center">
+
+**Tauri 2**: [Tauri Documentation](https://tauri.app/)
+
+</h2>
+
+<h2 align="center">
+
+**AI SDK MCP**: [Model Context Protocol Tools](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools)
+
+</h2>
+
+<h2 align="center">
+
+**AI SDK createMCPClient**: [API Reference](https://ai-sdk.dev/docs/reference/ai-sdk-core/create-mcp-client)
+
+</h2>
+
+<h2 align="center">
+
+**Exa MCP**: [Exa MCP Server Documentation](https://docs.exa.ai/reference/mcp-server)
+
+</h2>
+
+<h2 align="center">
+
+**Context7**: [Context7](https://context7.com)
+
+</h2>
+
+<h2 align="center">
+
+**x64dbg MCP**: [x64dbg MCP](https://github.com/wasdubya/x64dbgmcp)
+
+</h2>
+
+<h1 align="center">Credits</h1>
+
+<p align="center">
+  <strong>Developed by:</strong><br>
+  SobralCybersec<br>
+  <em>For authorized software development and code review workflows.</em>
+</p>

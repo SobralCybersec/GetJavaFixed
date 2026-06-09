@@ -1,9 +1,11 @@
+import { cn } from "@/lib/utils";
 import { useChatStore } from "@/modules/ai";
 import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
 import {
   AiOpenButton,
   AiStatusBarControls,
 } from "@/modules/ai/components/AiStatusBarControls";
+import { useI18n } from "@/modules/i18n";
 import {
   Tooltip,
   TooltipContent,
@@ -11,10 +13,9 @@ import {
 } from "@/components/ui/tooltip";
 import { IncognitoIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { WorkspaceEnv } from "@/modules/workspace";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
 import { WorkspaceEnvSelector } from "./WorkspaceEnvSelector";
-import type { WorkspaceEnv } from "@/modules/workspace";
-import { cn } from "@/lib/utils";
 
 type Props = {
   cwd: string | null;
@@ -23,7 +24,6 @@ type Props = {
   onCd: (path: string) => void;
   onWorkspaceChange: (env: WorkspaceEnv) => void;
   onOpenMini: () => void;
-  /** Only rendered when the AI panel is open and a key is loaded. */
   hasComposer: boolean;
   privateActive: boolean;
   zenMode?: boolean;
@@ -44,6 +44,7 @@ export function StatusBar({
   collapsePathBarInZen = false,
   onHoverChange,
 }: Props) {
+  const { t } = useI18n();
   const panelOpen = useChatStore((s) => s.panelOpen);
   const openPanel = useChatStore((s) => s.openPanel);
 
@@ -54,7 +55,10 @@ export function StatusBar({
       onFocusCapture={() => onHoverChange?.(true)}
       onBlurCapture={(event) => {
         const nextTarget = event.relatedTarget;
-        if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+        if (
+          nextTarget instanceof Node &&
+          event.currentTarget.contains(nextTarget)
+        ) {
           return;
         }
         onHoverChange?.(false);
@@ -70,7 +74,7 @@ export function StatusBar({
           className={cn(
             "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out",
             collapsePathBarInZen
-              ? "max-w-0 -translate-y-0.5 opacity-0 pointer-events-none"
+              ? "pointer-events-none max-w-0 -translate-y-0.5 opacity-0"
               : "max-w-full opacity-100",
           )}
           aria-hidden={collapsePathBarInZen}
@@ -82,12 +86,11 @@ export function StatusBar({
             <TooltipTrigger asChild>
               <span className="flex shrink-0 cursor-default items-center gap-1 border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-300">
                 <HugeiconsIcon icon={IncognitoIcon} size={11} strokeWidth={2} />
-                <span>Private channel</span>
+                <span>{t("status.privateChannel")}</span>
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64 text-[11px] leading-relaxed">
-              AI can't see this terminal's output. Use it for secrets, SSH, or
-              anything you don't want sent to the model.
+              {t("status.privateTooltip")}
             </TooltipContent>
           </Tooltip>
         ) : null}
@@ -111,7 +114,7 @@ export function StatusBar({
             </span>
           </div>
           <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/48">
-            stray daemon
+            {t("status.strayDaemon")}
           </span>
         </div>
         <AgentStatusPill onClick={onOpenMini} />

@@ -114,6 +114,24 @@ function ellipsize(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
+const HOST_AGENT_NAME = "JavaRf";
+const LEADING_HOST_IDENTITY_RE = /^You are JavaRf\b/;
+
+function personalizeBaseSystemPrompt(base: string, personaName: string | null): string {
+  const effectiveName = personaName?.trim();
+  if (!effectiveName || effectiveName === HOST_AGENT_NAME) return base;
+  return base.replace(LEADING_HOST_IDENTITY_RE, `You are ${effectiveName}`);
+}
+
+function buildAgentIdentityBlock(personaName: string | null): string {
+  const effectiveName = personaName?.trim();
+  if (!effectiveName || effectiveName === HOST_AGENT_NAME) return "";
+  return `\n\n## AGENT IDENTITY
+- Your name for this turn is ${effectiveName}.
+- ${HOST_AGENT_NAME} is the host application name, not your personal agent name.
+- If the user asks who you are, answer as ${effectiveName}.`;
+}
+
 export type BuildModelOptions = {
   modelIdOverride?: string;
   lmstudioBaseURL?: string;
@@ -140,6 +158,15 @@ function stripLeadingEnvBlock(text: string): string {
 
 function getLastUserTurnText(messages: UIMessage[]): string {
   return stripLeadingEnvBlock(getLastUserText(messages));
+}
+
+function getMessagePlainText(message: UIMessage): string {
+  const text = message.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+  return message.role === "user" ? stripLeadingEnvBlock(text) : text;
 }
 
 const TRANSCRIPT_MARKER_RE =
@@ -208,6 +235,53 @@ function extractTrailingLiveLineCluster(text: string): string | null {
   return candidate && !isArtifactLikeParagraph(candidate) ? candidate : null;
 }
 
+function getRecentConversationContextText(
+  messages: UIMessage[],
+  maxMessages = 4,
+): string {
+  const context: string[] = [];
+  let skippedLatestUser = false;
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "user" && message.role !== "assistant") continue;
+
+    if (!skippedLatestUser && message.role === "user") {
+      skippedLatestUser = true;
+      continue;
+    }
+    if (!skippedLatestUser) continue;
+
+    const text = getMessagePlainText(message);
+    if (!text) continue;
+    context.unshift(text);
+    if (context.length >= maxMessages) break;
+  }
+
+  return context.join("\n\n").trim();
+}
+
+function isLikelyContextDependentFollowUp(text: string): boolean {
+  const trimmed = text.trim().toLowerCase();
+  if (!trimmed || trimmed.length > 120) return false;
+
+  return (
+    /^(?:yes|yeah|yep|ok|okay|sure|please)\b/.test(trimmed) ||
+    /\b(?:again|retry|try again|continue|go ahead|re-?request|re-?run|rerun|do that|do those|use those|use them|use it|those|them|it)\b/.test(
+      trimmed,
+    )
+  );
+}
+
+function getIntentAnalysisText(messages: UIMessage[]): string {
+  const direct = extractLikelyLiveRequestText(messages);
+  if (!isLikelyContextDependentFollowUp(direct)) return direct;
+
+  const context = getRecentConversationContextText(messages);
+  if (!context) return direct;
+  return `${context}\n\n${direct}`.trim();
+}
+
 export function extractLikelyLiveRequestText(messages: UIMessage[]): string {
   const raw = getLastUserTurnText(messages);
   if (!raw) return "";
@@ -242,7 +316,22 @@ type ToolIntent = {
   wantsPreview: boolean;
   wantsDelegation: boolean;
   wantsResearch: boolean;
+  wantsDebugger: boolean;
 };
+
+function shouldAutoLoadSelectedAgentManagedMcp(
+  intent: ToolIntent,
+  selectedAgentRequiresManagedMcp?: string | null,
+): boolean {
+  if (!selectedAgentRequiresManagedMcp) return false;
+  return (
+    intent.wantsDebugger ||
+    intent.wantsRead ||
+    intent.wantsSearch ||
+    intent.wantsTerminalRead ||
+    intent.wantsShell
+  );
+}
 
 type EnvContext = {
   workspaceRoot: string | null;
@@ -263,16 +352,29 @@ const READ_RE =
   /\b(read|show|inspect|check|review|look at|look into|explain this file|open this file|open the file)\b/;
 const SEARCH_RE =
   /\b(find|search|grep|glob|where|which file|scan|look for|pattern|regex|related files?)\b/;
+const FILE_REFERENCE_RE =
+  /(?:[a-zA-Z]:[\\/][^\s"'`]+|(?:^|[\s(])[a-z0-9_.-]+\.(?:java|kt|kts|gradle|properties|json|ya?ml|toml|xml|md|txt|cfg|conf|ini|ts|tsx|js|jsx|rs|py|go|c|cc|cpp|h|hpp|cs|exe|dll|sys|bin|elf|so|dylib)\b)/i;
+const BINARY_ARTIFACT_RE =
+  /(?:[a-zA-Z]:[\\/][^\s"'`]+|(?:^|[\s(])[a-z0-9_.-]+\.(?:exe|dll|sys|bin|elf|so|dylib)\b)|\b(?:pe(?:32|64)?|portable executable|binary|executable|entry point|imports?|exports?|iat|eat|packed|unpack(?:ed|ing)?|shellcode|malware|crackme)\b/i;
+const FILE_CONTENTS_RE =
+  /\b(actual contents?|contents? of|what(?:'s| is)(?:\s+in)?|inside|explain|inspect|review|check|open|read|show|tell me about|what does)\b/;
 const CODEBASE_SCOPE_RE =
   /\b(codebase|repo(?:sitory)?|project|workspace|src|folder|directories?|files?|components?|modules?|agents?|subagents?|prompts?|tool(?:s| calling)?|mcp(?:s)?|behavior|flow|system)\b/;
 const MCP_REQUEST_RE =
   /\b(?:use|consult|try|check|search(?: the web)?|look up)\s+(?:your\s+)?(?:mcps?|exa|context7)\b|\b(?:exa|context7)\b/;
 const RESEARCH_RE =
-  /\b(web ?search|search the web|latest|official docs|documentation|api docs|current docs|up-to-date|research)\b/;
+  /\b(?:web ?search(?:ing)?|search the web|search online|look it up|latest|official docs|documentation|api docs|current docs|up-to-date|research|wiki)\b|\b(?:browse|check)\s+(?:the\s+)?(?:web|internet|online)\b|\bonline\b[\s\S]{0,24}\b(?:docs?|guide|reference|wiki|search)\b|\binternet\b[\s\S]{0,24}\b(?:search|web ?search(?:ing)?|look up|wiki|about)\b/;
+const DEBUGGER_RE =
+  /\b(x64dbg|x32dbg|debugger|registers?|memory|stack|breakpoints?|disassembl(?:e|y)|symbols?|module(?:s)?|threads?|handles?|patch(?:es)?|xref|reverse[- ]engineer(?:ing)?|peb|teb|rax|rbx|rcx|rdx|rip|rsp|rbp|eip|esp|call stack|pe(?:32|64)?|portable executable|entry point|imports?|exports?|iat|eat|packed|unpack(?:ed|ing)?|shellcode|malware|crackme)\b/;
+const SHELL_RE =
+  /\b(run|test|build|lint|compile|npm|pnpm|yarn|cargo|mvn|mvnw|command|terminal|server|logs?)\b|\bgradlew?\b(?!\.\w)/;
 const PREVIEW_RE =
   /\bpreview\b|\bbrowser\b|https?:\/\/|127\.0\.0\.1|localhost(?::\d+)?|\bopen (?:preview|browser|url|localhost)\b|\bvisit\b|\bnavigate\b/;
 const DELEGATION_RE =
   /\b(run[_\s-]?subagent|use[_\s-]?subagent|spawn[_\s-]?subagent|delegate(?:\s+(?:this|it|work|research))?|parallel(?:ize| search(?:es)?| research)?|spawn(?:\s+coding)?\s+agent|send to agent|claude(?:\s|-)?code)\b/;
+
+export const LIVE_RESEARCH_UNAVAILABLE_NOTICE =
+  "Live web/docs research was explicitly requested, but MCP research tools were unavailable this turn. Do not answer that research request from memory or local workspace files as a substitute. State clearly that live web research could not be performed, and only add clearly-labeled local workspace context as an optional fallback.";
 
 function inferWantsEdit(text: string): boolean {
   if (!EXPLICIT_EDIT_RE.test(text)) return false;
@@ -314,34 +416,48 @@ function parseEnvContext(messages: UIMessage[]): EnvContext {
 }
 
 function analyzeToolIntent(messages: UIMessage[]): ToolIntent {
-  const text = extractLikelyLiveRequestText(messages).toLowerCase();
+  const text = getIntentAnalysisText(messages).toLowerCase();
   const env = parseEnvContext(messages);
   const refersToCurrentContext = ACTIVE_CONTEXT_REFERENCES_RE.test(text);
+  const explicitFileReference = FILE_REFERENCE_RE.test(text);
+  const binaryArtifactReferenced =
+    BINARY_ARTIFACT_RE.test(text) ||
+    (!!env.activeFile && BINARY_ARTIFACT_RE.test(env.activeFile.toLowerCase()));
+  const explicitFileInspection =
+    explicitFileReference &&
+    (FILE_CONTENTS_RE.test(text) ||
+      READ_RE.test(text) ||
+      ACTIVE_FILE_ANALYSIS_RE.test(text));
   const activeFileImplicitRead =
     !!env.activeFile &&
     (refersToCurrentContext || ACTIVE_FILE_ANALYSIS_RE.test(text));
   const wantsDirectEdit = inferWantsEdit(text);
   const activeFileImplicitEdit = !!env.activeFile && wantsDirectEdit;
+  const binaryArtifactSearch =
+    binaryArtifactReferenced &&
+    (ACTIVE_FILE_ANALYSIS_RE.test(text) ||
+      READ_RE.test(text) ||
+      SEARCH_RE.test(text) ||
+      refersToCurrentContext);
   const broadCodebaseInvestigation =
     !env.activeFile &&
     CODEBASE_SCOPE_RE.test(text) &&
     (ACTIVE_FILE_ANALYSIS_RE.test(text) || READ_RE.test(text));
   return {
     wantsRead:
-        activeFileImplicitRead ||
+      explicitFileInspection ||
+      activeFileImplicitRead ||
       broadCodebaseInvestigation ||
       READ_RE.test(text),
     wantsSearch:
+      binaryArtifactSearch ||
       activeFileImplicitRead ||
       broadCodebaseInvestigation ||
       SEARCH_RE.test(text),
     wantsEdit:
       activeFileImplicitEdit ||
       wantsDirectEdit,
-    wantsShell:
-      /\b(run|test|build|lint|compile|npm|pnpm|yarn|cargo|gradle|mvn|command|terminal|server|logs?)\b/.test(
-        text,
-      ),
+    wantsShell: SHELL_RE.test(text),
     wantsTerminalRead:
       /\b(last command|terminal output|this error|that error|traceback|stack trace|log output)\b/.test(
         text,
@@ -350,10 +466,22 @@ function analyzeToolIntent(messages: UIMessage[]): ToolIntent {
     wantsDelegation: DELEGATION_RE.test(text),
     wantsResearch:
       MCP_REQUEST_RE.test(text) || RESEARCH_RE.test(text),
+    wantsDebugger:
+      DEBUGGER_RE.test(text) ||
+      (binaryArtifactReferenced &&
+        (ACTIVE_FILE_ANALYSIS_RE.test(text) ||
+          READ_RE.test(text) ||
+          SEARCH_RE.test(text) ||
+          refersToCurrentContext)),
   };
 }
 
 export function messageLikelyNeedsMcpTools(messages: UIMessage[]): boolean {
+  const intent = analyzeToolIntent(messages);
+  return intent.wantsResearch || intent.wantsDebugger;
+}
+
+export function messageLikelyNeedsResearchMcpTools(messages: UIMessage[]): boolean {
   return analyzeToolIntent(messages).wantsResearch;
 }
 
@@ -368,10 +496,12 @@ export function selectActiveTools(
   messages: UIMessage[],
   provider: ProviderId,
   availableToolNames: string[] = [],
+  selectedAgentRequiresManagedMcp?: string | null,
 ): ActiveToolName[] | undefined {
   const text = getLastUserText(messages);
   if (!text) return undefined;
 
+  const intent = analyzeToolIntent(messages);
   const {
     wantsRead,
     wantsSearch,
@@ -381,7 +511,8 @@ export function selectActiveTools(
     wantsPreview,
     wantsDelegation,
     wantsResearch,
-  } = analyzeToolIntent(messages);
+    wantsDebugger,
+  } = intent;
   if (
     !wantsRead &&
     !wantsSearch &&
@@ -390,7 +521,8 @@ export function selectActiveTools(
     !wantsTerminalRead &&
     !wantsPreview &&
     !wantsDelegation &&
-    !wantsResearch
+    !wantsResearch &&
+    !wantsDebugger
   ) {
     return undefined;
   }
@@ -399,6 +531,10 @@ export function selectActiveTools(
 
   const mcpResearchTools = availableToolNames.filter((name) =>
     MCP_RESEARCH_TOOLS.includes(name as (typeof MCP_RESEARCH_TOOLS)[number]),
+  );
+  const managedMcpTools = availableToolNames.filter(
+    (name) =>
+      !MCP_RESEARCH_TOOLS.includes(name as (typeof MCP_RESEARCH_TOOLS)[number]),
   );
 
   if (wantsRead || wantsSearch || wantsEdit) addTools(selected, ALWAYS_ACTIVE_TOOLS);
@@ -410,6 +546,16 @@ export function selectActiveTools(
   if (wantsDelegation) addTools(selected, DELEGATION_TOOLS);
   if (wantsResearch) {
     for (const toolName of mcpResearchTools) {
+      selected.add(toolName as ActiveToolName);
+    }
+  }
+  if (wantsDebugger) {
+    for (const toolName of managedMcpTools) {
+      selected.add(toolName as ActiveToolName);
+    }
+  }
+  if (shouldAutoLoadSelectedAgentManagedMcp(intent, selectedAgentRequiresManagedMcp)) {
+    for (const toolName of managedMcpTools) {
       selected.add(toolName as ActiveToolName);
     }
   }
@@ -429,6 +575,16 @@ export function selectActiveTools(
     if (wantsDelegation) addTools(narrowed, ["todo_write", "run_subagent"] as const);
     if (wantsResearch) {
       for (const toolName of mcpResearchTools) {
+        narrowed.add(toolName as ActiveToolName);
+      }
+    }
+    if (wantsDebugger) {
+      for (const toolName of managedMcpTools) {
+        narrowed.add(toolName as ActiveToolName);
+      }
+    }
+    if (shouldAutoLoadSelectedAgentManagedMcp(intent, selectedAgentRequiresManagedMcp)) {
+      for (const toolName of managedMcpTools) {
         narrowed.add(toolName as ActiveToolName);
       }
     }
@@ -689,13 +845,18 @@ export function buildConfiguredLanguageModel(
 const PLAN_MODE_PROMPT = `## PLAN MODE — ACTIVE
 Mutating tools (write_file, edit, multi_edit, create_directory) will queue their changes for the user to review as a single diff. Do NOT execute bash_run or bash_background while plan mode is active — restrict yourself to reads (read_file, grep, glob, list_directory) and the queued mutations. After queueing the full set of edits, stop and return a brief summary; do not continue acting until the user has accepted/rejected.`;
 
-function buildStableSystem(
+export function buildStableSystem(
   modelId: ModelId,
   persona: { name: string; instructions: string } | null,
   customInstructions: string | undefined,
   projectMemory: string | null,
 ): string {
-  const base = selectSystemPrompt(getModel(modelId).id);
+  const personaName = persona?.name?.trim() ?? null;
+  const base = personalizeBaseSystemPrompt(
+    selectSystemPrompt(getModel(modelId).id),
+    personaName,
+  );
+  const identityBlock = buildAgentIdentityBlock(personaName);
   const personaBlock = persona?.instructions.trim()
     ? `\n\n## ACTIVE AGENT — ${persona.name}\n${persona.instructions.trim()}`
     : "";
@@ -706,7 +867,7 @@ function buildStableSystem(
     projectMemory && projectMemory.trim().length > 0
       ? `\n\n## PROJECT — JAVARF WORKSPACE\n${projectMemory.trim()}`
       : "";
-  return `${base}${memoryBlock}${personaBlock}${customBlock}`;
+  return `${base}${identityBlock}${memoryBlock}${personaBlock}${customBlock}`;
 }
 
 function applyCacheBreakpoints(
@@ -792,7 +953,8 @@ export function messageLikelyNeedsToolUse(messages: UIMessage[]): boolean {
     intent.wantsTerminalRead ||
     intent.wantsPreview ||
     intent.wantsDelegation ||
-    intent.wantsResearch
+    intent.wantsResearch ||
+    intent.wantsDebugger
   );
 }
 
@@ -914,6 +1076,16 @@ export function buildLocalRuntimeToolGuidanceBlock(
   if (available.has("web_search_advanced_exa")) {
     lines.push(
       "- Prefer `web_search_advanced_exa` for deep, filtered, or time-bounded web research. Use `web_search_exa` for lighter lookups.",
+    );
+  }
+
+  if (
+    available.has("MemoryRead") &&
+    available.has("MemoryIsValidPtr") &&
+    available.has("MemoryGetProtect")
+  ) {
+    lines.push(
+      "- If `MemoryRead` or expression dereference fails on an address that still looks valid, do not spam retries. Pivot to `DisasmGetInstructionRange`, `StringGetAt`, `GetMemoryMap`, `XrefGet`/`XrefCount`, and workspace search tools when available.",
     );
   }
 
@@ -1046,7 +1218,9 @@ export function planAgentTurnCapabilities(args: {
   messages: UIMessage[];
   availableTools?: ToolSet;
   mcpToolNames?: readonly string[];
+  selectedAgentRequiresManagedMcp?: string | null;
 }): AgentTurnCapabilityPlan {
+  const intent = analyzeToolIntent(args.messages);
   const isSimple = isLikelySimpleRequest(args.messages);
   const routedModelId = chooseRoutedModelId(
     args.modelId,
@@ -1055,7 +1229,12 @@ export function planAgentTurnCapabilities(args: {
   );
   const provider = getModel(routedModelId).provider;
   const activeTools = normalizeActiveTools(
-    selectActiveTools(args.messages, provider, [...(args.mcpToolNames ?? [])]),
+    selectActiveTools(
+      args.messages,
+      provider,
+      [...(args.mcpToolNames ?? [])],
+      args.selectedAgentRequiresManagedMcp,
+    ),
   );
   const selectedTools = filterSelectedToolsForTurn(
     args.availableTools,
@@ -1069,7 +1248,13 @@ export function planAgentTurnCapabilities(args: {
     routedModelId,
     provider,
     isSimple,
-    shouldLoadMcp: messageLikelyNeedsMcpTools(args.messages),
+    shouldLoadMcp:
+      intent.wantsResearch ||
+      intent.wantsDebugger ||
+      shouldAutoLoadSelectedAgentManagedMcp(
+        intent,
+        args.selectedAgentRequiresManagedMcp,
+      ),
     shouldRequireFirstToolCall:
       messageLikelyNeedsToolUse(args.messages) &&
       (activeTools?.length ?? 0) > 0,
@@ -1307,7 +1492,11 @@ export type RunAgentOptions = {
   keys: ProviderKeys;
   modelId?: ModelId;
   customInstructions?: string;
-  agentPersona?: { name: string; instructions: string } | null;
+  agentPersona?: {
+    name: string;
+    instructions: string;
+    requiresManagedMcp?: string;
+  } | null;
   toolContext: ToolContext;
   onStep?: (step: string | null) => void;
   onUsage?: (delta: AgentUsageDelta) => void;
@@ -1350,6 +1539,8 @@ export async function runAgentStream(opts: RunAgentOptions) {
     messages: opts.uiMessages,
     availableTools: mergedTools,
     mcpToolNames: opts.mcpToolNames ?? [],
+    selectedAgentRequiresManagedMcp:
+      opts.agentPersona?.requiresManagedMcp ?? null,
   });
   const model = await buildConfiguredLanguageModel(
     turnPlan.routedModelId,

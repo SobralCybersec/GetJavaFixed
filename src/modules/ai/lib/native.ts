@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { currentWorkspaceEnv, type WorkspaceEnv } from "@/modules/workspace";
 
 export type ReadResult =
   | { kind: "text"; content: string; size: number }
@@ -183,6 +183,8 @@ export type GitDiscardEntry = {
 
 export const native = {
   workspaceCurrentDir: () => invoke<string>("workspace_current_dir"),
+  appResourceDir: () => invoke<string | null>("get_app_resource_dir"),
+  appLocalDataDir: () => invoke<string | null>("get_app_local_data_dir"),
   workspaceAuthorize: (path: string) =>
     invoke<string>("workspace_authorize", {
       path,
@@ -281,6 +283,16 @@ export const native = {
       command,
       cwd: cwd ?? null,
       workspace: currentWorkspaceEnv(),
+    }),
+  shellBgSpawnInWorkspace: (
+    command: string,
+    cwd?: string | null,
+    workspace?: WorkspaceEnv | null,
+  ) =>
+    invoke<number>("shell_bg_spawn", {
+      command,
+      cwd: cwd ?? null,
+      workspace: workspace ?? null,
     }),
   shellBgLogs: (handle: number, sinceOffset?: number) =>
     invoke<{

@@ -48,6 +48,8 @@ import {
   type GitHistorySearchHandle,
 } from "@/modules/git-history";
 import { useRefactorGeneration } from "@/modules/findings";
+import { getManagedMcpHealthSnapshots } from "@/modules/ai/lib/managedMcp";
+import { buildRuntimeMcpConfig } from "@/modules/ai/lib/mcpRegistry";
 import {
   JavaFirstRunSetup,
   getJavaRepoReadiness,
@@ -106,7 +108,6 @@ import {
   writeToSession,
   type TerminalPaneHandle,
 } from "@/modules/terminal";
-import { ThemeProvider } from "@/modules/theme";
 import { listCustomThemes, saveCustomTheme } from "@/modules/theme/customThemes";
 import { resolveTerminalInjectionTarget } from "@/modules/terminal/lib/injection";
 import {
@@ -132,6 +133,8 @@ import type { SearchAddon } from "@xterm/addon-search";
 import { AnimatePresence, motion } from "motion/react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
+import { AppProviders } from "./AppProviders";
+import { getRefactorToolKey } from "@/modules/ai/lib/toolKeyring";
 
 type TuiWaitResult = "ready" | "gone" | "timeout";
 
@@ -1877,7 +1880,7 @@ export default function App() {
   );
 
   const shell = (
-    <ThemeProvider>
+    <AppProviders>
       <TooltipProvider>
         <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
           {zenMode ? (
@@ -2200,7 +2203,7 @@ export default function App() {
           </AlertDialog>
         </div>
       </TooltipProvider>
-    </ThemeProvider>
+    </AppProviders>
   );
 
   return <AiComposerProvider>{shell}</AiComposerProvider>;
@@ -2227,8 +2230,25 @@ function JavaRefactorPreviewShell({
   const openaiCompatibleModelId = usePreferencesStore((s) => s.openaiCompatibleModelId);
   const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
   const refactorCustomInstructions = usePreferencesStore((s) => s.refactorCustomInstructions);
-  const refactorMcpEnabled = usePreferencesStore((s) => s.refactorMcpEnabled);
-  const context7Url = usePreferencesStore((s) => s.context7Url);
+  const mcpProviders = usePreferencesStore((s) => s.mcpProviders);
+  const managedMcpPresets = usePreferencesStore((s) => s.managedMcpPresets);
+  const [toolKeys, setToolKeys] = useState<{ exa: string | null; context7: string | null }>({
+    exa: null,
+    context7: null,
+  });
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([getRefactorToolKey("exa"), getRefactorToolKey("context7")]).then(
+      ([exa, context7]) => {
+        if (!alive) return;
+        setToolKeys({ exa, context7 });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const refactorModelConfig = useMemo(
     () => ({
@@ -2262,12 +2282,14 @@ function JavaRefactorPreviewShell({
   );
 
   const refactorMcpConfig = useMemo(
-    () => ({
-      exaEnabled: refactorMcpEnabled,
-      context7Enabled: refactorMcpEnabled,
-      context7Url,
-    }),
-    [context7Url, refactorMcpEnabled],
+    () =>
+      buildRuntimeMcpConfig({
+        providers: mcpProviders,
+        managedPresets: managedMcpPresets,
+        managedHealth: getManagedMcpHealthSnapshots(),
+        toolKeys,
+      }),
+    [managedMcpPresets, mcpProviders, toolKeys],
   );
 
   const refactor = useRefactorGeneration(refactorModelConfig, refactorMcpConfig);

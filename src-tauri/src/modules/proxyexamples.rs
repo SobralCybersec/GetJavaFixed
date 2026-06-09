@@ -227,7 +227,8 @@ fn infer_recovery_hint(
         return Some(if has_login_script {
             "The upstream site is presenting a challenge. Run the preset login flow and let the browser finish it before retrying.".to_string()
         } else {
-            "The upstream site is presenting a challenge before model discovery can succeed.".to_string()
+            "The upstream site is presenting a challenge before model discovery can succeed."
+                .to_string()
         });
     }
     if combined.contains("net::err_aborted")
@@ -284,10 +285,7 @@ fn detect_repo_local_proxy_dir_from_launch(
     Some(canonical)
 }
 
-fn detect_repo_local_proxy_dir(
-    proxy_id: &str,
-    registry: &WorkspaceRegistry,
-) -> Option<PathBuf> {
+fn detect_repo_local_proxy_dir(proxy_id: &str, registry: &WorkspaceRegistry) -> Option<PathBuf> {
     let launch_dir = launch_cwd_snapshot()?;
     detect_repo_local_proxy_dir_from_launch(&launch_dir, proxy_id, registry)
 }
@@ -298,7 +296,10 @@ fn resolve_effective_proxy_dir(
     workspace: &WorkspaceEnv,
     registry: &WorkspaceRegistry,
 ) -> Result<Option<PathBuf>, String> {
-    if let Some(path) = configured_path.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(path) = configured_path
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         return resolve_proxy_dir(path, workspace, registry).map(Some);
     }
     Ok(detect_repo_local_proxy_dir(&preset.id, registry))
@@ -351,7 +352,8 @@ fn package_scripts_info(preset: &ProxyPreset, dir: Option<&Path>) -> ProxyExampl
         path: dir.map(to_canon),
         detected: dir.is_some(),
         has_start_script: scripts.is_some_and(|m| m.contains_key(start_script)),
-        has_login_script: scripts.is_some_and(|m| m.keys().any(|name| name.starts_with(login_prefix))),
+        has_login_script: scripts
+            .is_some_and(|m| m.keys().any(|name| name.starts_with(login_prefix))),
         default_base_url: preset.default_base_url.clone(),
         login_variants,
     }
@@ -463,14 +465,14 @@ mod tests {
         std::fs::create_dir_all(&support_dir).expect("create support dir");
         let registry = WorkspaceRegistry::default();
 
-        let detected = detect_repo_local_proxy_dir_from_launch(
-            temp.path(),
-            "deepsproxy",
-            &registry,
-        )
-            .expect("repo-local proxy dir should be detected");
+        let detected =
+            detect_repo_local_proxy_dir_from_launch(temp.path(), "deepsproxy", &registry)
+                .expect("repo-local proxy dir should be detected");
 
-        assert_eq!(detected, support_dir.canonicalize().expect("canonical path"));
+        assert_eq!(
+            detected,
+            support_dir.canonicalize().expect("canonical path")
+        );
     }
 
     #[test]
@@ -496,7 +498,10 @@ mod tests {
         .expect("resolve explicit path")
         .expect("path");
 
-        assert_eq!(resolved, explicit_dir.canonicalize().expect("canonical path"));
+        assert_eq!(
+            resolved,
+            explicit_dir.canonicalize().expect("canonical path")
+        );
     }
 }
 

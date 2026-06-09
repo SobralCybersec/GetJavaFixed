@@ -2,6 +2,7 @@ import type { ToolSet, UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
 import { SYSTEM_PROMPT_LITE, selectSystemPrompt } from "../config";
 import {
+  buildStableSystem,
   buildLocalRuntimeToolGuidanceBlock,
   buildTurnExecutionGuidanceBlock,
   buildTurnContextBlock,
@@ -19,6 +20,14 @@ function userMessage(text: string): UIMessage {
   return {
     id: "user-1",
     role: "user",
+    parts: [{ type: "text", text }],
+  } as UIMessage;
+}
+
+function assistantMessage(text: string): UIMessage {
+  return {
+    id: "assistant-1",
+    role: "assistant",
     parts: [{ type: "text", text }],
   } as UIMessage;
 }
@@ -142,6 +151,19 @@ describe("agent tool selection", () => {
         "openai-compatible",
       ),
     ).toEqual(expect.arrayContaining(["read_file", "list_directory", "grep", "glob"]));
+  });
+
+  it("treats concrete file-content questions as read turns even without active_file", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [userMessage("What is inside gradle.properties exactly?")],
+      availableTools: makeAvailableTools(),
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["read_file", "list_directory"]),
+    );
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
   });
 
   it("keeps active-file analysis turns read/search only", () => {
@@ -384,6 +406,142 @@ Hello who are you?`,
     );
   });
 
+  it("loads managed MCP tools for debugger-oriented turns", () => {
+    const messages = [
+      userMessage("Check the current registers and call stack in x64dbg."),
+    ];
+
+    expect(messageLikelyNeedsMcpTools(messages)).toBe(true);
+
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages,
+      availableTools: {
+        ...makeAvailableTools(),
+        GetRegisterDump: { description: "register dump" },
+        GetCallStack: { description: "call stack" },
+        GetModuleList: { description: "module list" },
+      } as unknown as ToolSet,
+      mcpToolNames: ["GetRegisterDump", "GetCallStack", "GetModuleList"],
+    });
+
+    expect(plan.shouldLoadMcp).toBe(true);
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["GetRegisterDump", "GetCallStack", "GetModuleList"]),
+    );
+  });
+
+  it("keeps debugger MCP intent for short follow-up requests", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        assistantMessage(
+          "I'm still waiting on GetRegisterDump and GetModuleList results to confirm which executable we're actually debugging and what RIP really is.",
+        ),
+        userMessage("Yeah re-request those"),
+      ],
+      availableTools: {
+        ...makeAvailableTools(),
+        GetRegisterDump: { description: "register dump" },
+        GetModuleList: { description: "module list" },
+      } as unknown as ToolSet,
+      mcpToolNames: ["GetRegisterDump", "GetModuleList"],
+    });
+
+    expect(plan.shouldLoadMcp).toBe(true);
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["GetRegisterDump", "GetModuleList"]),
+    );
+  });
+
+  it("treats exe and PE binary analysis requests as debugger turns", () => {
+    const messages = [
+      userMessage(
+        "Inspect a_matter_of_time.exe at the workspace root and debug this PE binary.",
+      ),
+    ];
+
+    expect(messageLikelyNeedsMcpTools(messages)).toBe(true);
+
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages,
+      availableTools: {
+        ...makeAvailableTools(),
+        GetRegisterDump: { description: "register dump" },
+        GetCallStack: { description: "call stack" },
+      } as unknown as ToolSet,
+      mcpToolNames: ["GetRegisterDump", "GetCallStack"],
+    });
+
+    expect(plan.shouldLoadMcp).toBe(true);
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "read_file",
+        "list_directory",
+        "grep",
+        "glob",
+        "GetRegisterDump",
+        "GetCallStack",
+      ]),
+    );
+  });
+
+  it("loads managed MCP tools for Juuzou-selected code diagnosis turns", () => {
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages: [
+        userMessage(
+          "<env>\nactive_file: C:/repo/CrashHandler.cpp\n</env>\n\nWhat's wrong here?",
+        ),
+      ],
+      availableTools: {
+        ...makeAvailableTools(),
+        GetRegisterDump: { description: "register dump" },
+        GetCallStack: { description: "call stack" },
+      } as unknown as ToolSet,
+      mcpToolNames: ["GetRegisterDump", "GetCallStack"],
+      selectedAgentRequiresManagedMcp: "x64dbg",
+    });
+
+    expect(plan.shouldLoadMcp).toBe(true);
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "read_file",
+        "list_directory",
+        "grep",
+        "glob",
+        "GetRegisterDump",
+        "GetCallStack",
+      ]),
+    );
+  });
+
+  it("treats internet websearching phrasing as research intent", () => {
+    const messages = [
+      userMessage("Check in internet websearching about what is JJKUR and what it does."),
+    ];
+
+    expect(messageLikelyNeedsMcpTools(messages)).toBe(true);
+    expect(
+      selectActiveTools(messages, "openai-compatible", [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
+  });
+
   it("keeps active-file import research grounded in the selected file", () => {
     const plan = planAgentTurnCapabilities({
       modelId: "openai-compatible-custom",
@@ -525,6 +683,14 @@ Hello who are you?`,
     );
   });
 
+  it("treats look-it-up and browse-online phrasing as research intent", () => {
+    const lookItUp = [userMessage("Look it up online and summarize the official docs.")];
+    const browseOnline = [userMessage("Browse the internet for the latest setup guide.")];
+
+    expect(messageLikelyNeedsMcpTools(lookItUp)).toBe(true);
+    expect(messageLikelyNeedsMcpTools(browseOnline)).toBe(true);
+  });
+
   it("does not treat plain mentions of plan or agent as delegation intent", () => {
     const plan = planAgentTurnCapabilities({
       modelId: "openai-compatible-custom",
@@ -594,6 +760,27 @@ Hello who are you?`,
     expect(guidance).not.toContain("`edit`");
   });
 
+  it("adds debugger fallback guidance when memory-read tools are present", () => {
+    const guidance = buildLocalRuntimeToolGuidanceBlock([
+      "read_file",
+      "list_directory",
+      "grep",
+      "glob",
+      "MemoryRead",
+      "MemoryIsValidPtr",
+      "MemoryGetProtect",
+      "DisasmGetInstructionRange",
+      "StringGetAt",
+      "GetMemoryMap",
+      "XrefGet",
+      "XrefCount",
+    ]);
+
+    expect(guidance).toContain("If `MemoryRead` or expression dereference fails");
+    expect(guidance).toContain("do not spam retries");
+    expect(guidance).toContain("workspace search tools");
+  });
+
   it("adds explicit web-research execution guidance for active-file turns", () => {
     const guidance = buildTurnExecutionGuidanceBlock({
       latestDirectRequest:
@@ -625,6 +812,25 @@ Hello who are you?`,
       SYSTEM_PROMPT_LITE,
     );
     expect(selectSystemPrompt("lmstudio-local")).toBe(SYSTEM_PROMPT_LITE);
+  });
+
+  it("uses the active persona name as the runtime identity", () => {
+    const system = buildStableSystem(
+      "gpt-5.4-mini",
+      {
+        name: "Koutarou Amon",
+        instructions: "You are an application-security engineer.",
+      },
+      "",
+      null,
+    );
+
+    expect(system).toContain("You are Koutarou Amon");
+    expect(system).toContain("Your name for this turn is Koutarou Amon.");
+    expect(system).toContain(
+      "JavaRf is the host application name, not your personal agent name.",
+    );
+    expect(system).toContain("## ACTIVE AGENT");
   });
 
   it("repairs empty-string tool arguments into an empty object", () => {

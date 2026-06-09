@@ -13,13 +13,6 @@ import { buildSearchTools } from "../tools/search";
 import { SUBAGENTS, type SubagentType } from "./registry";
 
 const SUBAGENT_MAX_STEPS = 12;
-const READ_ONLY_MCP_TOOLS = new Set([
-  "web_search_exa",
-  "web_search_advanced_exa",
-  "web_fetch_exa",
-  "resolve-library-id",
-  "get-library-docs",
-]);
 
 type Args = {
   type: SubagentType;
@@ -35,6 +28,8 @@ type Args = {
 };
 
 type RunResult = {
+  agentLabel: string;
+  agentName: string;
   summary: string;
   stepCount: number;
   durationMs: number;
@@ -63,9 +58,7 @@ export async function runSubagent({
   const tools: Record<string, unknown> = {};
   const allowedTools = new Set(def.tools);
   for (const toolName of mcpToolNames ?? []) {
-    if (READ_ONLY_MCP_TOOLS.has(toolName)) {
-      allowedTools.add(toolName);
-    }
+    allowedTools.add(toolName);
   }
   for (const toolName of allowedTools) {
     if (toolName in availableTools) tools[toolName] = availableTools[toolName];
@@ -101,6 +94,8 @@ ${buildLocalRuntimeToolGuidanceBlock(activeToolNames)}
   });
 
   return {
+    agentLabel: def.label,
+    agentName: def.name,
     summary: result.text || "(no output)",
     stepCount: result.steps?.length ?? 0,
     durationMs: Date.now() - start,

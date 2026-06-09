@@ -11,9 +11,33 @@ use tauri_plugin_window_state::StateFlags;
 #[derive(Default)]
 struct LaunchDir(Mutex<Option<String>>);
 
+#[derive(Default)]
+struct AppResourceDir(Mutex<Option<String>>);
+
+#[derive(Default)]
+struct AppLocalDataDir(Mutex<Option<String>>);
+
 #[tauri::command]
 fn get_launch_dir(state: State<'_, LaunchDir>) -> Option<String> {
-    state.0.lock().expect("LaunchDir mutex poisoned").take()
+    state.0.lock().expect("LaunchDir mutex poisoned").clone()
+}
+
+#[tauri::command]
+fn get_app_resource_dir(state: State<'_, AppResourceDir>) -> Option<String> {
+    state
+        .0
+        .lock()
+        .expect("AppResourceDir mutex poisoned")
+        .clone()
+}
+
+#[tauri::command]
+fn get_app_local_data_dir(state: State<'_, AppLocalDataDir>) -> Option<String> {
+    state
+        .0
+        .lock()
+        .expect("AppLocalDataDir mutex poisoned")
+        .clone()
 }
 
 fn parse_launch_dir() -> Option<String> {
@@ -116,6 +140,36 @@ pub fn run() {
             registry
         })
         .manage(LaunchDir(Mutex::new(cli_dir)))
+        .manage(AppResourceDir::default())
+        .manage(AppLocalDataDir::default())
+        .setup(|app| {
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .ok()
+                .filter(|p| p.is_dir())
+                .map(|p| crate::modules::fs::to_canon(&p));
+            let app_local_data_dir = app
+                .path()
+                .app_local_data_dir()
+                .ok()
+                .map(|p| crate::modules::fs::to_canon(&p));
+
+            if let Some(ref dir) = resource_dir {
+                let registry: State<'_, workspace::WorkspaceRegistry> = app.state();
+                let _ = registry.authorize(dir);
+            }
+
+            {
+                let state: State<'_, AppResourceDir> = app.state();
+                *state.0.lock().expect("AppResourceDir mutex poisoned") = resource_dir;
+            }
+            {
+                let state: State<'_, AppLocalDataDir> = app.state();
+                *state.0.lock().expect("AppLocalDataDir mutex poisoned") = app_local_data_dir;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             pty::pty_open,
             pty::pty_write,
@@ -183,6 +237,8 @@ pub fn run() {
             refactoring_db::refactor_rules_list,
             refactoring_db::refactor_rules_export_defaults,
             get_launch_dir,
+            get_app_resource_dir,
+            get_app_local_data_dir,
             open_settings_window,
             agent::agent_enable_claude_hooks,
             agent::agent_claude_hooks_status,

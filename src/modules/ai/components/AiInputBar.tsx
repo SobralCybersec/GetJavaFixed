@@ -285,7 +285,7 @@ export function AiInputBar() {
                     c.submit();
                   }
                 }}
-                placeholder="Ask JavaRf anything   -   # for snippets and commands, @ for files"
+                placeholder="Ask Anything   -   # for snippets and commands, @ for files"
                 rows={1}
                 className={cn(
                   "max-h-40 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none",

@@ -507,6 +507,7 @@ function renderToolOutput(toolName: string, output: unknown): ReactNode | null {
   if (toolName === "run_subagent") {
     const summary = typeof o.summary === "string" ? o.summary : null;
     const error = typeof o.error === "string" ? o.error : null;
+    const agentLabel = typeof o.agentLabel === "string" ? o.agentLabel : null;
     const type = typeof o.type === "string" ? o.type : null;
     const stepCount = typeof o.stepCount === "number" ? o.stepCount : null;
     const durationMs = typeof o.durationMs === "number" ? o.durationMs : null;
@@ -514,7 +515,7 @@ function renderToolOutput(toolName: string, output: unknown): ReactNode | null {
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          <span>{type ? `type: ${type}` : "subagent"}</span>
+          <span>{agentLabel ?? (type ? `type: ${type}` : "subagent")}</span>
           {stepCount != null ? <span>{stepCount} step{stepCount === 1 ? "" : "s"}</span> : null}
           {durationMs != null ? <span>{(durationMs / 1000).toFixed(1)}s</span> : null}
         </div>

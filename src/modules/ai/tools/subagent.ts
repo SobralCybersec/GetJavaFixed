@@ -2,7 +2,11 @@ import { tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { runSubagent } from "../agents/runSubagent";
 import { SUBAGENTS, type SubagentType } from "../agents/registry";
-import { messageLikelyNeedsMcpTools } from "../lib/agent";
+import {
+  LIVE_RESEARCH_UNAVAILABLE_NOTICE,
+  messageLikelyNeedsMcpTools,
+  messageLikelyNeedsResearchMcpTools,
+} from "../lib/agent";
 import {
   getCachedMcpToolBundle,
   invalidateCachedMcpToolBundle,
@@ -11,6 +15,8 @@ import {
 import { getRefactorToolKey } from "../lib/toolKeyring";
 import { useChatStore } from "../store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import { buildRuntimeMcpConfig } from "../lib/mcpRegistry";
+import { getManagedMcpHealthSnapshots } from "../lib/managedMcp";
 import type { ToolContext } from "./context";
 
 const TYPE_KEYS = Object.keys(SUBAGENTS) as [SubagentType, ...SubagentType[]];
@@ -53,26 +59,32 @@ async function maybeLoadSubagentMcpBundle(prompt: string) {
   if (!subagentPromptNeedsMcp(prompt)) return null;
 
   const prefs = usePreferencesStore.getState();
-  const baseConfig: McpConfig = {
-    exaEnabled: prefs.refactorMcpEnabled,
-    context7Enabled: prefs.refactorMcpEnabled,
-    context7Url: prefs.context7Url,
-  };
+  const baseConfig: McpConfig = buildRuntimeMcpConfig({
+    providers: prefs.mcpProviders,
+    managedPresets: prefs.managedMcpPresets,
+    managedHealth: getManagedMcpHealthSnapshots(),
+    allowMissingToolKeys: true,
+  });
 
-  if (!baseConfig.exaEnabled && baseConfig.context7Enabled === false) {
+  if (baseConfig.providers.length === 0) {
     return null;
   }
 
   let resolvedConfig: McpConfig | null = null;
   try {
-    const [exaApiKey, context7ApiKey] = await Promise.all([
-      getRefactorToolKey("exa"),
-      getRefactorToolKey("context7"),
-    ]);
     resolvedConfig = {
-      ...baseConfig,
-      exaApiKey: exaApiKey ?? undefined,
-      context7ApiKey: context7ApiKey ?? undefined,
+      providers: await Promise.all(
+        baseConfig.providers.map(async (provider) => ({
+          ...provider,
+          apiKey:
+            provider.apiKey ??
+            (provider.id === "exa"
+              ? ((await getRefactorToolKey("exa")) ?? undefined)
+              : provider.id === "context7"
+                ? ((await getRefactorToolKey("context7")) ?? undefined)
+                : undefined),
+        })),
+      ),
     };
     return await withTimeout(
       getCachedMcpToolBundle(resolvedConfig),
@@ -121,11 +133,15 @@ Auto-executes (no approval) — subagents are read-only by design.`,
           const prefs = usePreferencesStore.getState();
           const mcpBundle = await maybeLoadSubagentMcpBundle(prompt);
           const runtimeNotices =
-            subagentPromptNeedsMcp(prompt) &&
+            messageLikelyNeedsResearchMcpTools([
+              {
+                id: "subagent-prompt",
+                role: "user",
+                parts: [{ type: "text", text: prompt }],
+              },
+            ] as UIMessage[]) &&
             (mcpBundle?.toolNames.length ?? 0) === 0
-              ? [
-                  "Live web/docs research was requested, but MCP research tools were unavailable for this subagent turn. Do not claim you searched the web; mention the limitation briefly.",
-                ]
+              ? [LIVE_RESEARCH_UNAVAILABLE_NOTICE]
               : [];
           const r = await runSubagent({
             type,
@@ -152,6 +168,8 @@ Auto-executes (no approval) — subagents are read-only by design.`,
           return {
             type,
             description,
+            agentLabel: r.agentLabel,
+            agentName: r.agentName,
             summary: r.summary,
             stepCount: r.stepCount,
             durationMs: r.durationMs,

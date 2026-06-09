@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
@@ -10,12 +11,13 @@ type Props = {
 };
 
 export function AgentStatusPill({ onClick }: Props) {
+  const { t } = useI18n();
   const meta = useChatStore((s) => s.agentMeta);
 
   if (meta.status === "awaiting-approval") return null;
   if (meta.status === "idle" && !meta.error) return null;
 
-  const { tone, icon, label } = describe(meta);
+  const { tone, icon, label } = describe(meta, t("agentStatus.thinking"));
 
   return (
     <AnimatePresence mode="wait">
@@ -31,7 +33,7 @@ export function AgentStatusPill({ onClick }: Props) {
           "flex h-6 items-center gap-1.5 rounded-md border px-1.5 text-[11px] transition-colors",
           tone,
         )}
-        title="Open AI log"
+        title={t("agentStatus.openLog")}
       >
         {icon}
         <span className="max-w-[180px] truncate">{label}</span>
@@ -40,7 +42,10 @@ export function AgentStatusPill({ onClick }: Props) {
   );
 }
 
-function describe(meta: AgentMeta): {
+function describe(
+  meta: AgentMeta,
+  thinkingLabel: string,
+): {
   tone: string;
   icon: React.ReactNode;
   label: string;
@@ -60,6 +65,6 @@ function describe(meta: AgentMeta): {
     tone:
       "border-border/60 bg-card text-muted-foreground hover:text-foreground",
     icon: <Spinner className="size-3" />,
-    label: meta.step ?? "Thinking…",
+    label: meta.step ?? thinkingLabel,
   };
 }

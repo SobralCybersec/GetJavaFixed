@@ -1,6 +1,8 @@
 import type { UIMessage } from "@ai-sdk/react";
 import { type ModelId } from "../config";
 import {
+  LIVE_RESEARCH_UNAVAILABLE_NOTICE,
+  messageLikelyNeedsResearchMcpTools,
   planAgentTurnCapabilities,
   runAgentStream,
   type AgentUsageDelta,
@@ -55,7 +57,11 @@ type Deps = {
   toolContext: ToolContext;
   getModelId: () => ModelId;
   getCustomInstructions: () => string;
-  getAgentPersona: () => { name: string; instructions: string } | null;
+  getAgentPersona: () => {
+    name: string;
+    instructions: string;
+    requiresManagedMcp?: string;
+  } | null;
   getLive: () => LiveSnapshot;
   getLmstudioBaseURL?: () => string | undefined;
   getLmstudioModelId?: () => string | undefined;
@@ -84,6 +90,7 @@ type SendOptions = {
 export function createContextAwareTransport(deps: Deps) {
   const run = async (options: SendOptions) => {
     const live = deps.getLive();
+    const agentPersona = deps.getAgentPersona();
     const projectMemory = await readRefactorMd(live.workspaceRoot);
     const envBlock = formatEnvBlock(live);
     const messagesForRun = envBlock
@@ -93,6 +100,8 @@ export function createContextAwareTransport(deps: Deps) {
     const turnPlan = planAgentTurnCapabilities({
       modelId: deps.getModelId(),
       messages: messagesForRun,
+      selectedAgentRequiresManagedMcp:
+        agentPersona?.requiresManagedMcp ?? null,
     });
     const shouldLoadMcp = !!mcpConfig && turnPlan.shouldLoadMcp;
     const runWithBundle = async (
@@ -105,7 +114,7 @@ export function createContextAwareTransport(deps: Deps) {
       keys: deps.getKeys(),
       modelId: deps.getModelId(),
       customInstructions: deps.getCustomInstructions(),
-      agentPersona: deps.getAgentPersona(),
+      agentPersona,
       toolContext: deps.toolContext,
       onStep: deps.onStep,
       onUsage: deps.onUsage,
@@ -134,23 +143,16 @@ export function createContextAwareTransport(deps: Deps) {
     if (shouldLoadMcp) {
       let resolvedMcpConfig: McpConfig | null = null;
       try {
-        const [exaApiKey, context7ApiKey] = await Promise.all([
-          mcpConfig.exaApiKey !== undefined
-            ? Promise.resolve(mcpConfig.exaApiKey)
-            : getRefactorToolKey("exa"),
-          mcpConfig.context7ApiKey !== undefined
-            ? Promise.resolve(mcpConfig.context7ApiKey)
-            : getRefactorToolKey("context7"),
-        ]);
         resolvedMcpConfig = {
-          ...mcpConfig,
-          exaApiKey: exaApiKey ?? undefined,
-          context7ApiKey: context7ApiKey ?? undefined,
+          providers: await Promise.all(
+            (mcpConfig.providers ?? []).map(async (provider) => ({
+              ...provider,
+              apiKey: provider.apiKey ?? (await getKnownProviderKey(provider.id)),
+            })),
+          ),
         };
         mcpBundle = await withTimeout(
-          getCachedMcpToolBundle({
-            ...resolvedMcpConfig,
-          }),
+          getCachedMcpToolBundle(resolvedMcpConfig),
           MCP_BOOTSTRAP_TIMEOUT_MS,
           "MCP bootstrap timed out",
         );
@@ -160,10 +162,11 @@ export function createContextAwareTransport(deps: Deps) {
         }
         console.warn("[javarf][agent] MCP bootstrap failed; continuing without MCP tools", error);
       }
-      if ((mcpBundle?.toolNames.length ?? 0) === 0) {
-        runtimeNotices.push(
-          "Live web/docs research was requested, but MCP research tools were unavailable this turn. Do not claim you searched the web. Continue with local workspace inspection only and mention the limitation briefly.",
-        );
+      if (
+        messageLikelyNeedsResearchMcpTools(messagesForRun) &&
+        (mcpBundle?.toolNames.length ?? 0) === 0
+      ) {
+        runtimeNotices.push(LIVE_RESEARCH_UNAVAILABLE_NOTICE);
       }
     }
     const result = await runWithBundle(mcpBundle, runtimeNotices);
@@ -178,6 +181,16 @@ export function createContextAwareTransport(deps: Deps) {
       return null;
     },
   };
+}
+
+async function getKnownProviderKey(providerId: string): Promise<string | undefined> {
+  if (providerId === "exa") {
+    return (await getRefactorToolKey("exa")) ?? undefined;
+  }
+  if (providerId === "context7") {
+    return (await getRefactorToolKey("context7")) ?? undefined;
+  }
+  return undefined;
 }
 
 function withTimeout<T>(

@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useI18n, type UiLocale } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { ThemePref } from "@/modules/settings/store";
 import {
@@ -31,6 +32,7 @@ import {
   setTerminalFontSize,
   setTerminalScrollback,
   setTerminalWebglEnabled,
+  setUiLocale,
   setVimMode,
   setZoomLevel,
 } from "@/modules/settings/store";
@@ -48,12 +50,11 @@ import { SettingRow } from "../components/SettingRow";
 
 const APPEARANCE: {
   id: ThemePref;
-  label: string;
   icon: typeof ComputerIcon;
 }[] = [
-  { id: "system", label: "System", icon: ComputerIcon },
-  { id: "light", label: "Light", icon: Sun03Icon },
-  { id: "dark", label: "Dark", icon: Moon02Icon },
+  { id: "system", icon: ComputerIcon },
+  { id: "light", icon: Sun03Icon },
+  { id: "dark", icon: Moon02Icon },
 ];
 
 const LETTER_SPACINGS = [-4, -3, -2, -1, 0, 1, 2, 3, 4] as const;
@@ -65,8 +66,10 @@ const AUTO_SAVE_MIN = 100;
 const AUTO_SAVE_MAX = 60000;
 
 export function GeneralSection() {
+  const { t } = useI18n();
   const { mode, setMode } = useTheme();
 
+  const uiLocale = usePreferencesStore((s) => s.uiLocale);
   const autostart = usePreferencesStore((s) => s.autostart);
   const restoreWindowState = usePreferencesStore((s) => s.restoreWindowState);
   const vimMode = usePreferencesStore((s) => s.vimMode);
@@ -84,6 +87,17 @@ export function GeneralSection() {
   const terminalScrollback = usePreferencesStore((s) => s.terminalScrollback);
   const zoomLevel = usePreferencesStore((s) => s.zoomLevel);
   const agentNotifications = usePreferencesStore((s) => s.agentNotifications);
+
+  const appearanceLabels: Record<ThemePref, string> = {
+    system: t("general.appearance.system"),
+    light: t("general.appearance.light"),
+    dark: t("general.appearance.dark"),
+  };
+  const localeOptions: { id: UiLocale; label: string }[] = [
+    { id: "system", label: t("general.language.system") },
+    { id: "en", label: t("general.language.english") },
+    { id: "pt-BR", label: t("general.language.portuguese") },
+  ];
 
   useEffect(() => {
     let alive = true;
@@ -105,50 +119,77 @@ export function GeneralSection() {
       if (next) await enable();
       else await disable();
       await setAutostart(next);
-    } catch (e) {
-      console.error("autostart toggle failed", e);
+    } catch (error) {
+      console.error("autostart toggle failed", error);
     }
   };
 
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
-        title="General"
-        description="Mode, editor, and startup."
+        title={t("general.title")}
+        description={t("general.description")}
       />
 
       <div className="flex flex-col gap-2">
-        <Label>Appearance</Label>
+        <Label>{t("general.appearance")}</Label>
         <div className="grid grid-cols-3 gap-2">
-          {APPEARANCE.map((o) => (
+          {APPEARANCE.map((option) => (
             <button
-              key={o.id}
+              key={option.id}
               type="button"
-              onClick={() => setMode(o.id)}
+              onClick={() => setMode(option.id)}
               className={cn(
                 "group flex h-20 flex-col items-center justify-center gap-1.5 rounded-lg border bg-card transition-all",
-                mode === o.id
+                mode === option.id
                   ? "border-foreground/60 ring-1 ring-foreground/20"
                   : "border-border/60 hover:border-border",
               )}
             >
-              <HugeiconsIcon icon={o.icon} size={18} strokeWidth={1.5} />
-              <span className="text-[11.5px]">{o.label}</span>
+              <HugeiconsIcon icon={option.icon} size={18} strokeWidth={1.5} />
+              <span className="text-[11.5px]">{appearanceLabels[option.id]}</span>
             </button>
           ))}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          For theme, background and customization, see the{" "}
-          <strong className="font-medium text-foreground">Themes</strong> tab.
+          {t("general.appearance.hint")}
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Zoom</Label>
+        <Label>{t("general.language")}</Label>
+        <SettingRow
+          title={t("general.language.title")}
+          description={t("general.language.description")}
+        >
+          <Select
+            value={uiLocale}
+            onValueChange={(value) => void setUiLocale(value as UiLocale)}
+          >
+            <SelectTrigger size="sm" className="h-8 w-44 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {localeOptions.map((option) => (
+                <SelectItem
+                  key={option.id}
+                  value={option.id}
+                  className="text-[12px]"
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>{t("general.zoom")}</Label>
         <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-3">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11.5px] text-muted-foreground">
-              UI zoom level
+              {t("general.zoom.level")}
             </span>
             <span className="tabular-nums text-[11px] text-muted-foreground">
               {Math.round(zoomLevel * 100)}%
@@ -159,132 +200,135 @@ export function GeneralSection() {
             min={ZOOM_MIN}
             max={ZOOM_MAX}
             step={ZOOM_STEP}
-            onValueChange={(v) => void setZoomLevel(v[0] ?? 1)}
+            onValueChange={(value) => void setZoomLevel(value[0] ?? 1)}
           />
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Editor</Label>
+        <Label>{t("general.editor")}</Label>
         <SettingRow
-          title="Vim mode"
-          description="Enable Vim keybindings in the code editor."
+          title={t("general.editor.vim.title")}
+          description={t("general.editor.vim.description")}
         >
           <Switch
             checked={vimMode}
-            onCheckedChange={(v) => void setVimMode(v)}
+            onCheckedChange={(value) => void setVimMode(value)}
           />
         </SettingRow>
         <SettingRow
-          title="Auto save"
-          description="Automatically save files after a delay when changes are detected."
+          title={t("general.editor.autosave.title")}
+          description={t("general.editor.autosave.description")}
         >
           <Switch
             checked={editorAutoSave}
-            onCheckedChange={(v) => void setEditorAutoSave(v)}
+            onCheckedChange={(value) => void setEditorAutoSave(value)}
           />
         </SettingRow>
-        {editorAutoSave && (
+        {editorAutoSave ? (
           <AutoSaveDelayInput
             value={editorAutoSaveDelay}
-            onChange={(v) => void setEditorAutoSaveDelay(v)}
+            onChange={(value) => void setEditorAutoSaveDelay(value)}
           />
-        )}
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Explorer</Label>
+        <Label>{t("general.explorer")}</Label>
         <SettingRow
-          title="Show hidden files"
-          description="Include dot-prefixed files and folders (.env, .gitignore, .config) in the file explorer and search."
+          title={t("general.explorer.hidden.title")}
+          description={t("general.explorer.hidden.description")}
         >
           <Switch
             checked={showHidden}
-            onCheckedChange={(v) => void setShowHidden(v)}
+            onCheckedChange={(value) => void setShowHidden(value)}
           />
         </SettingRow>
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Terminal</Label>
+        <Label>{t("general.terminal")}</Label>
         <SettingRow
           title={
             <span className="inline-flex items-center gap-1.5">
-              Use WebGL renderer
+              {t("general.terminal.webgl.title")}
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className="cursor-help text-[11px] text-muted-foreground/70 leading-none"
+                      className="cursor-help text-[11px] leading-none text-muted-foreground/70"
                       aria-label="More info about WebGL renderer"
                     >
-                      ⓘ
+                      i
                     </span>
                   </TooltipTrigger>
                   <TooltipContent
                     side="top"
                     className="max-w-65 text-[11px]"
                   >
-                    xterm's WebGL renderer caches glyphs in a GPU texture
-                    atlas. On some macOS setups (especially with Nerd Fonts),
-                    the atlas corrupts and terminal text becomes unreadable.
-                    Turn this off as a fallback — performance dips slightly,
-                    but text renders correctly via the DOM renderer.
+                    {t("general.terminal.webgl.info")}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </span>
           }
-          description="Hardware-accelerated rendering. Turn off if text shows corruption or blank tiles."
+          description={t("general.terminal.webgl.description")}
         >
           <Switch
             checked={terminalWebglEnabled}
-            onCheckedChange={(v) => void setTerminalWebglEnabled(v)}
+            onCheckedChange={(value) => void setTerminalWebglEnabled(value)}
           />
         </SettingRow>
         <SettingRow
-          title="Font family"
-          description='Nerd Font name for icons (e.g. "CaskaydiaCove Nerd Font Mono"). Leave blank to auto-detect.'
+          title={t("general.terminal.fontFamily.title")}
+          description={t("general.terminal.fontFamily.description")}
         >
           <input
             type="text"
             value={terminalFontFamily}
-            placeholder="Auto-detect"
-            onChange={(e) => void setTerminalFontFamily(e.target.value)}
+            placeholder={t("general.terminal.fontFamily.placeholder")}
+            onChange={(event) => void setTerminalFontFamily(event.target.value)}
             className="h-8 w-48 rounded-md border border-border bg-background px-2.5 text-[12px] outline-none focus:border-foreground/40"
           />
         </SettingRow>
         <SettingRow
-          title="Letter spacing"
-          description="Extra horizontal space between characters (px). Use negative values to tighten Nerd Fonts."
+          title={t("general.terminal.letterSpacing.title")}
+          description={t("general.terminal.letterSpacing.description")}
         >
           <Select
             value={String(terminalLetterSpacing)}
-            onValueChange={(v) => void setTerminalLetterSpacing(Number(v))}
+            onValueChange={(value) => void setTerminalLetterSpacing(Number(value))}
           >
             <SelectTrigger size="sm" className="h-8 w-28 text-[12px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LETTER_SPACINGS.map((v) => (
-                <SelectItem key={v} value={String(v)} className="text-[12px]">
-                  {v > 0 ? `+${v}` : v} px
+              {LETTER_SPACINGS.map((value) => (
+                <SelectItem key={value} value={String(value)} className="text-[12px]">
+                  {value > 0 ? `+${value}` : value} px
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </SettingRow>
-        <SettingRow title="Font size" description="Terminal text size.">
+        <SettingRow
+          title={t("general.terminal.fontSize.title")}
+          description={t("general.terminal.fontSize.description")}
+        >
           <Select
             value={String(terminalFontSize)}
-            onValueChange={(v) => void setTerminalFontSize(Number(v))}
+            onValueChange={(value) => void setTerminalFontSize(Number(value))}
           >
             <SelectTrigger size="sm" className="h-8 w-28 text-[12px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {TERMINAL_FONT_SIZES.map((size) => (
-                <SelectItem key={size} value={String(size)} className="text-[12px]">
+                <SelectItem
+                  key={size}
+                  value={String(size)}
+                  className="text-[12px]"
+                >
                   {size} px
                 </SelectItem>
               ))}
@@ -292,12 +336,12 @@ export function GeneralSection() {
           </Select>
         </SettingRow>
         <SettingRow
-          title="Scrollback"
-          description="Lines of history kept per terminal. Higher uses more RAM (~3 KB / line)."
+          title={t("general.terminal.scrollback.title")}
+          description={t("general.terminal.scrollback.description")}
         >
           <Select
             value={String(terminalScrollback)}
-            onValueChange={(v) => void setTerminalScrollback(Number(v))}
+            onValueChange={(value) => void setTerminalScrollback(Number(value))}
           >
             <SelectTrigger size="sm" className="h-8 w-36 text-[12px]">
               <SelectValue />
@@ -318,37 +362,37 @@ export function GeneralSection() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Agents</Label>
+        <Label>{t("general.agents")}</Label>
         <SettingRow
-          title="Coding agent notifications"
-          description="Alert when Claude Code or Codex running in a terminal needs your input or finishes. Desktop notification when JavaRf is unfocused, in-app otherwise."
+          title={t("general.agents.notifications.title")}
+          description={t("general.agents.notifications.description")}
         >
           <Switch
             checked={agentNotifications}
-            onCheckedChange={(v) => void setAgentNotifications(v)}
+            onCheckedChange={(value) => void setAgentNotifications(value)}
           />
         </SettingRow>
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Startup</Label>
+        <Label>{t("general.startup")}</Label>
         <div className="flex flex-col gap-2">
           <SettingRow
-            title="Launch at login"
-            description="Open JavaRf automatically when you sign in."
+            title={t("general.startup.autostart.title")}
+            description={t("general.startup.autostart.description")}
           >
             <Switch
               checked={autostart}
-              onCheckedChange={(v) => void onToggleAutostart(v)}
+              onCheckedChange={(value) => void onToggleAutostart(value)}
             />
           </SettingRow>
           <SettingRow
-            title="Restore window position & size"
-            description="Reopen the main window where you left it. Applies on next launch."
+            title={t("general.startup.restoreWindow.title")}
+            description={t("general.startup.restoreWindow.description")}
           >
             <Switch
               checked={restoreWindowState}
-              onCheckedChange={(v) => void setRestoreWindowState(v)}
+              onCheckedChange={(value) => void setRestoreWindowState(value)}
             />
           </SettingRow>
         </div>
@@ -370,8 +414,9 @@ function AutoSaveDelayInput({
   onChange,
 }: {
   value: number;
-  onChange: (v: number) => void;
+  onChange: (value: number) => void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(String(value));
 
   useEffect(() => {
@@ -379,14 +424,14 @@ function AutoSaveDelayInput({
   }, [value]);
 
   const commit = () => {
-    const n = Number(draft);
-    if (!Number.isFinite(n)) {
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) {
       setDraft(String(value));
       return;
     }
     const clamped = Math.min(
       AUTO_SAVE_MAX,
-      Math.max(AUTO_SAVE_MIN, Math.round(n)),
+      Math.max(AUTO_SAVE_MIN, Math.round(parsed)),
     );
     setDraft(String(clamped));
     if (clamped !== value) onChange(clamped);
@@ -394,8 +439,8 @@ function AutoSaveDelayInput({
 
   return (
     <SettingRow
-      title="Auto save delay"
-      description="Delay before unsaved changes are saved automatically."
+      title={t("general.editor.autosaveDelay.title")}
+      description={t("general.editor.autosaveDelay.description")}
     >
       <div className="flex items-center gap-2">
         <Input
@@ -404,18 +449,17 @@ function AutoSaveDelayInput({
           max={AUTO_SAVE_MAX}
           step={AUTO_SAVE_STEP}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(event) => setDraft(event.target.value)}
           onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
             }
           }}
-          className="h-8 w-20 rounded-md border border-border bg-background px-2.5 text-right text-[12px] md:text-[12px] tabular-nums outline-none focus:border-foreground/40 focus-visible:ring-0 focus-visible:border-foreground/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="h-8 w-20 rounded-md border border-border bg-background px-2.5 text-right text-[12px] tabular-nums outline-none focus:border-foreground/40 focus-visible:border-foreground/40 focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <span className="text-[11px] text-muted-foreground">ms</span>
       </div>
     </SettingRow>
   );
 }
-

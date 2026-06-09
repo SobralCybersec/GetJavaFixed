@@ -6,7 +6,8 @@ import "../styles/globals.css";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import ReactDOM from "react-dom/client";
-import { ThemeProvider } from "@/modules/theme";
+import { AppProviders } from "@/app/AppProviders";
+import { initLaunchDir } from "@/lib/launchDir";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { SettingsApp } from "./SettingsApp";
 
@@ -14,12 +15,14 @@ if (USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
 }
 
+await initLaunchDir();
+
 ReactDOM.createRoot(
   document.getElementById("settings-root") as HTMLElement,
 ).render(
-  <ThemeProvider>
+  <AppProviders>
     <SettingsApp />
-  </ThemeProvider>,
+  </AppProviders>,
 );
 
 const showWindow = () => {

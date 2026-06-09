@@ -31,6 +31,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../mcps/x64dbgmcp/serve_http.py": "mcps/x64dbgmcp/serve_http.py",
+      "../mcps/x64dbgmcp/requirements.txt": "mcps/x64dbgmcp/requirements.txt",
+      "../mcps/x64dbgmcp/src/": "mcps/x64dbgmcp/src/"
+    },
     "createUpdaterArtifacts": true,
     "copyright": "Copyright 2026 JavaRf",
     "license": "Apache-2.0",
@@ -63,7 +68,7 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["English"],
+        "languages": ["English", "Portuguese"],
         "displayLanguageSelector": false,
         "installerIcon": "icons/icon.ico",
         "installerHooks": "./installer-hooks.nsh"

@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import {
   AbsoluteIcon,
@@ -20,7 +21,9 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { AgentIconId } from "../lib/agents";
+import { getAgentDisplay } from "../lib/agentPresentation";
+import type { Agent, AgentIconId } from "../lib/agents";
+import { useManagedMcpStore } from "../lib/managedMcp";
 import { useAgentsStore } from "../store/agentsStore";
 
 const ICONS: Record<AgentIconId, typeof CodeIcon> = {
@@ -33,17 +36,20 @@ const ICONS: Record<AgentIconId, typeof CodeIcon> = {
 };
 
 export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
+  const { t } = useI18n();
   const customAgents = useAgentsStore((s) => s.customAgents);
   const activeId = useAgentsStore((s) => s.activeId);
   const setActiveId = useAgentsStore((s) => s.setActiveId);
+  const statuses = useManagedMcpStore((s) => s.statuses);
 
   const list = useAgentsStore.getState().all();
   void customAgents;
 
-  const active = list.find((a) => a.id === activeId) ?? list[0];
-  const builtIn = list.filter((a) => a.builtIn);
-  const custom = list.filter((a) => !a.builtIn);
-  const ActiveIcon = ICONS[active.icon] ?? SparklesIcon;
+  const selected = list.find((agent) => agent.id === activeId) ?? list[0];
+  const builtIn = list.filter((agent) => agent.builtIn);
+  const custom = list.filter((agent) => !agent.builtIn);
+  const activeDisplay = getAgentDisplay(selected, t);
+  const ActiveIcon = ICONS[selected.icon] ?? SparklesIcon;
 
   return (
     <DropdownMenu>
@@ -54,12 +60,12 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           className={cn(
             !isMiniWindow
               ? "flex h-6 items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 text-[10.5px] text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
-              : "text-xs mr-1",
+              : "mr-1 text-xs",
           )}
-          title={`Agent: ${active.name}`}
+          title={`Agent: ${activeDisplay.name}`}
         >
           <HugeiconsIcon icon={ActiveIcon} size={11} strokeWidth={1.75} />
-          <span className="max-w-[7rem] truncate">{active.name}</span>
+          <span className="max-w-[7rem] truncate">{activeDisplay.name}</span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={10}
@@ -68,19 +74,25 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-60">
+      <DropdownMenuContent align="start" className="min-w-64">
         <div className="px-2 pt-1.5 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          Built-in
+          {t("agentSwitcher.builtIn")}
         </div>
-        {builtIn.map((a) => {
-          const Icon = ICONS[a.icon] ?? SparklesIcon;
+        {builtIn.map((agent) => {
+          const Icon = ICONS[agent.icon] ?? SparklesIcon;
+          const available = isAgentSelectable(agent, statuses);
+          const display = getAgentDisplay(agent, t);
           return (
             <DropdownMenuItem
-              key={a.id}
-              onSelect={() => setActiveId(a.id)}
+              key={agent.id}
+              disabled={!available}
+              onSelect={() => {
+                if (available) setActiveId(agent.id);
+              }}
               className={cn(
                 "flex items-start gap-2 pr-2 text-[12px]",
-                a.id === activeId && "bg-accent/40",
+                agent.id === selected.id && "bg-accent/40",
+                !available && "opacity-70",
               )}
             >
               <HugeiconsIcon
@@ -89,18 +101,18 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
                 strokeWidth={1.75}
                 className={cn(
                   "mt-0.5",
-                  a.id === activeId
+                  agent.id === selected.id
                     ? "text-foreground"
                     : "text-muted-foreground",
                 )}
               />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span>{a.name}</span>
+                <span>{display.name}</span>
                 <span className="line-clamp-1 text-[10.5px] text-muted-foreground">
-                  {a.description}
+                  {available ? display.description : t("agents.unavailableDebugger")}
                 </span>
               </span>
-              {a.id === activeId ? (
+              {agent.id === selected.id ? (
                 <HugeiconsIcon
                   icon={Tick02Icon}
                   size={12}
@@ -115,17 +127,18 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           <>
             <DropdownMenuSeparator />
             <div className="px-2 pt-1 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-              Custom
+              {t("agentSwitcher.custom")}
             </div>
-            {custom.map((a) => {
-              const Icon = ICONS[a.icon] ?? SparklesIcon;
+            {custom.map((agent) => {
+              const Icon = ICONS[agent.icon] ?? SparklesIcon;
+              const display = getAgentDisplay(agent, t);
               return (
                 <DropdownMenuItem
-                  key={a.id}
-                  onSelect={() => setActiveId(a.id)}
+                  key={agent.id}
+                  onSelect={() => setActiveId(agent.id)}
                   className={cn(
                     "flex items-start gap-2 text-[12px]",
-                    a.id === activeId && "bg-accent/40",
+                    agent.id === selected.id && "bg-accent/40",
                   )}
                 >
                   <HugeiconsIcon
@@ -135,14 +148,14 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
                     className="mt-0.5 text-muted-foreground"
                   />
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate">{a.name}</span>
-                    {a.description ? (
+                    <span className="truncate">{display.name}</span>
+                    {display.description ? (
                       <span className="line-clamp-1 text-[10.5px] text-muted-foreground">
-                        {a.description}
+                        {display.description}
                       </span>
                     ) : null}
                   </span>
-                  {a.id === activeId ? (
+                  {agent.id === selected.id ? (
                     <HugeiconsIcon
                       icon={Tick02Icon}
                       size={12}
@@ -161,11 +174,19 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           className="gap-2 text-[12px] text-muted-foreground"
         >
           <HugeiconsIcon icon={Settings01Icon} size={12} strokeWidth={1.75} />
-          Manage agents…
+          {t("agentSwitcher.manage")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function isAgentSelectable(
+  agent: Pick<Agent, "requiresManagedMcp">,
+  statuses: ReturnType<typeof useManagedMcpStore.getState>["statuses"],
+): boolean {
+  if (!agent.requiresManagedMcp) return true;
+  return statuses[agent.requiresManagedMcp]?.healthy === true;
 }
 
 export { ICONS as AGENT_ICONS };

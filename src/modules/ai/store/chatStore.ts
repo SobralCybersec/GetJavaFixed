@@ -12,7 +12,9 @@ import {
   type ProviderId,
 } from "../config";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { BUILTIN_AGENTS } from "../lib/agents";
+import { BUILTIN_AGENTS, findAgent } from "../lib/agents";
+import { getManagedMcpHealthSnapshots } from "../lib/managedMcp";
+import { buildRuntimeMcpConfig } from "../lib/mcpRegistry";
 import { useAgentsStore } from "./agentsStore";
 import { usePlanStore } from "./planStore";
 import { useTodosStore } from "./todoStore";
@@ -237,8 +239,12 @@ function makeChat(sessionId: string): Chat<UIMessage> {
     getAgentPersona: () => {
       const { activeId, customAgents } = useAgentsStore.getState();
       const all = [...BUILTIN_AGENTS, ...customAgents];
-      const a = all.find((x) => x.id === activeId) ?? BUILTIN_AGENTS[0];
-      return { name: a.name, instructions: a.instructions };
+      const active = findAgent(all, activeId);
+      return {
+        name: active.name,
+        instructions: active.instructions,
+        requiresManagedMcp: active.requiresManagedMcp,
+      };
     },
     getLive: () => {
       const live = useChatStore.getState().live;
@@ -250,11 +256,13 @@ function makeChat(sessionId: string): Chat<UIMessage> {
       };
     },
     getPlanMode: () => usePlanStore.getState().active,
-    getMcpConfig: (): McpConfig => ({
-      exaEnabled: usePreferencesStore.getState().refactorMcpEnabled,
-      context7Enabled: usePreferencesStore.getState().refactorMcpEnabled,
-      context7Url: usePreferencesStore.getState().context7Url,
-    }),
+    getMcpConfig: (): McpConfig =>
+      buildRuntimeMcpConfig({
+        providers: usePreferencesStore.getState().mcpProviders,
+        managedPresets: usePreferencesStore.getState().managedMcpPresets,
+        managedHealth: getManagedMcpHealthSnapshots(),
+        allowMissingToolKeys: true,
+      }),
     getLmstudioBaseURL: () => usePreferencesStore.getState().lmstudioBaseURL,
     getLmstudioModelId: () => usePreferencesStore.getState().lmstudioModelId,
     getMlxBaseURL: () => usePreferencesStore.getState().mlxBaseURL,

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import {
   MODELS,
   PROVIDERS,
@@ -40,7 +41,6 @@ import { revealInFinder } from "@/modules/explorer/lib/contextActions";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
-  setContext7Url,
   setAutocompleteEnabled,
   setAutocompleteModelId,
   setAutocompleteProvider,
@@ -58,7 +58,6 @@ import {
   setProxyPresetId,
   setProxyPresetPath,
   setRefactorCustomInstructions,
-  setRefactorMcpEnabled,
 } from "@/modules/settings/store";
 import {
   Add01Icon,
@@ -74,6 +73,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ProviderIcon } from "../components/ProviderIcon";
+import { McpToolsBlock } from "../components/McpToolsBlock";
 import { ProviderKeyCard } from "../components/ProviderKeyCard";
 import { SectionHeader } from "../components/SectionHeader";
 import {
@@ -145,6 +145,7 @@ const LOCAL_META: Partial<Record<ProviderId, LocalMeta>> = {
 };
 
 export function ModelsSection() {
+  const { t } = useI18n();
   const [keys, setKeys] = useState<KeysMap | null>(null);
   const [adding, setAdding] = useState<Set<ProviderId>>(new Set());
   const [exaKey, setExaKey] = useState<string | null>(null);
@@ -163,8 +164,8 @@ export function ModelsSection() {
     (s) => s.openaiCompatibleContextLimit,
   );
   const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
-  const context7Url = usePreferencesStore((s) => s.context7Url);
-  const refactorMcpEnabled = usePreferencesStore((s) => s.refactorMcpEnabled);
+  const mcpProviders = usePreferencesStore((s) => s.mcpProviders);
+  const managedMcpPresets = usePreferencesStore((s) => s.managedMcpPresets);
   const refactorCustomInstructions = usePreferencesStore(
     (s) => s.refactorCustomInstructions,
   );
@@ -289,8 +290,8 @@ export function ModelsSection() {
   return (
     <div className="flex flex-col gap-7">
       <SectionHeader
-        title="Models"
-        description="Connect the providers you use. Keys live in your OS keychain and are used only by JavaRf."
+        title={t("models.title")}
+        description={t("models.description")}
       />
 
       <DefaultsBlock
@@ -299,11 +300,11 @@ export function ModelsSection() {
         keys={keys}
       />
 
-      <RefactorToolsBlock
+      <McpToolsBlock
         exaKey={exaKey}
         context7Key={context7Key}
-        context7Url={context7Url}
-        refactorMcpEnabled={refactorMcpEnabled}
+        mcpProviders={mcpProviders}
+        managedMcpPresets={managedMcpPresets}
         onSaveExaKey={async (value) => {
           await setRefactorToolKey("exa", value);
           setExaKey(value);
@@ -480,91 +481,6 @@ function DefaultsBlock({
           />
         </FieldRow>
         <AutocompleteRow keys={keys} configuredIds={configuredIds} />
-      </div>
-    </div>
-  );
-}
-
-function RefactorToolsBlock({
-  exaKey,
-  context7Key,
-  context7Url,
-  refactorMcpEnabled,
-  onSaveExaKey,
-  onClearExaKey,
-  onSaveContext7Key,
-  onClearContext7Key,
-}: {
-  exaKey: string | null;
-  context7Key: string | null;
-  context7Url: string;
-  refactorMcpEnabled: boolean;
-  onSaveExaKey: (value: string) => Promise<void>;
-  onClearExaKey: () => Promise<void>;
-  onSaveContext7Key: (value: string) => Promise<void>;
-  onClearContext7Key: () => Promise<void>;
-}) {
-  const [exaDraft, setExaDraft] = useState("");
-  const [context7Draft, setContext7Draft] = useState("");
-  const [context7UrlDraft, setContext7UrlDraft] = useState(context7Url);
-
-  useEffect(() => {
-    setContext7UrlDraft(context7Url);
-  }, [context7Url]);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <Label>Agent research</Label>
-      <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
-        <FieldRow label="MCPs">
-          <div className="flex flex-1 items-center gap-2">
-            <Switch
-              checked={refactorMcpEnabled}
-              onCheckedChange={(value) => void setRefactorMcpEnabled(value)}
-            />
-            <span className="text-[11px] text-muted-foreground">
-              Enable Exa + Context7 for the live AI agent and refactor preview generation
-            </span>
-          </div>
-        </FieldRow>
-        <KeyRow
-          label="Exa key"
-          currentKey={exaKey}
-          draft={exaDraft}
-          onDraftChange={setExaDraft}
-          placeholder="Optional for higher Exa MCP limits"
-          onSave={async () => {
-            const value = exaDraft.trim();
-            if (!value) return;
-            await onSaveExaKey(value);
-            setExaDraft("");
-          }}
-          onClear={onClearExaKey}
-        />
-        <FieldRow label="Context7">
-          <Input
-            value={context7UrlDraft}
-            onChange={(e) => setContext7UrlDraft(e.target.value)}
-            onBlur={() => void setContext7Url(context7UrlDraft)}
-            placeholder="https://mcp.context7.com/mcp"
-            spellCheck={false}
-            className="h-8 flex-1 font-mono text-[11.5px]"
-          />
-        </FieldRow>
-        <KeyRow
-          label="Ctx7 key"
-          currentKey={context7Key}
-          draft={context7Draft}
-          onDraftChange={setContext7Draft}
-          placeholder="Optional for authenticated Context7 access"
-          onSave={async () => {
-            const value = context7Draft.trim();
-            if (!value) return;
-            await onSaveContext7Key(value);
-            setContext7Draft("");
-          }}
-          onClear={onClearContext7Key}
-        />
       </div>
     </div>
   );
@@ -813,7 +729,7 @@ function RefactorRulesExplorerBlock() {
   );
 }
 
-function KeyRow({
+export function KeyRow({
   label,
   currentKey,
   draft,
