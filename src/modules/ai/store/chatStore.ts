@@ -12,7 +12,7 @@ import {
   type ProviderId,
 } from "../config";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { BUILTIN_AGENTS, findAgent } from "../lib/agents";
+import { BUILTIN_AGENTS, selectAgentForContext } from "../lib/agents";
 import { getManagedMcpHealthSnapshots } from "../lib/managedMcp";
 import { buildRuntimeMcpConfig } from "../lib/mcpRegistry";
 import { useAgentsStore } from "./agentsStore";
@@ -238,8 +238,14 @@ function makeChat(sessionId: string): Chat<UIMessage> {
       usePreferencesStore.getState().customInstructions,
     getAgentPersona: () => {
       const { activeId, customAgents } = useAgentsStore.getState();
+      const prefs = usePreferencesStore.getState();
       const all = [...BUILTIN_AGENTS, ...customAgents];
-      const active = findAgent(all, activeId);
+      const active = selectAgentForContext(
+        all,
+        activeId,
+        prefs.themeId,
+        prefs.agentFamilyMode,
+      );
       return {
         name: active.name,
         instructions: active.instructions,

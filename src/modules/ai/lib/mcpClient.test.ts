@@ -13,6 +13,7 @@ vi.mock("@ai-sdk/mcp", () => ({
 
 vi.mock("./proxyFetch", () => ({
   createProxyFetch: vi.fn(() => vi.fn()),
+  proxyFetch: vi.fn(),
   safeWindowFetch: vi.fn(),
 }));
 

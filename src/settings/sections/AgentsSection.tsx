@@ -15,6 +15,8 @@ import { AGENT_ICONS } from "@/modules/ai/components/AgentSwitcher";
 import { getAgentDisplay } from "@/modules/ai/lib/agentPresentation";
 import {
   BUILTIN_AGENTS,
+  resolveAgentsForContext,
+  selectAgentForContext,
   type Agent,
   type AgentIconId,
 } from "@/modules/ai/lib/agents";
@@ -31,6 +33,7 @@ import {
 } from "@/modules/ai/store/snippetsStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setCustomInstructions } from "@/modules/settings/store";
+import { useTheme } from "@/modules/theme";
 import {
   Add01Icon,
   CheckmarkCircle02Icon,
@@ -48,12 +51,28 @@ const ICON_OPTIONS: AgentIconId[] = [
   "reviewer",
   "security",
   "designer",
+  "debugger",
   "spark",
+  "osint",
+  "brain",
+  "book",
+  "crown",
+  "fire",
+  "flash",
+  "glasses",
+  "moon",
+  "search",
+  "ship",
+  "strategy",
+  "sword",
+  "target",
+  "user",
 ];
 
 export function AgentsSection() {
   const { t } = useI18n();
   const customInstructions = usePreferencesStore((s) => s.customInstructions);
+  const familyMode = usePreferencesStore((s) => s.agentFamilyMode);
   const customAgents = useAgentsStore((s) => s.customAgents);
   const selectedAgentId = useAgentsStore((s) => s.activeId);
   const setActiveAgentId = useAgentsStore((s) => s.setActiveId);
@@ -66,6 +85,7 @@ export function AgentsSection() {
   const upsertSnippet = useSnippetsStore((s) => s.upsert);
   const removeSnippet = useSnippetsStore((s) => s.remove);
   const hydrateSnippets = useSnippetsStore((s) => s.hydrate);
+  const { themeId } = useTheme();
 
   useEffect(() => {
     void hydrateAgents();
@@ -75,13 +95,20 @@ export function AgentsSection() {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
 
-  const allAgents = useMemo(
+  const allAgentsRaw = useMemo(
     () => [...BUILTIN_AGENTS, ...customAgents],
     [customAgents],
   );
-  const effectiveActiveId =
-    allAgents.find((agent) => agent.id === selectedAgentId)?.id ??
-    BUILTIN_AGENTS[0].id;
+  const allAgents = useMemo(
+    () => resolveAgentsForContext(allAgentsRaw, themeId, familyMode),
+    [allAgentsRaw, familyMode, themeId],
+  );
+  const effectiveActiveId = selectAgentForContext(
+    allAgentsRaw,
+    selectedAgentId,
+    themeId,
+    familyMode,
+  ).id;
 
   return (
     <div className="flex flex-col gap-7">

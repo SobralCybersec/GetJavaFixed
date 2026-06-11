@@ -39,7 +39,7 @@ export function chartAnimation(
   reducedMotion: boolean | null,
 ): false | { duration: number; easing: "easeOutQuart" } {
   if (reducedMotion) return false;
-  return { duration: 850, easing: "easeOutQuart" };
+  return { duration: 240, easing: "easeOutQuart" };
 }
 
 export function getDashboardChartTheme(): {

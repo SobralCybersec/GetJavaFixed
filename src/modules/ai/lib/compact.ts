@@ -458,6 +458,7 @@ function runPhase(
   changedTotal: number,
   phase: () => { out: ModelMessage[]; changed: number },
 ): { working: ModelMessage[]; changedTotal: number } {
+  void current;
   const result = phase();
   return {
     working: result.out,

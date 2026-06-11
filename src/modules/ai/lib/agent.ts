@@ -3,6 +3,7 @@ import {
   pruneMessages,
   stepCountIs,
   streamText,
+  type JSONValue,
   type LanguageModel,
   type ModelMessage,
   type UIMessage,
@@ -32,6 +33,15 @@ import type { ProviderKeys } from "./keyring";
 import { createProxyFetch, safeWindowFetch } from "./proxyFetch";
 
 const localProxyFetch = createProxyFetch({ allowPrivateNetwork: true });
+
+const OPENAI_COMPATIBLE_PROVIDER_URLS: Partial<Record<ProviderId, string>> = {
+  qwen: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+  kimi: "https://api.moonshot.ai/v1",
+  together: "https://api.together.ai/v1",
+  fireworks: "https://api.fireworks.ai/inference/v1",
+  perplexity: "https://api.perplexity.ai",
+  novita: "https://api.novita.ai/openai",
+};
 
 const TOOL_LABELS: Record<string, (input: Record<string, unknown>) => string> =
   {
@@ -888,6 +898,26 @@ export async function buildLanguageModel(
       })(resolvedModelId);
       break;
     }
+    case "qwen":
+    case "kimi":
+    case "together":
+    case "fireworks":
+    case "perplexity":
+    case "novita": {
+      const baseURL = OPENAI_COMPATIBLE_PROVIDER_URLS[provider];
+      if (!baseURL) {
+        throw new Error(`No OpenAI-compatible base URL configured for ${provider}.`);
+      }
+      const { createOpenAICompatible } =
+        await import("@ai-sdk/openai-compatible");
+      built = createOpenAICompatible({
+        name: provider,
+        baseURL,
+        apiKey: key,
+        fetch: safeWindowFetch,
+      })(resolvedModelId);
+      break;
+    }
     case "mistral": {
       const { createOpenAICompatible } =
         await import("@ai-sdk/openai-compatible");
@@ -1033,6 +1063,22 @@ function applyCacheBreakpoints(
   const lastIdx = out.length - 1;
   if (lastIdx > 0) out[lastIdx] = withMarker(out[lastIdx]);
   return out;
+}
+
+function mergeProviderOptions(
+  ...sources: Array<Record<string, Record<string, JSONValue>> | undefined>
+): Record<string, Record<string, JSONValue>> | undefined {
+  const merged: Record<string, Record<string, JSONValue>> = {};
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [provider, options] of Object.entries(source)) {
+      merged[provider] = {
+        ...(merged[provider] ?? {}),
+        ...options,
+      };
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 const PSEUDO_TOOL_COMBINED_RE = /<tool_call\b[\s\S]*?<\/tool_call>|<tool_call\b[^>]*\/?>|(?:^|\n)(?:Read|Open|Click|Find|Search|WebSearch|Web Search)\s*\n(?:[A-Za-z]:[^\n]+|\/[^\n]+|https?:\/\/[^\n]+)\s*(?=\n|$)|^Reasoned\s*$|^(?:Read|Open|Click|Find|Search|WebSearch|Web Search)\s*$|`?<tool_call[^`\n]*`?/gim;
@@ -1399,6 +1445,65 @@ export function planAgentTurnCapabilities(args: {
     activeTools,
     selectedTools,
     env: parseEnvContext(args.messages),
+  };
+}
+
+export type BuildToolPlanContext = {
+  workspaceRoot?: string | null;
+  activeFile?: string | null;
+  activeSelection?: string | null;
+  taskType?: "chat" | "explain" | "search" | "edit" | "research";
+  modelCapability?: "basic" | "tools" | "coding" | "research";
+  agentFamily?: "general" | "cybersecurity";
+  messageIntent: string;
+  provider?: ProviderId;
+  availableToolNames?: string[];
+  selectedAgentRequiresManagedMcp?: string | null;
+};
+
+export type BuiltToolPlan = {
+  activeTools?: ActiveToolName[];
+  shouldLoadMcp: boolean;
+  mutationIntent: boolean;
+  intent: ToolIntentAnalysis;
+};
+
+export function buildToolPlan(ctx: BuildToolPlanContext): BuiltToolPlan {
+  const envLines = [
+    ctx.workspaceRoot ? `workspace_root: ${ctx.workspaceRoot}` : null,
+    ctx.activeFile ? `active_file: ${ctx.activeFile}` : null,
+    ctx.activeSelection ? "active_selection: present" : null,
+  ].filter(Boolean);
+  const taskHint = ctx.taskType ? `\n\nTask type: ${ctx.taskType}` : "";
+  const message = `${envLines.length ? `<env>\n${envLines.join("\n")}\n</env>\n` : ""}${ctx.messageIntent}${taskHint}`;
+  const messages: UIMessage[] = [
+    {
+      id: "tool-plan-user",
+      role: "user",
+      parts: [{ type: "text", text: message }],
+    },
+  ];
+  const provider = ctx.provider ?? "openai";
+  const intent = analyzeToolIntent(messages);
+  const activeTools = normalizeActiveTools(
+    selectActiveTools(
+      messages,
+      provider,
+      ctx.availableToolNames ?? [],
+      ctx.selectedAgentRequiresManagedMcp,
+    ),
+  );
+  return {
+    activeTools,
+    shouldLoadMcp:
+      intent.wantsResearch ||
+      intent.wantsDebugger ||
+      shouldAutoLoadSelectedAgentManagedMcp(
+        intent,
+        ctx.selectedAgentRequiresManagedMcp,
+      ),
+    mutationIntent: intent.wantsEdit,
+    intent,
   };
 }
 
@@ -2271,6 +2376,18 @@ export async function runAgentStream(opts: RunAgentOptions) {
     turnPlan.provider === "openai"
       ? `${turnPlan.routedModelId}:${turnPlan.isSimple ? "simple" : "direct"}:${opts.agentPersona?.name ?? "default"}`
       : undefined;
+  const providerOptions = mergeProviderOptions(
+    getModel(turnPlan.routedModelId).providerOptions,
+    promptCacheKey
+      ? {
+          openai: {
+            promptCacheKey,
+            reasoningEffort: turnPlan.isSimple ? "low" : "medium",
+            store: false,
+          },
+        }
+      : undefined,
+  );
 
   let stepsSeen = 0;
   const needsStrictLocalToolPrompt = isDegradedLocalToolTurn({
@@ -2374,17 +2491,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
         opts.onStep(`Paused ${toolName}: circuit breaker opened`);
       }
     },
-    ...(promptCacheKey
-      ? {
-          providerOptions: {
-            openai: {
-              promptCacheKey,
-              reasoningEffort: turnPlan.isSimple ? "low" : "medium",
-              store: false,
-            },
-          },
-        }
-      : {}),
+    ...(providerOptions ? { providerOptions } : {}),
     onStepFinish: (step) => {
       stepsSeen++;
       runState.stepCount = stepsSeen;

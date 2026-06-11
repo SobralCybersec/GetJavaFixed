@@ -32,6 +32,8 @@ export type ThemePref = "system" | "light" | "dark";
 export const DEFAULT_THEME_ID = "javarf-default";
 
 export type BackgroundKind = "none" | "image" | "builtin";
+export type LayoutMode = "classic" | "terminal-focus" | "compact-ops";
+export type AgentFamilyMode = "general" | "cybersecurity";
 
 export const EDITOR_THEMES = [
   "atomone",
@@ -63,6 +65,7 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
 
 export type Preferences = {
   firstRunSetupDone: boolean;
+  firstRunTutorialDone: boolean;
   firstRunRepoPath: string | null;
   proxyPresetId: string | null;
   proxyPresetPaths: Record<string, string>;
@@ -76,6 +79,8 @@ export type Preferences = {
   backgroundBuiltinId: string | null;
   backgroundOpacity: number;
   backgroundBlur: number;
+  layoutMode: LayoutMode;
+  agentFamilyMode: AgentFamilyMode;
   defaultModelId: ModelId;
   editorTheme: EditorThemeId;
   customInstructions: string;
@@ -112,6 +117,9 @@ export type Preferences = {
   zoomLevel: number;
   agentNotifications: boolean;
   interactionSounds: boolean;
+  soundVolume: number;
+  soundPitch: number;
+  soundBody: number;
   shortcuts: Record<ShortcutId, KeyBinding[]>;
   editorAutoSave: boolean;
   editorAutoSaveDelay: number;
@@ -119,6 +127,7 @@ export type Preferences = {
 
 const STORE_PATH = "javarf-settings.json";
 const KEY_FIRST_RUN_SETUP_DONE = "firstRunSetupDone";
+const KEY_FIRST_RUN_TUTORIAL_DONE = "firstRunTutorialDone";
 const KEY_FIRST_RUN_REPO_PATH = "firstRunRepoPath";
 const KEY_PROXY_PRESET_ID = "proxyPresetId";
 const KEY_PROXY_PRESET_PATHS = "proxyPresetPaths";
@@ -132,6 +141,8 @@ const KEY_BG_IMAGE_ID = "backgroundImageId";
 const KEY_BG_BUILTIN_ID = "backgroundBuiltinId";
 const KEY_BG_OPACITY = "backgroundOpacity";
 const KEY_BG_BLUR = "backgroundBlur";
+const KEY_LAYOUT_MODE = "layoutMode";
+const KEY_AGENT_FAMILY_MODE = "agentFamilyMode";
 const KEY_DEFAULT_MODEL = "defaultModelId";
 const KEY_EDITOR_THEME = "editorTheme";
 const KEY_CUSTOM_INSTRUCTIONS = "customInstructions";
@@ -169,6 +180,9 @@ const KEY_LAST_WSL_DISTRO = "lastWslDistro";
 const KEY_ZOOM_LEVEL = "zoomLevel";
 const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_INTERACTION_SOUNDS = "interactionSounds";
+const KEY_SOUND_VOLUME = "soundVolume";
+const KEY_SOUND_PITCH = "soundPitch";
+const KEY_SOUND_BODY = "soundBody";
 const KEY_SHORTCUTS = "shortcuts";
 const KEY_EDITOR_AUTO_SAVE = "editorAutoSave";
 const KEY_EDITOR_AUTO_SAVE_DELAY = "editorAutoSaveDelay";
@@ -190,6 +204,7 @@ export const TERMINAL_SCROLLBACK_PRESETS = [
 
 export const DEFAULT_PREFERENCES: Preferences = {
   firstRunSetupDone: false,
+  firstRunTutorialDone: false,
   firstRunRepoPath: null,
   proxyPresetId: null,
   proxyPresetPaths: {},
@@ -203,6 +218,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   backgroundBuiltinId: null,
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
+  layoutMode: "classic",
+  agentFamilyMode: "general",
   defaultModelId: DEFAULT_MODEL_ID,
   editorTheme: "atomone",
   customInstructions: "",
@@ -239,6 +256,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   zoomLevel: 1.0,
   agentNotifications: true,
   interactionSounds: true,
+  soundVolume: 0.8,
+  soundPitch: 1,
+  soundBody: 0.5,
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
   editorAutoSave: false,
   editorAutoSaveDelay: 1000,
@@ -262,6 +282,9 @@ export async function loadPreferences(): Promise<Preferences> {
     firstRunSetupDone:
       get<boolean>(KEY_FIRST_RUN_SETUP_DONE) ??
       DEFAULT_PREFERENCES.firstRunSetupDone,
+    firstRunTutorialDone:
+      get<boolean>(KEY_FIRST_RUN_TUTORIAL_DONE) ??
+      DEFAULT_PREFERENCES.firstRunTutorialDone,
     firstRunRepoPath:
       get<string | null>(KEY_FIRST_RUN_REPO_PATH) ??
       DEFAULT_PREFERENCES.firstRunRepoPath,
@@ -303,6 +326,10 @@ export async function loadPreferences(): Promise<Preferences> {
     ),
     backgroundBlur: clampBlur(
       get<number>(KEY_BG_BLUR) ?? DEFAULT_PREFERENCES.backgroundBlur,
+    ),
+    layoutMode: normalizeLayoutMode(get<string>(KEY_LAYOUT_MODE)),
+    agentFamilyMode: normalizeAgentFamilyMode(
+      get<string>(KEY_AGENT_FAMILY_MODE),
     ),
     defaultModelId: ((): ModelId => {
       const stored = get<string>(KEY_DEFAULT_MODEL);
@@ -415,6 +442,15 @@ export async function loadPreferences(): Promise<Preferences> {
     interactionSounds:
       get<boolean>(KEY_INTERACTION_SOUNDS) ??
       DEFAULT_PREFERENCES.interactionSounds,
+    soundVolume: clampUnit(
+      get<number>(KEY_SOUND_VOLUME) ?? DEFAULT_PREFERENCES.soundVolume,
+    ),
+    soundPitch: clampSoundPitch(
+      get<number>(KEY_SOUND_PITCH) ?? DEFAULT_PREFERENCES.soundPitch,
+    ),
+    soundBody: clampUnit(
+      get<number>(KEY_SOUND_BODY) ?? DEFAULT_PREFERENCES.soundBody,
+    ),
     shortcuts:
       get<Record<ShortcutId, KeyBinding[]>>(KEY_SHORTCUTS) ??
       DEFAULT_PREFERENCES.shortcuts,
@@ -454,6 +490,33 @@ function clampBlur(v: number): number {
   return Math.min(64, Math.max(0, Math.round(v)));
 }
 
+function normalizeLayoutMode(value: string | undefined): LayoutMode {
+  if (
+    value === "classic" ||
+    value === "terminal-focus" ||
+    value === "compact-ops"
+  ) {
+    return value;
+  }
+  return DEFAULT_PREFERENCES.layoutMode;
+}
+
+function normalizeAgentFamilyMode(
+  value: string | undefined,
+): AgentFamilyMode {
+  return value === "cybersecurity" ? "cybersecurity" : "general";
+}
+
+function clampUnit(v: number): number {
+  if (!Number.isFinite(v)) return 1;
+  return Math.min(1, Math.max(0, v));
+}
+
+function clampSoundPitch(v: number): number {
+  if (!Number.isFinite(v)) return DEFAULT_PREFERENCES.soundPitch;
+  return Math.min(1.8, Math.max(0.45, v));
+}
+
 export async function setBackgroundKind(value: BackgroundKind): Promise<void> {
   await writePref(KEY_BG_KIND, value);
 }
@@ -472,6 +535,16 @@ export async function setBackgroundOpacity(value: number): Promise<void> {
 
 export async function setBackgroundBlur(value: number): Promise<void> {
   await writePref(KEY_BG_BLUR, clampBlur(value));
+}
+
+export async function setLayoutMode(value: LayoutMode): Promise<void> {
+  await writePref(KEY_LAYOUT_MODE, normalizeLayoutMode(value));
+}
+
+export async function setAgentFamilyMode(
+  value: AgentFamilyMode,
+): Promise<void> {
+  await writePref(KEY_AGENT_FAMILY_MODE, normalizeAgentFamilyMode(value));
 }
 
 
@@ -622,6 +695,10 @@ export async function setFirstRunSetupDone(value: boolean): Promise<void> {
   await writePref(KEY_FIRST_RUN_SETUP_DONE, value);
 }
 
+export async function setFirstRunTutorialDone(value: boolean): Promise<void> {
+  await writePref(KEY_FIRST_RUN_TUTORIAL_DONE, value);
+}
+
 export async function setFirstRunRepoPath(value: string | null): Promise<void> {
   await writePref(KEY_FIRST_RUN_REPO_PATH, value);
 }
@@ -764,6 +841,18 @@ export async function setInteractionSounds(value: boolean): Promise<void> {
   await writePref(KEY_INTERACTION_SOUNDS, value);
 }
 
+export async function setSoundVolume(value: number): Promise<void> {
+  await writePref(KEY_SOUND_VOLUME, clampUnit(value));
+}
+
+export async function setSoundPitch(value: number): Promise<void> {
+  await writePref(KEY_SOUND_PITCH, clampSoundPitch(value));
+}
+
+export async function setSoundBody(value: number): Promise<void> {
+  await writePref(KEY_SOUND_BODY, clampUnit(value));
+}
+
 export async function setShortcuts(
   value: Record<ShortcutId, KeyBinding[]> | {},
 ): Promise<void> {
@@ -782,6 +871,7 @@ export async function onPreferencesChange(
 ): Promise<UnlistenFn> {
   const map: Record<string, PrefKey> = {
     [KEY_FIRST_RUN_SETUP_DONE]: "firstRunSetupDone",
+    [KEY_FIRST_RUN_TUTORIAL_DONE]: "firstRunTutorialDone",
     [KEY_FIRST_RUN_REPO_PATH]: "firstRunRepoPath",
     [KEY_PROXY_PRESET_ID]: "proxyPresetId",
     [KEY_PROXY_PRESET_PATHS]: "proxyPresetPaths",
@@ -795,6 +885,8 @@ export async function onPreferencesChange(
     [KEY_BG_BUILTIN_ID]: "backgroundBuiltinId",
     [KEY_BG_OPACITY]: "backgroundOpacity",
     [KEY_BG_BLUR]: "backgroundBlur",
+    [KEY_LAYOUT_MODE]: "layoutMode",
+    [KEY_AGENT_FAMILY_MODE]: "agentFamilyMode",
     [KEY_DEFAULT_MODEL]: "defaultModelId",
     [KEY_EDITOR_THEME]: "editorTheme",
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",
@@ -831,6 +923,9 @@ export async function onPreferencesChange(
     [KEY_ZOOM_LEVEL]: "zoomLevel",
     [KEY_AGENT_NOTIFICATIONS]: "agentNotifications",
     [KEY_INTERACTION_SOUNDS]: "interactionSounds",
+    [KEY_SOUND_VOLUME]: "soundVolume",
+    [KEY_SOUND_PITCH]: "soundPitch",
+    [KEY_SOUND_BODY]: "soundBody",
     [KEY_SHORTCUTS]: "shortcuts",
     [KEY_EDITOR_AUTO_SAVE]: "editorAutoSave",
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",

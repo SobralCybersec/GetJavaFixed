@@ -1,3 +1,5 @@
+import type { JSONValue } from "ai";
+
 export const KEYRING_SERVICE = "javarf-ai";
 
 export type ProviderId =
@@ -8,6 +10,12 @@ export type ProviderId =
   | "cerebras"
   | "groq"
   | "deepseek"
+  | "qwen"
+  | "kimi"
+  | "together"
+  | "fireworks"
+  | "perplexity"
+  | "novita"
   | "mistral"
   | "openrouter"
   | "openai-compatible"
@@ -76,6 +84,48 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     consoleUrl: "https://platform.deepseek.com/api_keys",
   },
   {
+    id: "qwen",
+    label: "Qwen",
+    keyringAccount: "qwen-api-key",
+    keyPrefix: null,
+    consoleUrl: "https://bailian.console.aliyun.com/",
+  },
+  {
+    id: "kimi",
+    label: "Kimi",
+    keyringAccount: "kimi-api-key",
+    keyPrefix: null,
+    consoleUrl: "https://platform.kimi.ai/",
+  },
+  {
+    id: "together",
+    label: "Together",
+    keyringAccount: "together-api-key",
+    keyPrefix: null,
+    consoleUrl: "https://api.together.ai/settings/api-keys",
+  },
+  {
+    id: "fireworks",
+    label: "Fireworks",
+    keyringAccount: "fireworks-api-key",
+    keyPrefix: "fw_",
+    consoleUrl: "https://fireworks.ai/api-keys",
+  },
+  {
+    id: "perplexity",
+    label: "Perplexity",
+    keyringAccount: "perplexity-api-key",
+    keyPrefix: "pplx-",
+    consoleUrl: "https://www.perplexity.ai/settings/api",
+  },
+  {
+    id: "novita",
+    label: "Novita",
+    keyringAccount: "novita-api-key",
+    keyPrefix: null,
+    consoleUrl: "https://novita.ai/settings/key-management",
+  },
+  {
     id: "mistral",
     label: "Mistral",
     keyringAccount: "mistral-api-key",
@@ -140,6 +190,11 @@ export type ModelTag = "vision" | "reasoning" | "tools" | "coding";
 export type ModelInfo = {
   id: string;
   provider: ProviderId;
+  runtimeModelId?: string;
+  aliases?: readonly string[];
+  contextLimit?: number;
+  canonicalProvider?: ProviderId;
+  providerOptions?: Record<string, Record<string, JSONValue>>;
   label: string;
   /** One short word for the dropdown trigger. */
   hint: string;
@@ -324,6 +379,8 @@ export const MODELS = [
   {
     id: "deepseek-v4-pro",
     provider: "deepseek",
+    aliases: ["deepseek-v4-pro-non-thinking", "deepseek-v4-pro-nonthinking"],
+    contextLimit: 1_000_000,
     label: "DeepSeek V4 Pro",
     hint: "Best",
     description: "Strong open-weight code model.",
@@ -331,13 +388,41 @@ export const MODELS = [
     tags: ["reasoning", "tools", "coding"],
   },
   {
+    id: "deepseek-v4-pro-thinking",
+    provider: "deepseek",
+    runtimeModelId: "deepseek-v4-pro",
+    aliases: ["deepseek-v4-pro-reasoning", "deepseek-v4-pro-think"],
+    contextLimit: 1_000_000,
+    providerOptions: { deepseek: { thinking: { type: "enabled" } } },
+    label: "DeepSeek V4 Pro Thinking",
+    hint: "Thinking",
+    description: "DeepSeek V4 Pro with reasoning enabled.",
+    capabilities: { intelligence: 5, speed: 2, cost: 3 },
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
     id: "deepseek-v4-flash",
     provider: "deepseek",
+    aliases: ["deepseek-v4-flash-non-thinking", "deepseek-v4-flash-nonthinking"],
+    contextLimit: 1_000_000,
     label: "DeepSeek V4 Flash",
     hint: "Fast",
     description: "Cheap and fast everyday tier.",
     capabilities: { intelligence: 4, speed: 5, cost: 5 },
     tags: ["tools"],
+  },
+  {
+    id: "deepseek-v4-flash-thinking",
+    provider: "deepseek",
+    runtimeModelId: "deepseek-v4-flash",
+    aliases: ["deepseek-v4-flash-reasoning", "deepseek-v4-flash-think"],
+    contextLimit: 1_000_000,
+    providerOptions: { deepseek: { thinking: { type: "enabled" } } },
+    label: "DeepSeek V4 Flash Thinking",
+    hint: "Thinking",
+    description: "DeepSeek V4 Flash with reasoning enabled.",
+    capabilities: { intelligence: 4, speed: 4, cost: 5 },
+    tags: ["reasoning", "tools"],
   },
   {
     id: "deepseek-reasoner",
@@ -347,6 +432,159 @@ export const MODELS = [
     description: "Chain-of-thought at open-weight prices.",
     capabilities: { intelligence: 5, speed: 2, cost: 4 },
     tags: ["reasoning", "coding"],
+  },
+
+  {
+    id: "qwen3.7-max",
+    provider: "qwen",
+    aliases: ["qwen-3.7-max", "qwen37max"],
+    contextLimit: 1_000_000,
+    label: "Qwen3.7 Max",
+    hint: "Best",
+    description: "Qwen flagship model with 1M context.",
+    capabilities: { intelligence: 5, speed: 3, cost: 3 },
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
+    id: "qwen3.7-max-thinking",
+    provider: "qwen",
+    runtimeModelId: "qwen3.7-max",
+    aliases: ["qwen-3.7-max-thinking", "qwen37max-thinking"],
+    contextLimit: 1_000_000,
+    providerOptions: { qwen: { enable_thinking: true } },
+    label: "Qwen3.7 Max Thinking",
+    hint: "Thinking",
+    description: "Qwen3.7 Max with thinking mode enabled.",
+    capabilities: { intelligence: 5, speed: 2, cost: 3 },
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
+    id: "qwen3.7-plus",
+    provider: "qwen",
+    aliases: ["qwen-3.7-plus", "qwen37plus"],
+    contextLimit: 1_000_000,
+    label: "Qwen3.7 Plus",
+    hint: "Balanced",
+    description: "Balanced Qwen model with 1M context.",
+    capabilities: { intelligence: 4, speed: 4, cost: 4 },
+    tags: ["tools", "coding"],
+  },
+  {
+    id: "qwen3.6-plus",
+    provider: "qwen",
+    aliases: ["qwen-3.6-plus", "qwen36plus"],
+    contextLimit: 1_000_000,
+    label: "Qwen3.6 Plus",
+    hint: "Stable",
+    description: "Stable Qwen Plus model with long context.",
+    capabilities: { intelligence: 4, speed: 4, cost: 4 },
+    tags: ["tools", "coding"],
+  },
+  {
+    id: "qwen3.6-plus-thinking",
+    provider: "qwen",
+    runtimeModelId: "qwen3.6-plus",
+    aliases: ["qwen-3.6-plus-thinking", "qwen36plus-thinking"],
+    contextLimit: 1_000_000,
+    providerOptions: { qwen: { enable_thinking: true } },
+    label: "Qwen3.6 Plus Thinking",
+    hint: "Thinking",
+    description: "Qwen3.6 Plus with thinking mode enabled.",
+    capabilities: { intelligence: 4, speed: 3, cost: 4 },
+    tags: ["reasoning", "tools", "coding"],
+  },
+
+  {
+    id: "kimi-k2.6",
+    provider: "kimi",
+    aliases: ["k2-d6", "k2d6", "kimi-k2-d6"],
+    contextLimit: 256_000,
+    providerOptions: { kimi: { thinking: { type: "disabled" } } },
+    label: "Kimi K2.6",
+    hint: "Balanced",
+    description: "Kimi K2.6 in non-thinking mode.",
+    capabilities: { intelligence: 4, speed: 4, cost: 4 },
+    tags: ["tools", "coding"],
+  },
+  {
+    id: "kimi-k2.6-thinking",
+    provider: "kimi",
+    runtimeModelId: "kimi-k2.6",
+    aliases: ["k2-d6-thinking", "k2d6-thinking", "kimi-k2-d6-thinking"],
+    contextLimit: 256_000,
+    providerOptions: { kimi: { thinking: { type: "enabled" } } },
+    label: "Kimi K2.6 Thinking",
+    hint: "Thinking",
+    description: "Kimi K2.6 with thinking mode enabled.",
+    capabilities: { intelligence: 5, speed: 3, cost: 3 },
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
+    id: "kimi-k2.5",
+    provider: "kimi",
+    aliases: ["k2-d5", "k2d5", "kimi-k2-d5"],
+    contextLimit: 256_000,
+    label: "Kimi K2.5",
+    hint: "Stable",
+    description: "Previous Kimi K2 stable model.",
+    capabilities: { intelligence: 4, speed: 4, cost: 4 },
+    tags: ["tools", "coding"],
+  },
+
+  {
+    id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    provider: "together",
+    aliases: ["together-llama-3.3-70b"],
+    contextLimit: 128_000,
+    label: "Together Llama 3.3 70B",
+    hint: "Open",
+    description: "Open model served by Together.",
+    capabilities: { intelligence: 4, speed: 4, cost: 4 },
+    tags: ["tools"],
+  },
+  {
+    id: "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+    provider: "together",
+    aliases: ["together-qwen3-coder"],
+    contextLimit: 256_000,
+    label: "Together Qwen3 Coder",
+    hint: "Coding",
+    description: "Large Qwen coding model on Together.",
+    capabilities: { intelligence: 4, speed: 3, cost: 3 },
+    tags: ["tools", "coding"],
+  },
+  {
+    id: "accounts/fireworks/models/llama-v3p3-70b-instruct",
+    provider: "fireworks",
+    aliases: ["fireworks-llama-3.3-70b"],
+    contextLimit: 128_000,
+    label: "Fireworks Llama 3.3 70B",
+    hint: "Open",
+    description: "Fast open-model inference on Fireworks.",
+    capabilities: { intelligence: 4, speed: 4, cost: 4 },
+    tags: ["tools"],
+  },
+  {
+    id: "sonar-pro",
+    provider: "perplexity",
+    aliases: ["perplexity-sonar-pro"],
+    contextLimit: 200_000,
+    label: "Perplexity Sonar Pro",
+    hint: "Search",
+    description: "Perplexity Sonar model for answer synthesis.",
+    capabilities: { intelligence: 4, speed: 4, cost: 3 },
+    tags: ["tools"],
+  },
+  {
+    id: "deepseek/deepseek-r1",
+    provider: "novita",
+    aliases: ["novita-deepseek-r1"],
+    contextLimit: 128_000,
+    label: "Novita DeepSeek R1",
+    hint: "Thinking",
+    description: "DeepSeek R1 served by Novita.",
+    capabilities: { intelligence: 4, speed: 3, cost: 4 },
+    tags: ["reasoning", "tools", "coding"],
   },
 
   // ── Mistral ────────────────────────────────────────────────────────────────
@@ -563,6 +801,10 @@ export function getModelContextLimit(
   if (!modelId) return 128_000;
   if (modelId === "openai-compatible-custom" && compatOverride)
     return compatOverride;
+  const model = (MODELS as readonly ModelInfo[]).find(
+    (entry) => entry.id === modelId,
+  );
+  if (model?.contextLimit) return model.contextLimit;
   return MODEL_CONTEXT_LIMITS[modelId] ?? 128_000;
 }
 
@@ -645,6 +887,12 @@ export const DEFAULT_AUTOCOMPLETE_MODEL: Partial<Record<ProviderId, string>> = {
   google: "gemini-2.5-flash",
   xai: "grok-4-fast-reasoning",
   deepseek: "deepseek-v4-flash",
+  qwen: "qwen3.6-plus",
+  kimi: "kimi-k2.6",
+  together: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+  fireworks: "accounts/fireworks/models/llama-v3p3-70b-instruct",
+  perplexity: "sonar-pro",
+  novita: "deepseek/deepseek-r1",
   openrouter: "openai/gpt-5.4-mini",
   "openai-compatible": "",
 };

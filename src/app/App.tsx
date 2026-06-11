@@ -15,11 +15,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AgentNotificationsBridge } from "@/modules/agents";
 import { firePendingReviewForSession } from "@/modules/agents/lib/review";
 import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
 import { Toaster } from "@/components/ui/sonner";
+import { AniCliPanel } from "@/modules/anime/AniCliPanel";
 import {
   AgentRunBridge,
   AiInputBar,
@@ -81,8 +90,12 @@ import {
   onKeysChanged,
   setFirstRunRepoPath,
   setFirstRunSetupDone,
+  setFirstRunTutorialDone,
+  setLayoutMode,
   setThemeId as persistThemeId,
+  type LayoutMode,
 } from "@/modules/settings/store";
+import { useI18n } from "@/modules/i18n";
 import {
   ShortcutsDialog,
   useGlobalShortcuts,
@@ -137,6 +150,184 @@ import { AppProviders } from "./AppProviders";
 import { getRefactorToolKey } from "@/modules/ai/lib/toolKeyring";
 
 type TuiWaitResult = "ready" | "gone" | "timeout";
+
+const TUTORIAL_SLIDES = [
+  "workspace",
+  "agents",
+  "models",
+  "layout",
+] as const;
+
+type TutorialSlide = (typeof TUTORIAL_SLIDES)[number];
+
+const TUTORIAL_IMAGES: Record<TutorialSlide, string> = {
+  workspace: "/wallpapers/dragon-ball-sunset.png",
+  agents: "/wallpapers/tokyo-ghoul-red-black.png",
+  models: "/wallpapers/solo-leveling-shadow.png",
+  layout: "/wallpapers/one-piece-grand-line.png",
+};
+
+function TutorialDialog({
+  open,
+  layoutMode,
+  onOpenChange,
+}: {
+  open: boolean;
+  layoutMode: LayoutMode;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const slide = TUTORIAL_SLIDES[index] ?? "workspace";
+  const image = TUTORIAL_IMAGES[slide];
+  const last = index === TUTORIAL_SLIDES.length - 1;
+
+  useEffect(() => {
+    if (open) setIndex(0);
+  }, [open]);
+
+  const go = (next: number) => {
+    setDirection(next > index ? 1 : -1);
+    setIndex(Math.min(TUTORIAL_SLIDES.length - 1, Math.max(0, next)));
+  };
+
+  const finish = async () => {
+    await setFirstRunTutorialDone(true);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl overflow-hidden border border-border/80 bg-popover/98">
+        <DialogHeader>
+          <DialogTitle>{t("tutorial.title")}</DialogTitle>
+          <DialogDescription>{t("tutorial.description")}</DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-52 overflow-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.section
+              key={slide}
+              custom={direction}
+              initial={{ opacity: 0, x: direction > 0 ? 36 : -36 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction > 0 ? -36 : 36 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-4"
+            >
+              <div>
+                <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-primary">
+                  {index + 1} / {TUTORIAL_SLIDES.length}
+                </div>
+                <h2 className="mt-2 text-xl font-semibold">
+                  {t(`tutorial.${slide}.title`)}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {t(`tutorial.${slide}.body`)}
+                </p>
+              </div>
+
+              <div className="relative h-40 overflow-hidden rounded-lg border border-border/70 bg-background/70 sm:h-48">
+                <img
+                  src={image}
+                  alt={t(`tutorial.${slide}.imageAlt`)}
+                  className="size-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/55 via-transparent to-transparent" />
+              </div>
+
+              {slide === "layout" ? (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {(["classic", "terminal-focus", "compact-ops"] as const).map(
+                    (mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => void setLayoutMode(mode)}
+                        className={cn(
+                          "min-h-24 rounded-md border p-3 text-left transition-colors",
+                          layoutMode === mode
+                            ? "border-primary/70 bg-primary/10 text-foreground"
+                            : "border-border/70 bg-background/65 text-muted-foreground hover:border-primary/40",
+                        )}
+                      >
+                        <span className="block text-[12px] font-medium text-foreground">
+                          {t(`tutorial.layout.${mode}.title`)}
+                        </span>
+                        <span className="mt-1 block text-[11px] leading-5">
+                          {t(`tutorial.layout.${mode}.body`)}
+                        </span>
+                      </button>
+                    ),
+                  )}
+                </div>
+              ) : null}
+            </motion.section>
+          </AnimatePresence>
+        </div>
+
+        <DialogFooter className="items-center justify-between sm:justify-between">
+          <div className="flex gap-1">
+            {TUTORIAL_SLIDES.map((item, i) => (
+              <span
+                key={item}
+                className={cn(
+                  "h-1.5 w-6 rounded-full",
+                  i === index ? "bg-primary" : "bg-muted",
+                )}
+              />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => go(index - 1)}
+              disabled={index === 0}
+            >
+              {t("tutorial.back")}
+            </Button>
+            {last ? (
+              <Button type="button" size="sm" onClick={() => void finish()}>
+                {t("tutorial.done")}
+              </Button>
+            ) : (
+              <Button type="button" size="sm" onClick={() => go(index + 1)}>
+                {t("tutorial.next")}
+              </Button>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AniCliDialog({
+  open,
+  onOpenChange,
+  onRunInTerminal,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRunInTerminal?: (command: string) => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("anime.title")}</DialogTitle>
+          <DialogDescription>{t("anime.description")}</DialogDescription>
+        </DialogHeader>
+        <AniCliPanel onRunInTerminal={onRunInTerminal} />
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const HomeDashboardLazy = lazy(() =>
   import("./HomeDashboard").then((m) => ({ default: m.HomeDashboard })),
@@ -225,6 +416,12 @@ function readSidebarWidth(): number {
   } catch {
     return SIDEBAR_DEFAULT_WIDTH;
   }
+}
+
+function sidebarWidthForLayout(mode: LayoutMode, current: number): number {
+  if (mode === "compact-ops") return Math.min(current, 240);
+  if (mode === "terminal-focus") return Math.max(current, 320);
+  return current;
 }
 
 function readSidebarView(): SidebarViewId {
@@ -746,7 +943,12 @@ export default function App() {
   const prefDefaultModel = usePreferencesStore((s) => s.defaultModelId);
   const prefsHydrated = usePreferencesStore((s) => s.hydrated);
   const firstRunSetupDone = usePreferencesStore((s) => s.firstRunSetupDone);
+  const firstRunTutorialDone = usePreferencesStore((s) => s.firstRunTutorialDone);
   const firstRunRepoPath = usePreferencesStore((s) => s.firstRunRepoPath);
+  const layoutMode = usePreferencesStore((s) => s.layoutMode);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [aniCliOpen, setAniCliOpen] = useState(false);
+  const tutorialAutoShownRef = useRef(false);
   useEffect(() => {
     void initPrefs();
   }, [initPrefs]);
@@ -759,6 +961,14 @@ export default function App() {
     if (!prefsHydrated || !keysLoaded) return;
     setShowFirstRunSetup(!firstRunSetupDone);
   }, [prefsHydrated, keysLoaded, firstRunSetupDone]);
+
+  useEffect(() => {
+    if (!prefsHydrated || firstRunTutorialDone || tutorialAutoShownRef.current) {
+      return;
+    }
+    tutorialAutoShownRef.current = true;
+    setTutorialOpen(true);
+  }, [firstRunTutorialDone, prefsHydrated]);
 
   useEffect(() => {
     if (!prefsHydrated || !firstRunRepoPath) return;
@@ -965,9 +1175,16 @@ export default function App() {
       return;
     }
     if (hasWorkspace && collapsed) {
-      panel.resize(`${sidebarWidthRef.current}px`);
+      panel.resize(`${sidebarWidthForLayout(layoutMode, sidebarWidthRef.current)}px`);
     }
-  }, [hasWorkspace]);
+  }, [hasWorkspace, layoutMode]);
+
+  useEffect(() => {
+    const panel = sidebarRef.current;
+    if (!panel || !hasWorkspace) return;
+    if (panel.getSize().asPercentage <= 0) return;
+    panel.resize(`${sidebarWidthForLayout(layoutMode, sidebarWidthRef.current)}px`);
+  }, [hasWorkspace, layoutMode]);
 
   useEffect(() => {
     setActiveSearchAddon(
@@ -1378,9 +1595,68 @@ export default function App() {
     (dir: "row" | "col") => {
       const t = tabsRef.current.find((x) => x.id === activeId);
       if (!t || t.kind !== "terminal") return;
-      splitActivePane(activeId, dir);
+      const leafId = splitActivePane(activeId, dir);
+      if (leafId === null) return;
+      requestAnimationFrame(() => {
+        focusPane(activeId, leafId);
+        terminalRefs.current.get(leafId)?.focus();
+        void whenSessionReady(leafId)
+          .then(() => terminalRefs.current.get(leafId)?.focus())
+          .catch(() => undefined);
+      });
     },
-    [activeId, splitActivePane],
+    [activeId, focusPane, splitActivePane],
+  );
+
+  const runAniCliCommandInTerminal = useCallback(
+    (command: string) => {
+      const trimmed = command.trim();
+      if (!trimmed) return;
+
+      const writeWhenReady = (tabId: number, leafId: number) => {
+        setPhase1Mode("hidden");
+        setActiveId(tabId);
+        void (async () => {
+          try {
+            await whenSessionReady(leafId);
+          } catch {
+            return;
+          }
+          if (writeToSession(leafId, `${trimmed}\r`)) {
+            requestAnimationFrame(() => terminalRefs.current.get(leafId)?.focus());
+          }
+        })();
+      };
+
+      const active = tabsRef.current.find((x) => x.id === activeId);
+      if (active?.kind === "terminal") {
+        const canSplit = leafIds(active.paneTree).length < MAX_PANES_PER_TAB;
+        const leafId = canSplit
+          ? splitActivePane(active.id, "row")
+          : active.activeLeafId;
+        if (leafId !== null) {
+          requestAnimationFrame(() => focusPane(active.id, leafId));
+          writeWhenReady(active.id, leafId);
+          return;
+        }
+      }
+
+      const existingTerminal = [...tabsRef.current]
+        .reverse()
+        .find((tab): tab is Extract<Tab, { kind: "terminal" }> => tab.kind === "terminal");
+      if (existingTerminal) {
+        writeWhenReady(existingTerminal.id, existingTerminal.activeLeafId);
+        return;
+      }
+
+      const tabId = newTab(inheritedCwdForNewTab());
+      window.setTimeout(() => {
+        const tab = tabsRef.current.find((candidate) => candidate.id === tabId);
+        if (!tab || tab.kind !== "terminal") return;
+        writeWhenReady(tab.id, tab.activeLeafId);
+      }, 80);
+    },
+    [activeId, focusPane, inheritedCwdForNewTab, newTab, setActiveId, splitActivePane],
   );
 
   const handleCloseTabOrPane = useCallback(() => {
@@ -1871,10 +2147,8 @@ export default function App() {
     <Suspense fallback={null}>
       <HomeDashboardLazy
         hasModelAccess={hasComposer}
-        onOpenWorkspace={() => {
-          void handleChooseJavaRepo();
-        }}
         onOpenJavaRefactor={handleOpenJavaRefactor}
+        onRunAniCliCommand={runAniCliCommandInTerminal}
       />
     </Suspense>
   );
@@ -1882,7 +2156,14 @@ export default function App() {
   const shell = (
     <AppProviders>
       <TooltipProvider>
-        <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <div
+          data-layout-mode={layoutMode}
+          className={cn(
+            "relative flex h-screen flex-col overflow-hidden bg-background text-foreground",
+            layoutMode === "terminal-focus" && "javarf-layout-terminal-focus",
+            layoutMode === "compact-ops" && "javarf-layout-compact-ops",
+          )}
+        >
           {zenMode ? (
             <div
               className="absolute inset-x-0 top-0 z-40 h-3"
@@ -1920,6 +2201,11 @@ export default function App() {
             }
             onActivateAgent={onActivateAgent}
             onActivateLocalAgent={onActivateLocalAgent}
+            onOpenWorkspace={() => {
+              void handleChooseJavaRepo();
+            }}
+            onOpenTutorial={() => setTutorialOpen(true)}
+            onOpenAniCli={() => setAniCliOpen(true)}
             onOpenSettings={() => void openSettingsWindow()}
             searchTarget={searchTarget}
             searchRef={searchInlineRef}
@@ -1937,7 +2223,7 @@ export default function App() {
               <ResizablePanel
                 id="sidebar"
                 panelRef={sidebarRef}
-                defaultSize={hasWorkspace ? `${sidebarWidthRef.current}px` : 0}
+                defaultSize={hasWorkspace ? `${sidebarWidthForLayout(layoutMode, sidebarWidthRef.current)}px` : 0}
                 minSize={`${SIDEBAR_MIN_WIDTH}px`}
                 maxSize={`${SIDEBAR_MAX_WIDTH}px`}
                 collapsible
@@ -2107,6 +2393,16 @@ export default function App() {
             onActivate={onActivateAgent}
           />
           <Toaster position="bottom-right" />
+          <TutorialDialog
+            open={tutorialOpen}
+            layoutMode={layoutMode}
+            onOpenChange={setTutorialOpen}
+          />
+          <AniCliDialog
+            open={aniCliOpen}
+            onOpenChange={setAniCliOpen}
+            onRunInTerminal={runAniCliCommandInTerminal}
+          />
 
           {hasComposer ? (
             <>

@@ -29,8 +29,8 @@ import {
   native,
   normalizeOpenAiCompatibleBaseUrl,
   type ProxyExampleModel,
-  type ProxyExampleStatus,
 } from "@/modules/ai/lib/native";
+import { matchDiscoveredModel } from "@/modules/ai/lib/modelResolution";
 import {
   clearRefactorToolKey,
   getRefactorToolKey,
@@ -55,8 +55,6 @@ import {
   setOpenaiCompatibleContextLimit,
   setOpenaiCompatibleModelId,
   setOpenrouterModelId,
-  setProxyPresetId,
-  setProxyPresetPath,
   setRefactorCustomInstructions,
 } from "@/modules/settings/store";
 import {
@@ -68,23 +66,12 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { ProviderIcon } from "../components/ProviderIcon";
 import { McpToolsBlock } from "../components/McpToolsBlock";
 import { ProviderKeyCard } from "../components/ProviderKeyCard";
 import { SectionHeader } from "../components/SectionHeader";
-import {
-  buildProxyStatusArgs,
-  canRunProxyLogin,
-  canStartProxy,
-  getEffectiveProxyPath,
-  getProxyRecoveryText,
-  isUsingAutoDetectedProxyPath,
-  resolveDetectedProxyPreset,
-} from "./proxyPreset";
 
 type KeysMap = Record<ProviderId, string | null>;
 
@@ -169,9 +156,6 @@ export function ModelsSection() {
   const refactorCustomInstructions = usePreferencesStore(
     (s) => s.refactorCustomInstructions,
   );
-  const proxyPresetId = usePreferencesStore((s) => s.proxyPresetId);
-  const proxyPresetPaths = usePreferencesStore((s) => s.proxyPresetPaths);
-
   useEffect(() => {
     void getAllKeys().then(setKeys);
     void Promise.all([getRefactorToolKey("exa"), getRefactorToolKey("context7")]).then(
@@ -354,8 +338,6 @@ export function ModelsSection() {
                   configured={configuredIds.has(p.id)}
                   config={localConfig(p.id)!}
                   meta={LOCAL_META[p.id]!}
-                  proxyPresetId={proxyPresetId}
-                  proxyPresetPaths={proxyPresetPaths}
                   compatKey={
                     p.id === "openai-compatible" || p.id === "openrouter"
                       ? keys[p.id]
@@ -1000,8 +982,6 @@ function LocalProviderCard({
   configured,
   config,
   meta,
-  proxyPresetId,
-  proxyPresetPaths,
   compatKey,
   onSaveKey,
   onClearKey,
@@ -1011,8 +991,6 @@ function LocalProviderCard({
   configured: boolean;
   config: LocalConfig;
   meta: LocalMeta;
-  proxyPresetId?: string | null;
-  proxyPresetPaths?: Record<string, string>;
   compatKey?: string | null;
   onSaveKey: (v: string) => Promise<void>;
   onClearKey: () => Promise<void>;
@@ -1064,6 +1042,22 @@ function LocalProviderCard({
     setSelectedModelId(next);
   };
 
+  const applyModelMetadata = async (nextModelId: string) => {
+    if (!setContextLimit) return;
+    const providerHint =
+      provider.id === "openai-compatible" ? undefined : provider.id;
+    const match = matchDiscoveredModel(nextModelId, providerHint);
+    if (!match) return;
+    await setContextLimit(match.contextLimit);
+    setContextDraft(String(match.contextLimit));
+  };
+
+  const saveModelId = async (nextModelId: string) => {
+    const value = nextModelId.trim();
+    await setModelId(value);
+    await applyModelMetadata(value);
+  };
+
   const test = async () => {
     setTestStatus("testing");
     try {
@@ -1087,7 +1081,7 @@ function LocalProviderCard({
       if (!modelDraft.trim() && loaded[0]?.id) {
         const next = loaded[0].id;
         setModelDraft(next);
-        await setModelId(next);
+        await saveModelId(next);
       }
     } catch (error) {
       setAvailableModels([]);
@@ -1184,7 +1178,7 @@ function LocalProviderCard({
             onChange={(e) => setModelDraft(e.target.value)}
             onBlur={() => {
               const v = modelDraft.trim();
-              if (v !== modelId) void setModelId(v);
+              if (v !== modelId) void saveModelId(v);
             }}
             placeholder={meta.modelPlaceholder}
             spellCheck={false}
@@ -1271,7 +1265,7 @@ function LocalProviderCard({
                     className="h-7 px-2 font-mono text-[10.5px]"
                     onClick={async () => {
                       setModelDraft(availableModel.id);
-                      await setModelId(availableModel.id);
+                      await saveModelId(availableModel.id);
                       await activateProviderModel();
                     }}
                   >
@@ -1289,20 +1283,6 @@ function LocalProviderCard({
           </div>
         ) : null}
 
-        {provider.id === "openai-compatible" ? (
-          <ProxyPresetControls
-            baseURL={urlDraft}
-            modelsError={modelsError}
-            activePresetId={proxyPresetId ?? null}
-            presetPaths={proxyPresetPaths ?? {}}
-            compatKey={compatKey ?? null}
-            onUseBaseUrl={async (nextBaseUrl) => {
-              setUrlDraft(nextBaseUrl);
-              await setBaseURL(nextBaseUrl);
-            }}
-          />
-        ) : null}
-
         {!modelId.trim() && meta.modelHint ? (
           <p className="text-[10.5px] leading-relaxed text-muted-foreground">
             {meta.modelHint}
@@ -1311,309 +1291,6 @@ function LocalProviderCard({
       </div>
     </div>
   );
-}
-
-function ProxyPresetControls({
-  baseURL,
-  modelsError,
-  activePresetId,
-  presetPaths,
-  compatKey,
-  onUseBaseUrl,
-}: {
-  baseURL: string;
-  modelsError: string | null;
-  activePresetId: string | null;
-  presetPaths: Record<string, string>;
-  compatKey?: string | null;
-  onUseBaseUrl: (baseUrl: string) => Promise<void>;
-}) {
-  const [presets, setPresets] = useState<Awaited<
-    ReturnType<typeof native.proxyexamplePresets>
-  >>([]);
-  const [detectedPreset, setDetectedPreset] = useState<Awaited<
-    ReturnType<typeof native.proxyexampleDetectAtPath>
-  > | null>(null);
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
-    activePresetId,
-  );
-  const [selectedPath, setSelectedPath] = useState("");
-  const [busyAction, setBusyAction] = useState<"start" | "login" | null>(null);
-  const [status, setStatus] = useState<ProxyExampleStatus | null>(null);
-  const [statusBusy, setStatusBusy] = useState(false);
-
-  useEffect(() => {
-    void native.proxyexamplePresets().then(setPresets).catch(() => setPresets([]));
-  }, []);
-
-  useEffect(() => {
-    setSelectedPresetId(activePresetId);
-  }, [activePresetId]);
-
-  useEffect(() => {
-    setSelectedPath(selectedPresetId ? presetPaths[selectedPresetId] ?? "" : "");
-  }, [presetPaths, selectedPresetId]);
-
-  useEffect(() => {
-    if (!selectedPresetId) {
-      setDetectedPreset(null);
-      return;
-    }
-    let alive = true;
-    void native
-      .proxyexampleDetectAtPath(selectedPresetId, selectedPath.trim() || null)
-      .then((next) => {
-        if (alive) setDetectedPreset(next);
-      })
-      .catch(() => {
-        if (alive) setDetectedPreset(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [selectedPath, selectedPresetId]);
-
-  const selectedPreset =
-    presets.find((preset) => preset.id === selectedPresetId) ?? null;
-  const effectivePreset = resolveDetectedProxyPreset(detectedPreset, selectedPreset);
-  const effectivePath = getEffectiveProxyPath(
-    selectedPath,
-    detectedPreset,
-    selectedPreset,
-  );
-  const usingAutoDetectedPath = isUsingAutoDetectedProxyPath(
-    selectedPath,
-    effectivePath,
-  );
-
-  useEffect(() => {
-    if (!selectedPresetId) {
-      setStatus(null);
-      return;
-    }
-    const normalizedBaseUrl = normalizeOpenAiCompatibleBaseUrl(baseURL);
-    if (!normalizedBaseUrl) {
-      setStatus(null);
-      return;
-    }
-    let alive = true;
-    setStatusBusy(true);
-    void native
-      .proxyexampleStatus(
-        ...buildProxyStatusArgs(
-          selectedPresetId,
-          effectivePath,
-          normalizedBaseUrl,
-          compatKey,
-        ),
-      )
-      .then((next) => {
-        if (alive) setStatus(next);
-      })
-      .catch(() => {
-        if (alive) setStatus(null);
-      })
-      .finally(() => {
-        if (alive) setStatusBusy(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [baseURL, compatKey, effectivePath, selectedPresetId]);
-  const recoveryHint = getProxyRecoveryText(status, getProxyRecoveryHint(modelsError));
-  const looksLocalCompat =
-    baseURL.includes("127.0.0.1") ||
-    baseURL.includes("localhost") ||
-    baseURL.includes("0.0.0.0");
-
-  if (!selectedPreset && !recoveryHint && !looksLocalCompat) return null;
-
-  const runAction = async (kind: "start" | "login") => {
-    if (!selectedPresetId || !effectivePath) {
-      toast.error("Choose a proxy preset and its folder first.");
-      return;
-    }
-    setBusyAction(kind);
-    try {
-      if (kind === "start") {
-        await native.proxyexampleStart(selectedPresetId, effectivePath);
-        toast.success("Proxy preset started.");
-      } else {
-        await native.proxyexampleLogin(selectedPresetId, effectivePath);
-        toast.success("Proxy preset login flow launched.");
-      }
-      await setProxyPresetId(selectedPresetId);
-      if (selectedPath.trim()) {
-        await setProxyPresetPath(selectedPresetId, selectedPath.trim());
-      }
-      const normalizedBaseUrl = normalizeOpenAiCompatibleBaseUrl(
-        baseURL || selectedPreset?.defaultBaseUrl || "",
-      );
-      if (normalizedBaseUrl) {
-        setStatus(
-          await native.proxyexampleStatus(
-            ...buildProxyStatusArgs(
-              selectedPresetId,
-              effectivePath,
-              normalizedBaseUrl,
-              compatKey,
-            ),
-          ),
-        );
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const chooseFolder = async () => {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: "Choose proxy preset folder",
-    });
-    if (typeof selected !== "string") return;
-    setSelectedPath(selected);
-    if (selectedPresetId) {
-      await setProxyPresetPath(selectedPresetId, selected);
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-3">
-      <div className="flex flex-col gap-2">
-        <span className="text-[11px] font-medium text-foreground">
-          Proxy preset recovery
-        </span>
-        <span className="text-[10.5px] leading-relaxed text-muted-foreground">
-          {recoveryHint ??
-            "This looks like a bundled proxy preset. Start it here and run its interactive login flow when the upstream site needs browser auth."}
-        </span>
-        {status ? (
-          <div className="rounded-md border border-border/60 bg-background/70 px-2.5 py-2 text-[10.5px] text-muted-foreground">
-            <div>
-              Health:{" "}
-              {status.healthOk
-                ? `ok (${status.healthStatus ?? "n/a"})`
-                : status.healthStatus ?? status.healthError ?? "unreachable"}
-            </div>
-            <div>
-              Models:{" "}
-              {status.modelsReachable ? "reachable" : status.modelsError ?? "not reachable"}
-            </div>
-            {!status.configuredPathOk && status.pathError ? (
-              <div>Path: {status.pathError}</div>
-            ) : null}
-          </div>
-        ) : statusBusy ? (
-          <div className="text-[10.5px] text-muted-foreground">Checking preset status...</div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={selectedPresetId ?? ""}
-            onChange={async (e) => {
-              const next = e.target.value || null;
-              setSelectedPresetId(next);
-              await setProxyPresetId(next);
-              const preset = presets.find((item) => item.id === next);
-              if (preset && !baseURL.trim()) {
-                await onUseBaseUrl(preset.defaultBaseUrl);
-              }
-            }}
-            className="h-8 min-w-36 rounded-md border border-border bg-background px-2.5 text-[11.5px]"
-          >
-            <option value="">Select preset</option>
-            {presets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.displayName}
-              </option>
-            ))}
-          </select>
-          <Input
-            value={selectedPath}
-            onChange={(e) => setSelectedPath(e.target.value)}
-            onBlur={() => {
-              if (selectedPresetId) {
-                void setProxyPresetPath(selectedPresetId, selectedPath.trim());
-              }
-            }}
-            placeholder="Path to proxy preset folder"
-            spellCheck={false}
-            className="h-8 flex-1 font-mono text-[11px]"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void chooseFolder()}
-            className="h-8 px-3 text-[11px]"
-          >
-            Browse
-          </Button>
-        </div>
-
-        {usingAutoDetectedPath ? (
-          <div className="text-[10.5px] text-muted-foreground">
-            Using repo-local preset path: {effectivePath}
-          </div>
-        ) : null}
-
-        {selectedPreset ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void onUseBaseUrl(selectedPreset.defaultBaseUrl)}
-              className="h-8 px-3 text-[11px]"
-            >
-              Use preset URL
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!canStartProxy(effectivePreset, busyAction)}
-              onClick={() => void runAction("start")}
-              className="h-8 px-3 text-[11px]"
-            >
-              {busyAction === "start" ? "Starting..." : "Start proxy"}
-            </Button>
-            <Button
-              size="sm"
-              disabled={!canRunProxyLogin(effectivePreset, busyAction)}
-              onClick={() => void runAction("login")}
-              className="h-8 px-3 text-[11px]"
-            >
-              {busyAction === "login" ? "Opening..." : "Run login"}
-            </Button>
-            <span className="text-[10.5px] text-muted-foreground">
-              Default URL: {selectedPreset.defaultBaseUrl}
-            </span>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function getProxyRecoveryHint(message: string | null): string | null {
-  if (!message) return null;
-  const text = message.toLowerCase();
-  if (text.includes("deepseek login required")) {
-    return "This proxy preset needs an interactive DeepSeek login. Click `Run login`, finish the browser flow, then retry.";
-  }
-  if (text.includes("waf challenge")) {
-    return "DeepSeek presented a WAF challenge. Click `Run login`, let the browser finish the challenge, then retry model loading.";
-  }
-  if (
-    text.includes("net::err_aborted") ||
-    text.includes("failed to open deepseek start page") ||
-    text.includes("deepseek_navigation_failed")
-  ) {
-    return "The local proxy is reachable, but its browser session is not ready. Use `Run login` to refresh the saved session before retrying.";
-  }
-  return null;
 }
 
 function FieldRow({

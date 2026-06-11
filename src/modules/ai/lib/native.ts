@@ -21,6 +21,19 @@ export type CommandOutput = {
   truncated: boolean;
 };
 
+export type AniCliArgs = {
+  query: string;
+  episode?: number;
+  quality?: "360" | "480" | "720" | "1080";
+  dub: boolean;
+  download: boolean;
+};
+
+export type AniCliCheck = {
+  aniCli: boolean;
+  mpv: boolean;
+};
+
 export type GrepHit = {
   path: string;
   rel: string;
@@ -182,6 +195,8 @@ export type GitDiscardEntry = {
 };
 
 export const native = {
+  checkAniCli: () => invoke<AniCliCheck>("check_ani_cli"),
+  launchAniCli: (args: AniCliArgs) => invoke<void>("launch_ani_cli", { args }),
   workspaceCurrentDir: () => invoke<string>("workspace_current_dir"),
   appResourceDir: () => invoke<string | null>("get_app_resource_dir"),
   appLocalDataDir: () => invoke<string | null>("get_app_local_data_dir"),

@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { native } from "@/modules/ai/lib/native";
 import { AiDiffPane } from "@/modules/editor/AiDiffPane";
 import { newQueuedEditId, usePlanStore } from "@/modules/ai/store/planStore";
 import { useEffect, useRef, useState } from "react";
 import type { RefactorResult, RefactorStatus } from "./lib/useRefactorGeneration";
+import { useRefactorAutomationPrefs } from "./lib/refactorAutomationPrefs";
 
 type Props = {
   status: RefactorStatus;
@@ -18,9 +18,6 @@ type Props = {
 };
 
 const LARGE_DIFF_PREVIEW_THRESHOLD = 160_000;
-const AUTO_APPLY_KEY = "javarf.refactor.autoApply";
-const AUTO_COMMIT_KEY = "javarf.refactor.autoCommit";
-const AUTO_PUSH_KEY = "javarf.refactor.autoPush";
 
 export function RefactorPreviewPanel({
   status,
@@ -32,20 +29,9 @@ export function RefactorPreviewPanel({
 }: Props) {
   const enqueue = usePlanStore((s) => s.enqueue);
   const [showLargeDiff, setShowLargeDiff] = useState(false);
-  const [autoApply, setAutoApply] = usePersistentBoolean(AUTO_APPLY_KEY, false);
-  const [autoCommit, setAutoCommitRaw] = usePersistentBoolean(AUTO_COMMIT_KEY, false);
-  const [autoPush, setAutoPushRaw] = usePersistentBoolean(AUTO_PUSH_KEY, false);
+  const { autoApply, autoCommit, autoPush } = useRefactorAutomationPrefs();
   const [autoStatus, setAutoStatus] = useState<string | null>(null);
   const autoHandledRef = useRef<string | null>(null);
-
-  const setAutoCommit = (next: boolean) => {
-    setAutoCommitRaw(next);
-    if (!next) setAutoPushRaw(false);
-  };
-  const setAutoPush = (next: boolean) => {
-    if (next) setAutoCommitRaw(true);
-    setAutoPushRaw(next);
-  };
 
   useEffect(() => {
     setShowLargeDiff(false);
@@ -118,15 +104,7 @@ export function RefactorPreviewPanel({
             The agent will wait until you start it, then build a safe diff for review.
           </p>
         </div>
-        <AutomationToggles
-          autoApply={autoApply}
-          autoCommit={autoCommit}
-          autoPush={autoPush}
-          onAutoApply={setAutoApply}
-          onAutoCommit={setAutoCommit}
-          onAutoPush={setAutoPush}
-          status={autoStatus}
-        />
+        <AutomationStatus status={autoStatus} />
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={onGenerate} className="h-8 px-3 text-xs">
             Generate refactor
@@ -183,15 +161,7 @@ export function RefactorPreviewPanel({
             className,
           )}
         >
-          <AutomationToggles
-            autoApply={autoApply}
-            autoCommit={autoCommit}
-            autoPush={autoPush}
-            onAutoApply={setAutoApply}
-            onAutoCommit={setAutoCommit}
-            onAutoPush={setAutoPush}
-            status={autoStatus}
-          />
+          <AutomationStatus status={autoStatus} />
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">{relPath}</p>
             <p className="text-xs leading-relaxed text-muted-foreground">
@@ -233,15 +203,7 @@ export function RefactorPreviewPanel({
             onReject={onReset}
           />
         </div>
-        <AutomationToggles
-          autoApply={autoApply}
-          autoCommit={autoCommit}
-          autoPush={autoPush}
-          onAutoApply={setAutoApply}
-          onAutoCommit={setAutoCommit}
-          onAutoPush={setAutoPush}
-          status={autoStatus}
-        />
+        <AutomationStatus status={autoStatus} />
         <RefactorReport report={result.reportMarkdown} />
         <p className="text-[11px] text-muted-foreground">
           Accept queues the change for review in the plan panel. No files are written until you
@@ -254,90 +216,12 @@ export function RefactorPreviewPanel({
   return null;
 }
 
-function usePersistentBoolean(key: string, fallback: boolean) {
-  const [value, setValue] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem(key);
-      return stored === null ? fallback : stored === "true";
-    } catch {
-      return fallback;
-    }
-  });
-
-  const setPersistedValue = (next: boolean) => {
-    setValue(next);
-    try {
-      window.localStorage.setItem(key, String(next));
-    } catch {
-      
-    }
-  };
-
-  return [value, setPersistedValue] as const;
-}
-
-function AutomationToggles({
-  autoApply,
-  autoCommit,
-  autoPush,
-  onAutoApply,
-  onAutoCommit,
-  onAutoPush,
-  status,
-}: {
-  autoApply: boolean;
-  autoCommit: boolean;
-  autoPush: boolean;
-  onAutoApply: (next: boolean) => void;
-  onAutoCommit: (next: boolean) => void;
-  onAutoPush: (next: boolean) => void;
-  status: string | null;
-}) {
+function AutomationStatus({ status }: { status: string | null }) {
+  if (!status) return null;
   return (
-    <div className="border border-border/60 bg-background/65 p-3">
-      <div className="grid gap-3 text-xs sm:grid-cols-3">
-        <ToggleRow label="Auto-apply" checked={autoApply} onCheckedChange={onAutoApply} />
-        <ToggleRow
-          label="Auto-commit"
-          checked={autoCommit}
-          disabled={!autoApply}
-          onCheckedChange={onAutoCommit}
-        />
-        <ToggleRow
-          label="Auto-push"
-          checked={autoPush}
-          disabled={!autoApply || !autoCommit}
-          onCheckedChange={onAutoPush}
-        />
-      </div>
-      {status ? (
-        <p className="mt-2 font-mono text-[11px] text-muted-foreground">{status}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  checked,
-  disabled,
-  onCheckedChange,
-}: {
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  onCheckedChange: (next: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-3 border border-border/50 bg-card/40 px-2 py-2 font-mono uppercase tracking-[0.12em] text-muted-foreground">
-      <span>{label}</span>
-      <Switch
-        size="sm"
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-      />
-    </label>
+    <p className="border border-border/60 bg-background/65 p-3 font-mono text-[11px] text-muted-foreground">
+      {status}
+    </p>
   );
 }
 

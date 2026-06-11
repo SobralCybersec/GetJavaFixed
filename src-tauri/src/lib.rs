@@ -1,8 +1,8 @@
 pub mod modules;
 
 use modules::{
-    agent, analysis, fs, git, java_repo, net, proxyexamples, pty, refactoring_db, secrets, shell,
-    workspace,
+    agent, analysis, ani_cli, fs, git, java_repo, net, proxyexamples, pty, refactoring_db, secrets,
+    shell, workspace,
 };
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
@@ -242,6 +242,8 @@ pub fn run() {
             open_settings_window,
             agent::agent_enable_claude_hooks,
             agent::agent_claude_hooks_status,
+            ani_cli::check_ani_cli,
+            ani_cli::launch_ani_cli,
             secrets::secrets_get,
             secrets::secrets_set,
             secrets::secrets_delete,

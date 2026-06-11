@@ -144,12 +144,14 @@ export function createContextAwareTransport(deps: Deps) {
       let resolvedMcpConfig: McpConfig | null = null;
       try {
         resolvedMcpConfig = {
-          providers: await Promise.all(
-            (mcpConfig.providers ?? []).map(async (provider) => ({
-              ...provider,
-              apiKey: provider.apiKey ?? (await getKnownProviderKey(provider.id)),
-            })),
-          ),
+          providers: (
+            await Promise.all(
+              (mcpConfig.providers ?? []).map(async (provider) => ({
+                ...provider,
+                apiKey: provider.apiKey ?? (await getKnownProviderKey(provider.id)),
+              })),
+            )
+          ).filter((provider) => provider.auth === "none" || !!provider.apiKey),
         };
         mcpBundle = await withTimeout(
           getCachedMcpToolBundle(resolvedMcpConfig),

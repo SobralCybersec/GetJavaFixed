@@ -3,7 +3,7 @@ import {
   getManagedMcpSafeToolNames,
   type HttpMcpProviderRuntimeConfig,
 } from "./mcpRegistry";
-import { createProxyFetch, safeWindowFetch } from "./proxyFetch";
+import { createProxyFetch, proxyFetch } from "./proxyFetch";
 
 export type McpConfig = {
   providers: HttpMcpProviderRuntimeConfig[];
@@ -70,7 +70,7 @@ export function createHttpMcpClient(
 }
 
 function selectMcpFetch(url: string): typeof fetch {
-  return isLoopbackHttpUrl(url) ? loopbackMcpFetch : safeWindowFetch;
+  return isLoopbackHttpUrl(url) ? loopbackMcpFetch : proxyFetch;
 }
 
 function isLoopbackHttpUrl(url: string): boolean {

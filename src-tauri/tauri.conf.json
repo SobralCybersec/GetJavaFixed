@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "GetJavaFixed",
+  "productName": "AnimeAIAssistant",
   "version": "0.1.0",
   "identifier": "app.javarf.desktop",
   "build": {
@@ -13,11 +13,13 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "AnimeAIAssistant",
         "width": 800,
         "height": 600,
         "minWidth": 420,
         "minHeight": 280,
+        "decorations": false,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "visible": false,

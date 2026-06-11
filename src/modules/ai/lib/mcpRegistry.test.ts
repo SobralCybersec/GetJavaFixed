@@ -7,7 +7,7 @@ import {
 } from "./mcpRegistry";
 
 describe("mcp registry runtime config", () => {
-  it("drops Exa when no API key is available", () => {
+  it("drops keyed remote providers when no API keys are available", () => {
     const runtime = buildRuntimeMcpConfig({
       providers: [
         { id: "exa", enabled: true, url: EXA_MCP_URL },
@@ -16,16 +16,7 @@ describe("mcp registry runtime config", () => {
       managedPresets: [],
     });
 
-    expect(runtime.providers).toEqual([
-      {
-        id: "context7",
-        label: "Context7",
-        enabled: true,
-        url: DEFAULT_CONTEXT7_MCP_URL,
-        auth: "bearer",
-        apiKey: undefined,
-      },
-    ]);
+    expect(runtime.providers).toEqual([]);
   });
 
   it("keeps Exa in runtime config when late key resolution is allowed", () => {

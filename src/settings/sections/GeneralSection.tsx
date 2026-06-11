@@ -28,6 +28,9 @@ import {
   setInteractionSounds,
   setRestoreWindowState,
   setShowHidden,
+  setSoundBody,
+  setSoundPitch,
+  setSoundVolume,
   setTerminalFontFamily,
   setTerminalLetterSpacing,
   setTerminalFontSize,
@@ -89,6 +92,9 @@ export function GeneralSection() {
   const zoomLevel = usePreferencesStore((s) => s.zoomLevel);
   const agentNotifications = usePreferencesStore((s) => s.agentNotifications);
   const interactionSounds = usePreferencesStore((s) => s.interactionSounds);
+  const soundVolume = usePreferencesStore((s) => s.soundVolume);
+  const soundPitch = usePreferencesStore((s) => s.soundPitch);
+  const soundBody = usePreferencesStore((s) => s.soundBody);
 
   const appearanceLabels: Record<ThemePref, string> = {
     system: t("general.appearance.system"),
@@ -383,6 +389,36 @@ export function GeneralSection() {
             onCheckedChange={(value) => void setInteractionSounds(value)}
           />
         </SettingRow>
+        <SoundSlider
+          title={t("general.agents.soundVolume.title")}
+          description={t("general.agents.soundVolume.description")}
+          value={soundVolume}
+          min={0}
+          max={1}
+          step={0.05}
+          format={(value) => `${Math.round(value * 100)}%`}
+          onChange={(value) => void setSoundVolume(value)}
+        />
+        <SoundSlider
+          title={t("general.agents.soundPitch.title")}
+          description={t("general.agents.soundPitch.description")}
+          value={soundPitch}
+          min={0.5}
+          max={2}
+          step={0.05}
+          format={(value) => `${value.toFixed(2)}x`}
+          onChange={(value) => void setSoundPitch(value)}
+        />
+        <SoundSlider
+          title={t("general.agents.soundBody.title")}
+          description={t("general.agents.soundBody.description")}
+          value={soundBody}
+          min={0}
+          max={1}
+          step={0.05}
+          format={(value) => `${Math.round(value * 100)}%`}
+          onChange={(value) => void setSoundBody(value)}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -409,6 +445,43 @@ export function GeneralSection() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SoundSlider({
+  title,
+  description,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <SettingRow title={title} description={description}>
+      <div className="flex w-44 items-center gap-2">
+        <Slider
+          value={[value]}
+          min={min}
+          max={max}
+          step={step}
+          onValueChange={(next) => onChange(next[0] ?? value)}
+        />
+        <span className="w-11 text-right text-[10.5px] tabular-nums text-muted-foreground">
+          {format(value)}
+        </span>
+      </div>
+    </SettingRow>
   );
 }
 

@@ -6,19 +6,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useChatStore } from "@/modules/ai";
 import { useI18n } from "@/modules/i18n";
 import {
   DASHBOARD_CHART_COLORS,
   chartAnimation,
   getDashboardChartTheme,
 } from "@/modules/dashboard/chartSetup";
-import { GridViewIcon } from "@hugeicons/core-free-icons";
+import {
+  GridViewIcon,
+  MessageSearch01Icon,
+  Note01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ChartData, ChartOptions } from "chart.js";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Bar, Line, Radar } from "react-chartjs-2";
+import { AniCliPanel } from "@/modules/anime/AniCliPanel";
 import {
   ease,
   fadeUp,
@@ -29,18 +36,44 @@ import {
 } from "@/modules/dashboard/animations";
 
 type Props = {
-  onOpenWorkspace: () => void;
   onOpenJavaRefactor: () => void;
+  onRunAniCliCommand?: (command: string) => void;
   hasModelAccess: boolean;
 };
 
+const CONTEXT_NOTE_KEY = "javarf.context.note";
+
+function readStoredContextNote(): string {
+  try {
+    return window.localStorage.getItem(CONTEXT_NOTE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function saveStoredContextNote(note: string): void {
+  try {
+    if (note.trim()) {
+      window.localStorage.setItem(CONTEXT_NOTE_KEY, note);
+    } else {
+      window.localStorage.removeItem(CONTEXT_NOTE_KEY);
+    }
+  } catch {
+    
+  }
+}
+
 export function HomeDashboard({
-  onOpenWorkspace,
   onOpenJavaRefactor,
+  onRunAniCliCommand,
   hasModelAccess,
 }: Props) {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("launch");
+  const [contextDraft, setContextDraft] = useState(readStoredContextNote);
+  const [contextQuery, setContextQuery] = useState("");
+  const [contextSavedAt, setContextSavedAt] = useState<number | null>(null);
+  const sessions = useChatStore((s) => s.sessions);
   const reduced = useReducedMotion();
 
   const launchFlowData = useMemo<ChartData<"line">>(
@@ -227,6 +260,56 @@ export function HomeDashboard({
     [t],
   );
 
+  const contextRecords = useMemo(() => {
+    const savedNote = contextDraft.trim();
+    const base = [
+      {
+        title: t("home.context.note.title"),
+        source: t("home.context.note.source"),
+        body: savedNote || t("home.context.note.empty"),
+      },
+      {
+        title: t("home.workflow.intake.title"),
+        source: t("home.context.workflow.source"),
+        body: t("home.workflow.intake.description"),
+      },
+      {
+        title: t("home.workflow.analysis.title"),
+        source: t("home.context.workflow.source"),
+        body: t("home.workflow.analysis.description"),
+      },
+      {
+        title: t("home.workflow.refactor.title"),
+        source: t("home.context.workflow.source"),
+        body: t("home.workflow.refactor.description"),
+      },
+    ];
+
+    const chatRecords = sessions.slice(0, 8).map((session) => ({
+      title: session.title || t("home.context.chat.fallback"),
+      source: t("home.context.chat.source"),
+      body: t("home.context.chat.updated", {
+        date: new Date(session.updatedAt).toLocaleString(),
+      }),
+    }));
+
+    return [...base, ...chatRecords];
+  }, [contextDraft, sessions, t]);
+
+  const visibleContextRecords = useMemo(() => {
+    const query = contextQuery.trim().toLowerCase();
+    if (!query) return contextRecords;
+    return contextRecords.filter((record) =>
+      `${record.title} ${record.source} ${record.body}`.toLowerCase().includes(query),
+    );
+  }, [contextQuery, contextRecords]);
+
+  useEffect(() => {
+    if (contextSavedAt === null) return;
+    const timer = window.setTimeout(() => setContextSavedAt(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [contextSavedAt]);
+
   const tabVariants = reduced
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.15 } }, exit: { opacity: 0 } }
     : tabFade;
@@ -255,6 +338,9 @@ export function HomeDashboard({
               <TabsTrigger className="javarf-terminal-tab" value="workflow">
                 {t("home.tabs.workflow")}
               </TabsTrigger>
+              <TabsTrigger className="javarf-terminal-tab" value="context">
+                {t("home.tabs.context")}
+              </TabsTrigger>
             </TabsList>
           </motion.div>
 
@@ -280,12 +366,12 @@ export function HomeDashboard({
                         >
                           <motion.div variants={reduced ? undefined : fadeUp}>
                             <DashboardEyebrow
-                              label="Refactoring Java"
+                              label={t("home.hero.eyebrow")}
                               value={t("home.hero.badge")}
                             />
                           </motion.div>
                           <motion.div variants={reduced ? undefined : fadeUp} className="space-y-3">
-                            <h1 className="font-heading text-balance text-4xl font-semibold uppercase leading-[0.88] tracking-[0.08em] text-foreground sm:text-5xl xl:text-6xl">
+                            <h1 className="font-project-title text-balance text-4xl font-semibold uppercase leading-[0.88] text-foreground sm:text-5xl xl:text-6xl">
                               {t("home.hero.title")}
                             </h1>
                             <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground sm:text-base">
@@ -300,13 +386,6 @@ export function HomeDashboard({
                           initial="hidden"
                           animate="visible"
                         >
-                          <Button
-                            size="lg"
-                            className="min-w-[170px] border border-primary/40 bg-primary/10 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:bg-primary/20 hover:shadow-[0_0_16px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
-                            onClick={onOpenWorkspace}
-                          >
-                            {t("home.openWorkspace")}
-                          </Button>
                           <Button
                             size="lg"
                             variant="outline"
@@ -334,6 +413,9 @@ export function HomeDashboard({
                       </motion.div>
                     </div>
                   </section>
+                </DashboardWidget>
+                <DashboardWidget title={t("home.animeLauncher")}>
+                  <AniCliPanel onRunInTerminal={onRunAniCliCommand} />
                 </DashboardWidget>
               </motion.div>
             )}
@@ -481,6 +563,104 @@ export function HomeDashboard({
                     </CardContent>
                   </Card>
                 </DashboardWidget>
+              </motion.div>
+            )}
+
+            {activeTab === "context" && (
+              <motion.div
+                key="context"
+                variants={tabVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="mt-0 flex-1"
+              >
+                <section className="grid gap-4 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
+                  <DashboardWidget title={t("home.context.note.title")}>
+                    <Card
+                      size="sm"
+                      className="javarf-terminal-frame java-panel ops-card border-border/70"
+                    >
+                      <CardHeader className="border-b border-border/60 bg-background/55">
+                        <CardTitle className="flex items-center gap-2">
+                          <HugeiconsIcon icon={Note01Icon} size={16} strokeWidth={1.75} />
+                          {t("home.context.note.title")}
+                        </CardTitle>
+                        <CardDescription>{t("home.context.note.description")}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <textarea
+                          value={contextDraft}
+                          onChange={(event) => setContextDraft(event.target.value)}
+                          placeholder={t("home.context.note.placeholder")}
+                          className="min-h-52 w-full resize-y rounded-md border border-border/70 bg-background/70 p-3 text-sm leading-6 outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
+                        />
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[11px] text-muted-foreground">
+                            {contextSavedAt ? t("home.context.note.saved") : t("home.context.note.hint")}
+                          </span>
+                          <Button
+                            size="sm"
+                            className="h-8 px-3 text-xs"
+                            onClick={() => {
+                              saveStoredContextNote(contextDraft);
+                              setContextSavedAt(Date.now());
+                            }}
+                          >
+                            {t("home.context.note.save")}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </DashboardWidget>
+
+                  <DashboardWidget title={t("home.context.search.title")}>
+                    <Card
+                      size="sm"
+                      className="javarf-terminal-frame java-panel ops-card border-border/70"
+                    >
+                      <CardHeader className="border-b border-border/60 bg-background/55">
+                        <CardTitle className="flex items-center gap-2">
+                          <HugeiconsIcon
+                            icon={MessageSearch01Icon}
+                            size={16}
+                            strokeWidth={1.75}
+                          />
+                          {t("home.context.search.title")}
+                        </CardTitle>
+                        <CardDescription>{t("home.context.search.description")}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <Input
+                          value={contextQuery}
+                          onChange={(event) => setContextQuery(event.target.value)}
+                          placeholder={t("home.context.search.placeholder")}
+                          className="h-9 text-sm"
+                        />
+                        <div className="grid gap-2">
+                          {visibleContextRecords.map((record) => (
+                            <div
+                              key={`${record.source}:${record.title}`}
+                              className="rounded-md border border-border/60 bg-background/65 p-3"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 truncate text-sm font-medium">
+                                  {record.title}
+                                </div>
+                                <div className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-primary/75">
+                                  {record.source}
+                                </div>
+                              </div>
+                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                                {record.body}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </DashboardWidget>
+                </section>
               </motion.div>
             )}
           </AnimatePresence>

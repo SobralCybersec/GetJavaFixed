@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SYSTEM_PROMPT_LITE, selectSystemPrompt } from "../config";
 import {
   buildStableSystem,
+  buildToolPlan,
   buildLocalRuntimeToolGuidanceBlock,
   buildTurnExecutionGuidanceBlock,
   buildTurnContextBlock,
@@ -60,6 +61,59 @@ function makeAvailableTools(): ToolSet {
 }
 
 describe("agent tool selection", () => {
+  it("buildToolPlan keeps casual chat tool-free", () => {
+    const plan = buildToolPlan({
+      messageIntent: "hello, who are you?",
+      taskType: "chat",
+      availableToolNames: Object.keys(makeAvailableTools()),
+    });
+
+    expect(plan.activeTools).toBeUndefined();
+    expect(plan.mutationIntent).toBe(false);
+    expect(plan.shouldLoadMcp).toBe(false);
+  });
+
+  it("buildToolPlan enables read/search for repo search", () => {
+    const plan = buildToolPlan({
+      messageIntent: "Find where model aliases are resolved",
+      taskType: "search",
+      workspaceRoot: "C:/repo",
+      availableToolNames: Object.keys(makeAvailableTools()),
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["read_file", "list_directory", "grep", "glob"]),
+    );
+    expect(plan.mutationIntent).toBe(false);
+  });
+
+  it("buildToolPlan enables writes only for explicit edit intent", () => {
+    const plan = buildToolPlan({
+      messageIntent: "Fix this function",
+      taskType: "edit",
+      activeFile: "C:/repo/src/main.ts",
+      availableToolNames: Object.keys(makeAvailableTools()),
+    });
+
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["edit", "multi_edit"]),
+    );
+    expect(plan.mutationIntent).toBe(true);
+  });
+
+  it("buildToolPlan loads web tools for research requests", () => {
+    const plan = buildToolPlan({
+      messageIntent: "Search the web for current docs",
+      taskType: "research",
+      availableToolNames: Object.keys(makeAvailableTools()),
+    });
+
+    expect(plan.shouldLoadMcp).toBe(true);
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining(["web_search_exa", "web_fetch_exa"]),
+    );
+  });
+
   it("does not expose tools for ordinary chat turns", () => {
     const plan = planAgentTurnCapabilities({
       modelId: "openai-compatible-custom",

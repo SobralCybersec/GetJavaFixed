@@ -155,8 +155,8 @@ export function getManagedMcpSafeToolNames(
 }
 
 export const DEFAULT_MCP_PROVIDERS: readonly McpProviderConfig[] = [
-  { id: "exa", enabled: true, url: EXA_MCP_URL },
-  { id: "context7", enabled: true, url: DEFAULT_CONTEXT7_MCP_URL },
+  { id: "exa", enabled: false, url: EXA_MCP_URL },
+  { id: "context7", enabled: false, url: DEFAULT_CONTEXT7_MCP_URL },
 ] as const;
 
 export const DEFAULT_MANAGED_MCP_PRESETS: readonly ManagedMcpPresetConfig[] = [
@@ -303,7 +303,7 @@ export function buildRuntimeMcpConfig(args: {
     const meta = REMOTE_MCP_PROVIDER_META[provider.id];
     const apiKey = meta.toolKeyId ? args.toolKeys?.[meta.toolKeyId]?.trim() : undefined;
     if (!provider.enabled) continue;
-    if (provider.id === "exa" && !apiKey && !args.allowMissingToolKeys) continue;
+    if (meta.toolKeyId && !apiKey && !args.allowMissingToolKeys) continue;
     runtimeProviders.push({
       id: provider.id,
       label: meta.label,

@@ -8,6 +8,12 @@ type AudioWindow = Window &
     webkitAudioContext?: typeof AudioContext;
   };
 
+type ToneSettings = {
+  volume: number;
+  pitch: number;
+  body: number;
+};
+
 let audioContext: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
@@ -22,6 +28,7 @@ function getAudioContext(): AudioContext | null {
 
 function playTone(
   ctx: AudioContext,
+  settings: ToneSettings,
   frequency: number,
   startOffset: number,
   duration: number,
@@ -31,15 +38,16 @@ function playTone(
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   const start = ctx.currentTime + startOffset;
-  const end = start + duration;
+  const end = start + duration * (0.85 + settings.body * 0.35);
 
   oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, start);
+  oscillator.frequency.setValueAtTime(frequency * settings.pitch, start);
   oscillator.connect(gain);
   gain.connect(ctx.destination);
 
+  const shapedGain = Math.max(0.0001, gainValue * settings.volume * (0.75 + settings.body * 0.3));
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(gainValue, start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(shapedGain, start + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, end);
 
   oscillator.start(start);
@@ -50,31 +58,41 @@ function playTone(
   };
 }
 
-function playSequence(ctx: AudioContext, kind: InteractionSound): void {
+function playSequence(
+  ctx: AudioContext,
+  kind: InteractionSound,
+  settings: ToneSettings,
+): void {
   switch (kind) {
     case "click":
-      playTone(ctx, 740, 0, 0.055, 0.025, "triangle");
+      playTone(ctx, settings, 740, 0, 0.055, 0.025, "triangle");
       return;
     case "done":
-      playTone(ctx, 660, 0, 0.11, 0.036, "sine");
-      playTone(ctx, 990, 0.105, 0.16, 0.032, "triangle");
+      playTone(ctx, settings, 660, 0, 0.11, 0.036, "sine");
+      playTone(ctx, settings, 990, 0.105, 0.16, 0.032, "triangle");
       return;
     case "attention":
-      playTone(ctx, 520, 0, 0.1, 0.028, "sine");
-      playTone(ctx, 780, 0.12, 0.1, 0.025, "sine");
+      playTone(ctx, settings, 520, 0, 0.1, 0.028, "sine");
+      playTone(ctx, settings, 780, 0.12, 0.1, 0.025, "sine");
       return;
     case "error":
-      playTone(ctx, 220, 0, 0.14, 0.032, "sawtooth");
+      playTone(ctx, settings, 220, 0, 0.14, 0.032, "sawtooth");
       return;
   }
 }
 
 export function playInteractionSound(kind: InteractionSound): void {
-  if (!usePreferencesStore.getState().interactionSounds) return;
+  const prefs = usePreferencesStore.getState();
+  if (!prefs.interactionSounds || prefs.soundVolume <= 0) return;
   const ctx = getAudioContext();
   if (!ctx) return;
+  const settings = {
+    volume: prefs.soundVolume,
+    pitch: prefs.soundPitch,
+    body: prefs.soundBody,
+  };
 
-  const play = () => playSequence(ctx, kind);
+  const play = () => playSequence(ctx, kind, settings);
   if (ctx.state === "suspended") {
     void ctx.resume().then(play).catch(() => undefined);
     return;

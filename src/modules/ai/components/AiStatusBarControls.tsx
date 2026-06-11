@@ -40,6 +40,10 @@ import {
   StarIcon,
   StopCircleIcon,
   Tick01Icon,
+  QwenIcon,
+  KimiAiIcon,
+  FireworksIcon,
+  PerplexityAiIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion } from "motion/react";
@@ -66,6 +70,12 @@ const PROVIDER_ICON = {
   cerebras: CpuIcon,
   groq: FlashIcon,
   deepseek: DeepseekIcon,
+  qwen: QwenIcon,
+  kimi: KimiAiIcon,
+  together: GlobeIcon,
+  fireworks: FireworksIcon,
+  perplexity: PerplexityAiIcon,
+  novita: ServerStack01Icon,
   mistral: MistralIcon,
   openrouter: GlobeIcon,
   "openai-compatible": PlugIcon,
@@ -99,6 +109,12 @@ function getModelIcon(
   }
   if (text.includes("grok") || text.includes("xai")) return Grok02Icon;
   if (text.includes("deepseek")) return DeepseekIcon;
+  if (text.includes("qwen")) return AiBookIcon;
+  if (text.includes("kimi") || text.includes("moonshot")) return BrainIcon;
+  if (text.includes("together")) return GlobeIcon;
+  if (text.includes("fireworks")) return FlashIcon;
+  if (text.includes("perplexity") || text.includes("sonar")) return Search01Icon;
+  if (text.includes("novita")) return ServerStack01Icon;
   if (text.includes("mistral") || text.includes("mixtral")) return MistralIcon;
   if (text.includes("groq")) return FlashIcon;
   if (text.includes("cerebras")) return CpuIcon;

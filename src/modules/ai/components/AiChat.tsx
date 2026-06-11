@@ -28,10 +28,13 @@ import {
   CodeIcon,
   File01Icon,
   HashtagIcon,
+  Link01Icon,
   TerminalIcon,
 } from "@hugeicons/core-free-icons";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { JAVARF_CMD_RE, SLASH_COMMANDS } from "../lib/slashCommands";
 import { Spinner } from "@/components/ui/spinner";
+import { useI18n, type TranslateFn } from "@/modules/i18n";
 import { useChatStore, sendMessage } from "../store/chatStore";
 import type {
   ChatStatus,
@@ -82,6 +85,7 @@ const SELECTION_RE =
 const FILE_RE =
   /<file\s+name="([^"]+)"[^>]*>\n?([\s\S]*?)\n?<\/file>/g;
 const SNIPPET_RE = /<snippet\s+name="([^"]+)">\n?[\s\S]*?\n?<\/snippet>/g;
+const URL_RE = /\b(?:https?|file):\/\/[^\s<>"')\]]+/gi;
 
 function countLines(s: string): number {
   if (!s) return 0;
@@ -120,6 +124,7 @@ const ContextChips = memo(function ContextChips({
 }: {
   chips: ContextChip[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="mb-1 flex flex-wrap gap-1">
       {chips.map((c, i) => (
@@ -128,7 +133,7 @@ const ContextChips = memo(function ContextChips({
           className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-card/60 px-1.5 py-0.5 text-[10.5px] text-muted-foreground"
         >
           {chipIcon(c)}
-          <span className="font-medium text-foreground">{chipLabel(c)}</span>
+          <span className="font-medium text-foreground">{chipLabel(c, t)}</span>
           {"lines" in c && c.lines > 0 ? (
             <span className="opacity-70">· {c.lines}L</span>
           ) : null}
@@ -154,13 +159,88 @@ function chipIcon(c: ContextChip) {
   return <HugeiconsIcon icon={HashtagIcon} size={10} strokeWidth={1.75} />;
 }
 
-function chipLabel(c: ContextChip): string {
+function chipLabel(c: ContextChip, t: TranslateFn): string {
   if (c.kind === "selection") {
-    return c.source === "editor" ? "Editor selection" : "Terminal selection";
+    return c.source === "editor"
+      ? t("ai.context.editorSelection")
+      : t("ai.context.terminalSelection");
   }
   if (c.kind === "file") return c.name;
   return `#${c.name}`;
 }
+
+type LinkPreview = {
+  url: string;
+  host: string;
+  path: string;
+};
+
+function cleanPreviewUrl(raw: string): string {
+  return raw.replace(/[),.;:!?]+$/g, "");
+}
+
+function linkPreviewsFromText(text: string): LinkPreview[] {
+  const seen = new Set<string>();
+  const previews: LinkPreview[] = [];
+  for (const match of text.matchAll(URL_RE)) {
+    const url = cleanPreviewUrl(match[0]);
+    if (seen.has(url)) continue;
+    try {
+      const parsed = new URL(url);
+      const host =
+        parsed.protocol === "file:" ? "Local file" : parsed.hostname || url;
+      const path =
+        parsed.protocol === "file:"
+          ? decodeURIComponent(parsed.pathname)
+          : `${parsed.pathname}${parsed.search}`;
+      seen.add(url);
+      previews.push({
+        url,
+        host,
+        path: path && path !== "/" ? path : parsed.protocol.replace(":", ""),
+      });
+    } catch {
+      // Ignore malformed matches; plain text still renders normally.
+    }
+  }
+  return previews;
+}
+
+const LinkPreviews = memo(function LinkPreviews({ text }: { text: string }) {
+  const { t } = useI18n();
+  const previews = useMemo(() => linkPreviewsFromText(text), [text]);
+  if (previews.length === 0) return null;
+
+  return (
+    <div className="mt-2 grid gap-1.5">
+      {previews.map((preview) => (
+        <button
+          key={preview.url}
+          type="button"
+          onClick={() => void openUrl(preview.url).catch(console.error)}
+          className="group flex min-w-0 items-center gap-2 rounded-md border border-border/55 bg-card/65 px-2 py-1.5 text-left transition-colors hover:border-primary/45 hover:bg-primary/10"
+        >
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">
+            <HugeiconsIcon icon={Link01Icon} size={13} strokeWidth={1.75} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[11px] font-medium text-foreground">
+              {preview.host}
+            </span>
+            <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
+              {preview.path}
+            </span>
+          </span>
+          <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-muted-foreground group-hover:text-primary">
+            {t("ai.linkPreview.open")}
+          </span>
+          <span className="sr-only">{t("ai.linkPreview.title")}</span>
+        </button>
+      ))}
+    </div>
+  );
+});
+
 type AnyPart = UIMessagePart<Record<string, never>, Record<string, never>>;
 
 type ApprovalArg = {

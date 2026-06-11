@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod analysis;
+pub mod ani_cli;
 pub mod fs;
 pub mod git;
 pub mod java_repo;

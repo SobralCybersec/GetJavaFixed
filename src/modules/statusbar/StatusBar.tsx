@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { useChatStore } from "@/modules/ai";
 import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
 import {
@@ -6,12 +7,18 @@ import {
   AiStatusBarControls,
 } from "@/modules/ai/components/AiStatusBarControls";
 import { useI18n } from "@/modules/i18n";
+import { useRefactorAutomationPrefs } from "@/modules/findings/lib/refactorAutomationPrefs";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { IncognitoIcon } from "@hugeicons/core-free-icons";
+import { IncognitoIcon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { WorkspaceEnv } from "@/modules/workspace";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
@@ -66,7 +73,7 @@ export function StatusBar({
         onHoverChange?.(false);
       }}
       className={cn(
-        "javarf-terminal-shell flex h-10 shrink-0 items-center justify-between gap-3 border-[color:var(--border)] bg-[#050506]/96 px-3 text-[11px] backdrop-blur-sm",
+        "javarf-terminal-shell flex h-10 shrink-0 items-center justify-between gap-3 border-[color:var(--border)] bg-[#050506]/96 px-3 text-[11px]",
         placement === "top" ? "border-b" : "border-t",
         zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
       )}
@@ -117,6 +124,7 @@ export function StatusBar({
             </span>
           </div>
         </div>
+        <RefactorAutomationPopover />
         <AgentStatusPill onClick={onOpenMini} />
         {panelOpen && hasComposer ? (
           <AiStatusBarControls />
@@ -125,5 +133,83 @@ export function StatusBar({
         )}
       </div>
     </footer>
+  );
+}
+
+function RefactorAutomationPopover() {
+  const { t } = useI18n();
+  const {
+    autoApply,
+    autoCommit,
+    autoPush,
+    setAutoApply,
+    setAutoCommit,
+    setAutoPush,
+  } = useRefactorAutomationPrefs();
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+            (autoApply || autoCommit || autoPush) && "text-primary",
+          )}
+          title={t("status.refactorAutomation")}
+          aria-label={t("status.refactorAutomation")}
+        >
+          <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="end" className="w-64 p-2">
+        <div className="px-1 pb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          {t("status.refactorAutomation")}
+        </div>
+        <div className="space-y-1.5">
+          <AutomationRow
+            label={t("status.autoRefactor")}
+            checked={autoApply}
+            onCheckedChange={setAutoApply}
+          />
+          <AutomationRow
+            label={t("status.autoCommit")}
+            checked={autoCommit}
+            disabled={!autoApply}
+            onCheckedChange={setAutoCommit}
+          />
+          <AutomationRow
+            label={t("status.autoPush")}
+            checked={autoPush}
+            disabled={!autoApply || !autoCommit}
+            onCheckedChange={setAutoPush}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function AutomationRow({
+  label,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/70 px-2.5 py-2 text-[11px] text-muted-foreground">
+      <span>{label}</span>
+      <Switch
+        size="sm"
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+      />
+    </label>
   );
 }

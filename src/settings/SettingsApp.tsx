@@ -1,5 +1,5 @@
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WindowControls } from "@/components/WindowControls";
+import { cn } from "@/lib/utils";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { useI18n } from "@/modules/i18n";
 import type { SettingsTab } from "@/modules/settings/openSettingsWindow";
@@ -116,36 +116,44 @@ export function SettingsApp() {
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground select-none">
       <header
         data-tauri-drag-region
-        className={`flex h-11 shrink-0 items-center border-b border-border/60 bg-card/60 ${IS_MAC ? "pr-3 pl-22" : "pr-0 pl-3"
+        className={`flex h-11 shrink-0 items-center justify-between border-b border-border/60 bg-card/60 ${IS_MAC ? "pr-3 pl-22" : "pr-0 pl-3"
           }`}
       >
-        <Tabs
-          value={active}
-          onValueChange={(v) => setActive(v as SettingsTab)}
-          orientation="horizontal"
-          className="flex-1 items-center"
-          data-tauri-drag-region
-        >
-          <TabsList className="mx-auto h-7 bg-muted/40 px-2">
-            {tabs.map((tab) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="h-6 gap-1.5 px-2.5 text-[11.5px]"
-              >
-                <HugeiconsIcon icon={tab.icon} size={12} strokeWidth={1.75} />
-                <span>{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          <HugeiconsIcon icon={Settings01Icon} size={15} strokeWidth={1.75} />
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            {t("settings.title")}
+          </span>
+        </div>
         {USE_CUSTOM_WINDOW_CONTROLS && <WindowControls closeOnly />}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-8 pt-6 pb-7 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="mx-auto w-full max-w-160">
+      <main className="flex min-h-0 flex-1">
+        <nav className="w-48 shrink-0 border-r border-border/60 bg-card/35 p-2">
+          <div className="flex flex-col gap-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActive(tab.id)}
+                className={cn(
+                  "flex h-9 items-center gap-2 rounded-md px-2 text-left text-[12px] transition-colors",
+                  active === tab.id
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent/45 hover:text-foreground",
+                )}
+              >
+                <HugeiconsIcon icon={tab.icon} size={14} strokeWidth={1.75} />
+                <span className="truncate">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+        <section className="min-h-0 flex-1 overflow-y-auto px-5 py-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mx-auto w-full max-w-190">
           {ActiveSection && <ActiveSection />}
-        </div>
+          </div>
+        </section>
       </main>
     </div>
   );
