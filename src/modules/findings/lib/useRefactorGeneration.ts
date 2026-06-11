@@ -30,6 +30,7 @@ export type RefactorResult = {
   filePath: string;
   originalContent: string;
   proposedContent: string;
+  reportMarkdown: string;
 };
 
 export type UseRefactorGenerationResult = {
@@ -118,13 +119,14 @@ const DEFAULT_RULE_GUIDANCE: RefactorRuleSpec = {
   references: [],
 };
 
-const REFACTOR_SYSTEM = `You are a Java refactoring engine. Your ONLY output is the complete refactored file content - no explanation, no markdown fences, no commentary. Output the raw Java source code only.
+const REFACTOR_SYSTEM = `You are a polyglot refactoring engine. Your ONLY output is the complete refactored file content - no explanation, no markdown fences, no commentary. Output the raw source file content only.
 
 Rules:
 - Apply ONLY the specific refactoring described. Do not make unrelated changes.
-- Preserve all existing logic, method signatures, class structure, and comments.
-- Do not add new imports unless strictly required by the refactoring.
+- Preserve all existing behavior, public signatures, module structure, and comments.
+- Do not add new imports/dependencies unless strictly required by the refactoring.
 - Do not reformat code that is not being changed.
+- When MCP Exa research tools are available, use them to verify current language/tooling patterns before deciding. Prefer official language and tool docs when possible.
 - If the file truly cannot be safely refactored, output the original content unchanged.`;
 
 const REFACTOR_FORCE_CHANGE_APPENDIX = `The previous draft did not produce a usable refactor.
@@ -135,21 +137,22 @@ Requirements:
 - You must change the file content in a behavior-preserving way when the requested refactor is clearly possible.
 - Prefer one focused refactor over multiple broad edits.
 - Touch only the code necessary to resolve the finding.
-- Return the full final Java file content only.`;
+- Return the full final source file content only.`;
 
 const REFACTOR_COMPLETENESS_APPENDIX = `The output must be the complete file content.
 
 Requirements:
 - Do not emit markdown fences, explanations, or partial snippets.
-- Preserve the full file structure from package declaration through final closing brace.
+- Preserve the full file structure from the first line through the final line.
 - If you cannot safely complete the file, return the original file unchanged rather than truncating it.`;
 
-const GENERIC_FILE_GUIDANCE = `Review this Java file for safe, behavior-preserving refactors.
+const GENERIC_FILE_GUIDANCE = `Review this source file for safe, behavior-preserving refactors.
 Prioritize:
 - removing obvious code smells
 - extracting small repeated logic
-- modernizing outdated Java syntax when low-risk
+- modernizing outdated syntax when low-risk for the detected language
 - improving naming and readability only where directly tied to the refactor
+- calling out when a refactor belongs in another file, but do not edit extra files in this preview
 - avoiding broad formatting-only churn
 
 Keep the change set minimal and production-safe.`;
@@ -161,6 +164,8 @@ const FILE_REFACTOR_PRINCIPLES = `Refactor goals:
 - Follow SOLID pragmatically: improve single-responsibility pressure with small extractions, not architecture rewrites.
 - Follow Tell Don't Ask: prefer moving behavior to the object that owns the data when a tiny local change can do it safely.
 - Follow Clean Code: improve method names, reduce long methods, clarify intent, and remove low-value clutter.
+- Prefer normal functions/types over macros unless repetition is structural and the language's macro system is the clearest safe tool.
+- Consider performance only where the local code makes the cost visible; do not invent speculative micro-optimizations.
 - Always preserve behavior.`;
 
 const STREAM_FIRST_PROVIDERS = new Set([
@@ -269,7 +274,112 @@ function stripCodeFences(value: string): string {
   return lines.slice(1, -1).join("\n").trim();
 }
 
-export function isLikelyCompleteJavaFile(original: string, proposed: string): boolean {
+type LanguageProfile = {
+  id: string;
+  displayName: string;
+  tooling: string[];
+  splitAdvice: string;
+  performanceAdvice: string;
+  macroAdvice: string;
+};
+
+const LANGUAGE_PROFILES: Record<string, LanguageProfile> = {
+  java: {
+    id: "java",
+    displayName: "Java",
+    tooling: ["mvn test or gradle test", "SpotBugs/ErrorProne when configured", "Checkstyle/PMD when configured"],
+    splitAdvice: "Split into helpers or collaborators when a class owns multiple domain responsibilities or a method needs several extraction steps.",
+    performanceAdvice: "Prefer compiler-visible clarity first; cache repeated calls in loops and avoid allocation churn when the hot path is visible.",
+    macroAdvice: "Macros do not apply. Prefer normal methods, records, and small collaborators.",
+  },
+  "javascript-typescript": {
+    id: "javascript-typescript",
+    displayName: "JavaScript/TypeScript",
+    tooling: ["eslint --fix or biome check --write", "tsc --noEmit", "prettier/biome format", "npm test when configured"],
+    splitAdvice: "Split modules when UI/state/effects or parsing/business logic are mixed in one file.",
+    performanceAdvice: "Watch for avoidable re-renders, repeated parsing, broad dependency arrays, and large object churn.",
+    macroAdvice: "Macros rarely apply. Prefer typed helpers, codemods, and generated types only when a real schema/source of truth exists.",
+  },
+  python: {
+    id: "python",
+    displayName: "Python",
+    tooling: ["ruff check --fix", "ruff format", "mypy or pyright", "pytest"],
+    splitAdvice: "Split files when orchestration, IO, validation, and domain rules are bundled together.",
+    performanceAdvice: "Prefer clear data flow; optimize repeated IO, regex compilation, nested loops, and large intermediate collections when visible.",
+    macroAdvice: "Macros do not apply. Prefer functions, dataclasses, decorators only when they remove real repetition.",
+  },
+  rust: {
+    id: "rust",
+    displayName: "Rust",
+    tooling: ["cargo fmt", "cargo check", "cargo clippy --all-targets --all-features", "cargo test"],
+    splitAdvice: "Split modules when ownership, error types, parsing, and side effects make one file hard to reason about.",
+    performanceAdvice: "Let borrow checking and Clippy guide safety; avoid unnecessary clones, allocations, and dynamic dispatch in visible hot paths.",
+    macroAdvice: "Use macros only for structural boilerplate that traits/functions cannot express cleanly. Keep call sites obvious.",
+  },
+  go: {
+    id: "go",
+    displayName: "Go",
+    tooling: ["gofmt", "go vet ./...", "staticcheck ./...", "go test ./..."],
+    splitAdvice: "Split packages sparingly; split files inside a package when handlers, persistence, and domain logic are tangled.",
+    performanceAdvice: "Prefer simple loops and explicit errors; watch allocations in hot loops and repeated conversions.",
+    macroAdvice: "Macros do not apply. Prefer small functions and generated code only for schema-driven repetition.",
+  },
+  "c-family": {
+    id: "c-family",
+    displayName: "C/C++/Objective-C",
+    tooling: ["clang-format", "cmake --build", "clang-tidy", "ASan/UBSan tests when configured"],
+    splitAdvice: "Split headers/implementation or modules when ownership, parsing, and side effects are mixed.",
+    performanceAdvice: "Preserve ownership/lifetime behavior; validate allocation, copies, iterator invalidation, and cache-sensitive loops.",
+    macroAdvice: "Prefer functions/templates first. Use X-macros only when one source list must generate several synchronized declarations.",
+  },
+  dotnet: {
+    id: "dotnet",
+    displayName: ".NET",
+    tooling: ["dotnet format", "dotnet build", "dotnet test", "Roslyn analyzers when configured"],
+    splitAdvice: "Split classes when validation, IO, domain rules, and formatting have separate reasons to change.",
+    performanceAdvice: "Watch LINQ in hot paths, allocations, async misuse, and repeated parsing.",
+    macroAdvice: "Macros do not apply. Prefer analyzers/source generators only for schema-backed repetition.",
+  },
+  web: {
+    id: "web",
+    displayName: "Web asset",
+    tooling: ["eslint/biome for scripts", "stylelint when configured", "prettier/biome format", "accessibility checks when UI changes"],
+    splitAdvice: "Split structure, style, and behavior when one file blocks scanning or reuse.",
+    performanceAdvice: "Watch layout thrash, selector complexity, oversized DOM, and blocking scripts.",
+    macroAdvice: "Macros rarely apply. Prefer build-time generation only for repeated tokens or design-system output.",
+  },
+  generic: {
+    id: "generic",
+    displayName: "Source",
+    tooling: ["run the language compiler/type checker", "run the formatter/linter", "run focused tests"],
+    splitAdvice: "Split when one file has multiple reasons to change or the preview would require broad unrelated edits.",
+    performanceAdvice: "Optimize only visible local costs; prefer clear behavior-preserving structure.",
+    macroAdvice: "Prefer functions/types before macros. Use code generation only when repetition is structural and testable.",
+  },
+};
+
+function detectLanguageProfile(filePath: string, content: string): LanguageProfile {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  if (["js", "jsx", "ts", "tsx", "mjs", "cjs", "vue", "svelte"].includes(ext)) {
+    return LANGUAGE_PROFILES["javascript-typescript"];
+  }
+  if (ext === "java" || ["kt", "kts", "scala", "groovy"].includes(ext)) {
+    return LANGUAGE_PROFILES.java;
+  }
+  if (ext === "py") return LANGUAGE_PROFILES.python;
+  if (ext === "rs") return LANGUAGE_PROFILES.rust;
+  if (ext === "go") return LANGUAGE_PROFILES.go;
+  if (["c", "cc", "cpp", "cxx", "h", "hpp", "m", "mm"].includes(ext)) {
+    return LANGUAGE_PROFILES["c-family"];
+  }
+  if (["cs", "fs"].includes(ext)) return LANGUAGE_PROFILES.dotnet;
+  if (["html", "css", "scss"].includes(ext)) return LANGUAGE_PROFILES.web;
+  if (/^\s*package\s+main\b/m.test(content)) return LANGUAGE_PROFILES.go;
+  if (/^\s*use\s+std::|fn\s+main\s*\(/m.test(content)) return LANGUAGE_PROFILES.rust;
+  return LANGUAGE_PROFILES.generic;
+}
+
+export function isLikelyCompleteSourceFile(original: string, proposed: string): boolean {
   const text = stripCodeFences(proposed);
   if (!text) return false;
   if (text.includes("```")) return false;
@@ -285,8 +395,65 @@ export function isLikelyCompleteJavaFile(original: string, proposed: string): bo
   if (text.includes("class ") || text.includes("interface ") || text.includes("record ")) {
     if (!text.trimEnd().endsWith("}")) return false;
   }
-  if (text.includes("package ") && !text.includes(";")) return false;
   return true;
+}
+
+export const isLikelyCompleteJavaFile = isLikelyCompleteSourceFile;
+
+function buildRefactorReport({
+  filePath,
+  originalContent,
+  proposedContent,
+  ruleGuidance,
+  fallbackReason,
+  mcpAttempted,
+}: {
+  filePath: string;
+  originalContent: string;
+  proposedContent: string;
+  ruleGuidance: RefactorRuleSpec;
+  fallbackReason: string | null;
+  mcpAttempted: boolean;
+}): string {
+  const profile = detectLanguageProfile(filePath, originalContent);
+  const originalLines = originalContent.split(/\r?\n/).length;
+  const proposedLines = proposedContent.split(/\r?\n/).length;
+  const delta = proposedLines - originalLines;
+  const bigPreview =
+    Math.abs(delta) >= 120 ||
+    originalContent.length >= LARGE_FILE_DIFF_THRESHOLD ||
+    proposedContent.length >= LARGE_FILE_DIFF_THRESHOLD;
+  const splitRecommendation = bigPreview
+    ? `This preview is large enough to split into smaller pieces. Suggested first slice: apply the smallest local extraction or cleanup, run ${profile.tooling[0]}, then continue.`
+    : profile.splitAdvice;
+
+  return [
+    `# Refactor Preview Report`,
+    ``,
+    `## Target`,
+    `- File: \`${filePath.replace(/\\/g, "/")}\``,
+    `- Language profile: ${profile.displayName}`,
+    `- Line delta: ${delta >= 0 ? "+" : ""}${delta}`,
+    `- MCP/Exa research requested: ${mcpAttempted ? "yes" : "no tools configured"}`,
+    fallbackReason ? `- Fallback used: ${fallbackReason}` : `- Fallback used: none`,
+    ``,
+    `## What Changed`,
+    ruleGuidance.guidance,
+    ``,
+    `## Better Alternatives To Consider`,
+    `- Split decision: ${splitRecommendation}`,
+    `- Performance: ${profile.performanceAdvice}`,
+    `- Macro/codegen posture: ${profile.macroAdvice}`,
+    ``,
+    `## Verification Gates`,
+    ...profile.tooling.map((tool) => `- ${tool}`),
+    ``,
+    `## Design Principles`,
+    `- KISS: keep the applied slice direct and readable.`,
+    `- DRY: extract only real repeated logic.`,
+    `- YAGNI: avoid speculative extension points.`,
+    `- SOLID: improve responsibilities with small local moves before architecture changes.`,
+  ].join("\n");
 }
 
 function hasMeaningfulChange(original: string, proposed: string): boolean {
@@ -311,6 +478,9 @@ function buildPrompt({
 
 Targeted refactoring guidance:
 ${ruleGuidance.guidance}
+
+Research requirement:
+If MCP tools such as web_search_exa or web_fetch_exa are available, verify current language, linter, macro/codegen, or performance guidance before finalizing. Keep the final answer raw source only.
 
 Reference playbook:
 ${ruleGuidance.references.join("\n\n---\n\n")}
@@ -368,7 +538,7 @@ type FileRefactorSignals = {
   hasRawTypes: boolean;
 };
 
-function analyzeJavaFileForRefactor(content: string): FileRefactorSignals {
+function analyzeSourceFileForRefactor(content: string): FileRefactorSignals {
   const lines = content.split(/\r?\n/);
   const methodStarts = lines
     .map((line, index) => ({ line, index }))
@@ -385,8 +555,8 @@ function analyzeJavaFileForRefactor(content: string): FileRefactorSignals {
     lineCount: lines.length,
     methodCount: methodStarts.length,
     longMethodCount,
-    hasWildcardImport: /import\s+[\w.]+\.\*;/.test(content),
-    hasSystemOutPrintln: /System\.out\.println\s*\(/.test(content),
+    hasWildcardImport: /import\s+[\w.]+\.\*;/.test(content) || /from\s+[\w.]+\s+import\s+\*/.test(content),
+    hasSystemOutPrintln: /System\.out\.println\s*\(|console\.(log|debug)\s*\(|println!\s*\(|^\s*print\s*\(/m.test(content),
     hasEmptyCatch: /catch\s*\([^)]*\)\s*\{\s*\}/.test(content),
     hasStringConcatLoop:
       /for\s*\([^)]*\)\s*\{[\s\S]{0,500}(\+=|=\s*[^;\n]*\+)[\s\S]{0,500}\}/.test(content),
@@ -394,11 +564,12 @@ function analyzeJavaFileForRefactor(content: string): FileRefactorSignals {
   };
 }
 
-function buildFileRefactorGuidance(content: string): {
+function buildFileRefactorGuidance(content: string, filePath = ""): {
   prompt: string;
   ruleGuidance: RefactorRuleSpec;
 } {
-  const signals = analyzeJavaFileForRefactor(content);
+  const signals = analyzeSourceFileForRefactor(content);
+  const language = detectLanguageProfile(filePath, content);
   const bullets: string[] = [];
 
   if (signals.lineCount >= 220) {
@@ -412,10 +583,10 @@ function buildFileRefactorGuidance(content: string): {
     );
   }
   if (signals.hasWildcardImport) {
-    bullets.push("Replace wildcard imports with explicit imports if doing so is low-risk.");
+    bullets.push("Replace wildcard imports with explicit imports if doing so is low-risk for this language.");
   }
   if (signals.hasSystemOutPrintln) {
-    bullets.push("Replace direct System.out.println calls with the file's logging style if available.");
+    bullets.push("Replace direct debug output with the file's logging, tracing, or diagnostic style if available.");
   }
   if (signals.hasEmptyCatch) {
     bullets.push("Replace empty catch blocks with minimal safe handling.");
@@ -433,11 +604,12 @@ function buildFileRefactorGuidance(content: string): {
   }
 
   return {
-    prompt: `File-driven Java refactor preview
+    prompt: `File-driven ${language.displayName} refactor preview
 File characteristics:
 - Approximate line count: ${signals.lineCount}
 - Approximate method count: ${signals.methodCount}
 - Likely long methods: ${signals.longMethodCount}
+- Suggested verification gates: ${language.tooling.join("; ")}
 
 ${FILE_REFACTOR_PRINCIPLES}
 
@@ -472,6 +644,7 @@ function buildHotspotExcerpt(content: string, findingId?: string): string | null
   const lines = content.split(/\r?\n/);
   const patterns: Array<[string, RegExp]> = [
     ["println:", /System\.out\.println/],
+    ["debug-output:", /System\.out\.println|console\.(log|debug)\s*\(|println!\s*\(|^\s*(print\s*\(|puts\s+)/],
     ["empty-catch:", /catch\s*\([^)]*\)\s*\{/],
     ["string-concat-loop:", /(\+=|=\s*[^;\n]*\+)/],
     ["size-in-loop:", /\.size\(\)/],
@@ -500,9 +673,9 @@ function buildHotspotExcerpt(content: string, findingId?: string): string | null
   );
 }
 
-function finalizeGeneratedJava(originalContent: string, generated: string): string | null {
+function finalizeGeneratedSource(originalContent: string, generated: string): string | null {
   const normalized = stripCodeFences(generated).trim();
-  if (!isLikelyCompleteJavaFile(originalContent, normalized)) return null;
+  if (!isLikelyCompleteSourceFile(originalContent, normalized)) return null;
   return normalized;
 }
 
@@ -526,7 +699,7 @@ function getCachedFileGuidance(absolutePath: string, originalContent: string) {
   const key = buildFileGuidanceCacheKey(absolutePath, originalContent);
   const cached = cacheGet(fileGuidanceCache, key);
   if (cached) return cached;
-  return cacheSet(fileGuidanceCache, key, buildFileRefactorGuidance(originalContent));
+  return cacheSet(fileGuidanceCache, key, buildFileRefactorGuidance(originalContent, absolutePath));
 }
 
 async function prepareRefactorContext(params: {
@@ -675,7 +848,7 @@ async function runRefactorAttempt({
       maxOutputTokens,
       providerOptions,
     });
-    const finalized = finalizeGeneratedJava(originalContent, firstAttempt.text);
+    const finalized = finalizeGeneratedSource(originalContent, firstAttempt.text);
     if (finalized && hasMeaningfulChange(originalContent, finalized)) {
       return {
         text: finalized,
@@ -712,7 +885,7 @@ async function runRefactorAttempt({
     maxOutputTokens: Math.min(32_768, Math.ceil(maxOutputTokens * 1.5)),
     providerOptions,
   });
-  const finalized = finalizeGeneratedJava(originalContent, retryAttempt.text);
+  const finalized = finalizeGeneratedSource(originalContent, retryAttempt.text);
   if (!finalized) {
     if (isLengthFinishReason(retryAttempt.finishReason ?? retryAttempt.rawFinishReason)) {
       throw new Error(
@@ -834,8 +1007,10 @@ export function useRefactorGeneration(
         };
 
         let generation: GenerationAttemptOutput;
+        let mcpAttemptedForFinal = false;
         try {
           generation = await runGeneration(true);
+          mcpAttemptedForFinal = Boolean(mcpConfig);
         } catch (mcpError) {
           if (!shouldRetryWithoutMcp(mcpError)) throw mcpError;
           debugRefactorPerf("retry-without-mcp", { error: String(mcpError) });
@@ -881,6 +1056,14 @@ export function useRefactorGeneration(
           filePath: context.absolutePath,
           originalContent: context.originalContent,
           proposedContent,
+          reportMarkdown: buildRefactorReport({
+            filePath: context.absolutePath,
+            originalContent: context.originalContent,
+            proposedContent,
+            ruleGuidance: context.baseRuleGuidance,
+            fallbackReason,
+            mcpAttempted: mcpAttemptedForFinal,
+          }),
         });
         setStatus("ready");
       } catch (err) {
@@ -944,7 +1127,7 @@ ${ruleGuidance.guidance}`,
       await generateInternal({
         absolutePath: filePath,
         originalContent,
-        emptyChangeMessage: "AI returned no refactor changes for this Java file.",
+        emptyChangeMessage: "AI returned no refactor changes for this source file.",
         ruleGuidance: fileGuidance.ruleGuidance,
         hotspotExcerpt: buildHotspotExcerpt(originalContent),
         prompt: `${fileGuidance.prompt}

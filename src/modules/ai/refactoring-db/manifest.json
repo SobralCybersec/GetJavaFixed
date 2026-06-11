@@ -6,7 +6,7 @@
       "title": "Replace System.out.println with logger",
       "category": "safe",
       "principles": ["CleanCode", "KISS"],
-      "triggerPrefixes": ["println:"],
+      "triggerPrefixes": ["println:", "debug-output:"],
       "defaultGuidance": "Replace direct console printing with the project's logging style using the smallest safe change.",
       "tags": ["logging", "cleanup"],
       "file": "replace-system-out-println-with-logger.md"
@@ -225,7 +225,7 @@
       "category": "rust-pattern",
       "principles": ["CleanCode"],
       "tags": ["raii", "typestate", "newtype"],
-      "notes": "Tracked for future AI guidance beyond current Java-centric rule set."
+      "notes": "Tracked for future AI guidance beyond current polyglot rule set."
     }
   ]
 }

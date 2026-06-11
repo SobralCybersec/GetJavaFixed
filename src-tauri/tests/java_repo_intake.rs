@@ -41,36 +41,59 @@ fn detects_gradle_root_from_build_gradle_kts() {
 }
 
 #[test]
-fn rejects_java_like_folder_without_root_build_file() {
+fn detects_node_root_from_package_json() {
+    let fx = FsFixture::new();
+    fx.write("package.json", r#"{"scripts":{"test":"vitest"}}"#);
+
+    let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
+
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Node));
+    assert!(readiness.reason.is_none());
+}
+
+#[test]
+fn detects_rust_root_from_cargo_toml() {
+    let fx = FsFixture::new();
+    fx.write(
+        "Cargo.toml",
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n",
+    );
+
+    let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
+
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Rust));
+    assert!(readiness.reason.is_none());
+}
+
+#[test]
+fn supports_java_like_folder_without_root_build_file_as_generic_workspace() {
     let fx = FsFixture::new();
     fx.write("src/main/java/App.java", "class App {}\n");
 
     let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
 
-    assert!(!readiness.supported);
-    assert_eq!(readiness.project_type, None);
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Generic));
     assert_eq!(
         readiness.reason.as_deref(),
-        Some(
-            "Java files were found here, but this folder is not supported in Phase 1. Choose another folder whose selected root contains `pom.xml`, `build.gradle`, or `build.gradle.kts`."
-        )
+        Some("Generic code workspace. No language-specific root manifest was detected, so analysis will use safe polyglot heuristics.")
     );
 }
 
 #[test]
-fn rejects_non_java_folder_with_phase1_root_requirement_message() {
+fn supports_non_manifest_folder_as_generic_workspace() {
     let fx = FsFixture::new();
     fx.write("README.md", "hello\n");
 
     let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
 
-    assert!(!readiness.supported);
-    assert_eq!(readiness.project_type, None);
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Generic));
     assert_eq!(
         readiness.reason.as_deref(),
-        Some(
-            "This folder is not supported in Phase 1. Choose another folder whose selected root contains `pom.xml`, `build.gradle`, or `build.gradle.kts`."
-        )
+        Some("Generic code workspace. No language-specific root manifest was detected, so analysis will use safe polyglot heuristics.")
     );
 }
 

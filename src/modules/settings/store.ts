@@ -349,9 +349,13 @@ export async function loadPreferences(): Promise<Preferences> {
     openaiCompatibleModelId:
       get<string>(KEY_OPENAI_COMPAT_MODEL_ID) ??
       DEFAULT_PREFERENCES.openaiCompatibleModelId,
-    openaiCompatibleContextLimit:
-      get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT) ??
-      DEFAULT_PREFERENCES.openaiCompatibleContextLimit,
+    openaiCompatibleContextLimit: ((): number => {
+      const stored = get<number>(KEY_OPENAI_COMPAT_CONTEXT_LIMIT);
+      if (!Number.isFinite(stored) || stored == null) return DEFAULT_PREFERENCES.openaiCompatibleContextLimit;
+      // 256_000 was the stale incorrect default. Migrate it down to 128k.
+      if (stored === 256_000) return DEFAULT_PREFERENCES.openaiCompatibleContextLimit;
+      return Math.max(1_000, stored);
+    })(),
     openrouterModelId:
       get<string>(KEY_OPENROUTER_MODEL_ID) ??
       DEFAULT_PREFERENCES.openrouterModelId,

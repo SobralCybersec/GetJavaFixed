@@ -1,20 +1,27 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::Serialize;
 
 use crate::modules::fs::to_canon;
 use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
-const PHASE1_UNSUPPORTED_ROOT: &str = "This folder is not supported in Phase 1. Choose another folder whose selected root contains `pom.xml`, `build.gradle`, or `build.gradle.kts`.";
-const PHASE1_UNSUPPORTED_JAVA_ROOT: &str = "Java files were found here, but this folder is not supported in Phase 1. Choose another folder whose selected root contains `pom.xml`, `build.gradle`, or `build.gradle.kts`.";
-const JAVA_SCAN_LIMIT: usize = 2048;
+const GENERIC_CODE_REPO_REASON: &str = "Generic code workspace. No language-specific root manifest was detected, so analysis will use safe polyglot heuristics.";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JavaProjectType {
     Maven,
     Gradle,
+    Node,
+    Rust,
+    Python,
+    Go,
+    Dotnet,
+    Php,
+    Ruby,
+    Cpp,
+    Generic,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -36,32 +43,45 @@ pub fn inspect_repo_root(root: &Path) -> Result<JavaRepoReadiness, String> {
 
     let repo_name = repo_name(root);
     if root.join("pom.xml").is_file() {
-        return Ok(JavaRepoReadiness {
-            supported: true,
-            project_type: Some(JavaProjectType::Maven),
-            repo_name,
-            reason: None,
-        });
+        return Ok(supported_repo(repo_name, JavaProjectType::Maven));
     }
-
     if root.join("build.gradle").is_file() || root.join("build.gradle.kts").is_file() {
-        return Ok(JavaRepoReadiness {
-            supported: true,
-            project_type: Some(JavaProjectType::Gradle),
-            repo_name,
-            reason: None,
-        });
+        return Ok(supported_repo(repo_name, JavaProjectType::Gradle));
+    }
+    if root.join("package.json").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Node));
+    }
+    if root.join("Cargo.toml").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Rust));
+    }
+    if root.join("pyproject.toml").is_file()
+        || root.join("requirements.txt").is_file()
+        || root.join("setup.py").is_file()
+    {
+        return Ok(supported_repo(repo_name, JavaProjectType::Python));
+    }
+    if root.join("go.mod").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Go));
+    }
+    if root.join("composer.json").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Php));
+    }
+    if root.join("Gemfile").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Ruby));
+    }
+    let has_dotnet_manifest = has_direct_extension(root, &["sln", "csproj"])?;
+    if has_dotnet_manifest {
+        return Ok(supported_repo(repo_name, JavaProjectType::Dotnet));
+    }
+    if root.join("CMakeLists.txt").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Cpp));
     }
 
     Ok(JavaRepoReadiness {
-        supported: false,
-        project_type: None,
+        supported: true,
+        project_type: Some(JavaProjectType::Generic),
         repo_name,
-        reason: Some(if contains_java_files(root)? {
-            PHASE1_UNSUPPORTED_JAVA_ROOT.to_string()
-        } else {
-            PHASE1_UNSUPPORTED_ROOT.to_string()
-        }),
+        reason: Some(GENERIC_CODE_REPO_REASON.to_string()),
     })
 }
 
@@ -93,47 +113,35 @@ fn repo_name(root: &Path) -> String {
         .unwrap_or_else(|| to_canon(root))
 }
 
-fn contains_java_files(root: &Path) -> Result<bool, String> {
-    let mut stack = vec![PathBuf::from(root)];
-    let mut scanned = 0usize;
-
-    while let Some(dir) = stack.pop() {
-        let entries =
-            fs::read_dir(&dir).map_err(|e| format!("failed to scan {}: {e}", dir.display()))?;
-        for entry in entries {
-            let entry = entry.map_err(|e| format!("failed to read {}: {e}", dir.display()))?;
-            scanned += 1;
-            if scanned > JAVA_SCAN_LIMIT {
-                return Ok(false);
-            }
-
-            let path = entry.path();
-            let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
-                continue;
-            };
-            if should_skip_dir(name) && path.is_dir() {
-                continue;
-            }
-            if path.is_dir() {
-                stack.push(path);
-                continue;
-            }
-            if path
-                .extension()
-                .and_then(|value| value.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
-            {
-                return Ok(true);
-            }
-        }
+fn supported_repo(repo_name: String, project_type: JavaProjectType) -> JavaRepoReadiness {
+    JavaRepoReadiness {
+        supported: true,
+        project_type: Some(project_type),
+        repo_name,
+        reason: None,
     }
-
-    Ok(false)
 }
 
-fn should_skip_dir(name: &str) -> bool {
-    matches!(
-        name,
-        ".git" | ".gradle" | "target" | "build" | "node_modules"
-    )
+fn has_direct_extension(root: &Path, extensions: &[&str]) -> Result<bool, String> {
+    let entries =
+        fs::read_dir(root).map_err(|e| format!("failed to scan {}: {e}", root.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("failed to read {}: {e}", root.display()))?;
+        if !entry.path().is_file() {
+            continue;
+        }
+        if entry
+            .path()
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|ext| {
+                extensions
+                    .iter()
+                    .any(|candidate| ext.eq_ignore_ascii_case(candidate))
+            })
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }

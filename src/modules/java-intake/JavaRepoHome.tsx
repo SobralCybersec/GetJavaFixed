@@ -47,21 +47,21 @@ export function JavaRepoHome({
           </Button>
         ) : null}
       </div>
-      <Card size="sm" className="java-panel mx-auto w-full max-w-5xl rounded-[32px] border shadow-xl">
+      <Card size="sm" className="java-panel mx-auto w-full max-w-5xl border shadow-xl">
         <CardHeader className="gap-5 pb-2">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="max-w-2xl space-y-3">
               <Badge variant="secondary" className="w-fit bg-primary/10 text-primary">
-                Java repository intake
+                Code repository intake
               </Badge>
               <CardTitle className="text-[34px] leading-[1.05] tracking-tight">
-                Review-first refactoring for Maven and Gradle codebases
+                Review-first refactoring for polyglot codebases
               </CardTitle>
               <CardDescription className="max-w-2xl text-[15px] leading-7 text-muted-foreground">
-                Open a plain Java repository, inspect ranked findings, then move through safe diffs with backup and rollback still in your hands.
+                Open any code repository, inspect ranked findings, then move through research-backed diffs with backup and rollback still in your hands.
               </CardDescription>
             </div>
-            <div className="java-panel rounded-[28px] bg-background/55 p-4">
+            <div className="java-panel bg-background/55 p-4">
               <img
                 src="/java.png"
                 alt=""
@@ -71,15 +71,15 @@ export function JavaRepoHome({
             </div>
           </div>
           <div className="grid gap-3 text-left text-xs text-muted-foreground sm:grid-cols-3">
-            <div className="rounded-2xl border border-border/60 bg-background/55 px-3 py-3">
+            <div className="border border-border/60 bg-background/55 px-3 py-3">
               Root manifest check
-              <div className="mt-1 text-sm text-foreground"><code>pom.xml</code> or Gradle build root</div>
+              <div className="mt-1 text-sm text-foreground"><code>package.json</code>, <code>Cargo.toml</code>, <code>go.mod</code>, <code>pyproject.toml</code>, JVM, or generic code</div>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/55 px-3 py-3">
+            <div className="border border-border/60 bg-background/55 px-3 py-3">
               Analysis posture
               <div className="mt-1 text-sm text-foreground">Watch-only before apply</div>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/55 px-3 py-3">
+            <div className="border border-border/60 bg-background/55 px-3 py-3">
               Output
               <div className="mt-1 text-sm text-foreground">Ranked findings and diff review</div>
             </div>
@@ -87,23 +87,19 @@ export function JavaRepoHome({
         </CardHeader>
         <CardContent className="space-y-4">
           {state.kind === "idle" && (
-            <div className="rounded-3xl border border-dashed border-primary/35 bg-primary/5 px-4 py-6 text-sm text-muted-foreground">
-              We support selected-root repositories that contain
-              {" "}
-              <code>pom.xml</code>, <code>build.gradle</code>, or
-              {" "}
-              <code>build.gradle.kts</code>.
+            <div className="border border-dashed border-primary/35 bg-primary/5 px-4 py-6 text-sm text-muted-foreground">
+              We support selected-root repositories for JavaScript/TypeScript, Rust, Python, Go, JVM, .NET, PHP, Ruby, C/C++, and generic code folders.
             </div>
           )}
 
           {state.kind === "loading" && (
-            <div className="rounded-3xl border border-primary/25 bg-primary/6 px-4 py-6 text-sm text-muted-foreground">
+            <div className="border border-primary/25 bg-primary/6 px-4 py-6 text-sm text-muted-foreground">
               Checking the selected repository root...
             </div>
           )}
 
           {state.kind === "supported" && (
-            <div className="rounded-3xl border border-primary/25 bg-background/70 px-4 py-6">
+            <div className="border border-primary/25 bg-background/70 px-4 py-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="bg-primary/10 text-primary">
                   {state.readiness.projectType}
@@ -114,16 +110,16 @@ export function JavaRepoHome({
                 Repository ready for analysis
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                We detected a supported Maven or Gradle root. Start full
-                analysis to build the ranked refactor findings queue.
+                We detected a {state.readiness.projectType} workspace. Start
+                full analysis to build the ranked polyglot refactor findings queue.
               </p>
             </div>
           )}
 
           {state.kind === "unsupported" && (
-            <div className="rounded-3xl border border-destructive/30 bg-destructive/5 px-4 py-6">
+            <div className="border border-destructive/30 bg-destructive/5 px-4 py-6">
               <p className="text-sm font-medium text-foreground">
-                This folder is not supported in Phase 1.
+                This folder could not be prepared for analysis.
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
                 {state.readiness.reason}
@@ -132,7 +128,7 @@ export function JavaRepoHome({
           )}
 
           {state.kind === "error" && (
-            <div className="rounded-3xl border border-destructive/30 bg-destructive/5 px-4 py-6">
+            <div className="border border-destructive/30 bg-destructive/5 px-4 py-6">
               <p className="text-sm font-medium text-foreground">
                 We could not inspect that folder.
               </p>
@@ -157,7 +153,7 @@ export function JavaRepoHome({
             </>
           ) : (
             <Button size="sm" onClick={onChooseFolder}>
-              {state.kind === "unsupported" ? "Choose another folder" : "Choose Java repository"}
+              {state.kind === "unsupported" ? "Choose another folder" : "Choose code repository"}
             </Button>
           )}
         </CardFooter>

@@ -327,7 +327,7 @@ function estimateTokens(messages: UIMessage[]): number {
       }
     }
   }
-  return Math.ceil(chars / 4);
+  return Math.ceil(chars / 3.25);
 }
 
 function formatTokens(n: number): string {
@@ -541,10 +541,10 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
       <img src="/java.png" alt="JavaRf" className="size-14 object-contain opacity-90" />
       <div className="space-y-1.5">
         <p className="text-[14px] font-semibold tracking-tight">
-          Ask JavaRf anything
+          Ask anything
         </p>
         <p className="max-w-[18rem] text-[11.5px] leading-relaxed text-muted-foreground">
-          JavaRf sees the active terminal - cwd, recent commands, and output.
+          The AI sees the active terminal - cwd, recent commands, and output.
         </p>
       </div>
       <div className="flex w-full flex-col gap-2.5">

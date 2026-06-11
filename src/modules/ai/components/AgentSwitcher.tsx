@@ -19,6 +19,7 @@ import {
   ShieldUserIcon,
   SparklesIcon,
   Tick02Icon,
+  GlobalSearchIcon
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getAgentDisplay } from "../lib/agentPresentation";
@@ -33,6 +34,7 @@ const ICONS: Record<AgentIconId, typeof CodeIcon> = {
   security: ShieldUserIcon,
   designer: PaintBrush04Icon,
   spark: SparklesIcon,
+  osint: GlobalSearchIcon
 };
 
 export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {

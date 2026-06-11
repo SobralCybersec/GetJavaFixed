@@ -4,7 +4,19 @@ import { z } from "zod";
 
 import { currentWorkspaceEnv } from "@/modules/workspace";
 
-const projectTypeSchema = z.enum(["maven", "gradle"]);
+const projectTypeSchema = z.enum([
+  "maven",
+  "gradle",
+  "node",
+  "rust",
+  "python",
+  "go",
+  "dotnet",
+  "php",
+  "ruby",
+  "cpp",
+  "generic",
+]);
 
 const readinessSchema = z.object({
   supported: z.boolean(),
@@ -24,7 +36,7 @@ export async function pickJavaRepoDirectory(): Promise<string | null> {
   const selected = await open({
     directory: true,
     multiple: false,
-    title: "Choose Java repository",
+    title: "Choose code repository",
   });
   return typeof selected === "string" ? selected : null;
 }
@@ -38,4 +50,3 @@ export async function getJavaRepoReadiness(
   });
   return readinessSchema.parse(result);
 }
-

@@ -46,7 +46,7 @@ const CATEGORY_MESSAGES: Record<string, string> = {
   performance: "Fewer repeated computations, lower allocation churn, and tighter hot-path code.",
   maintainability: "Smaller methods, clearer control flow, and less duplicated logic to review.",
   safe: "Fewer hidden failures, fewer null-driven bugs, and more reliable debugging paths.",
-  modernization: "Cleaner Java syntax, stronger type safety, and less legacy boilerplate.",
+  modernization: "Cleaner language syntax, stronger type safety, and less legacy boilerplate.",
 };
 
 const PERFORMANCE_FINDING_MESSAGES: Record<string, string> = {

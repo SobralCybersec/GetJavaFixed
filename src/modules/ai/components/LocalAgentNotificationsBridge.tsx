@@ -66,11 +66,11 @@ export function LocalAgentNotificationsBridge() {
     };
 
     if (status === "awaiting-approval") {
-      fire("attention", "JavaRf needs your approval", "Approve a tool to continue");
+      fire("attention", "The Agent needs your approval", "Approve a tool to continue");
     } else if (status === "error") {
-      fire("error", "JavaRf run failed", error ?? undefined);
+      fire("error", "The Agent run failed", error ?? undefined);
     } else if (status === "idle" && isBusy(was)) {
-      fire("finished", "JavaRf finished", "Your task is ready");
+      fire("finished", "The Agent finished", "Your task is ready");
     }
   }, [status, error]);
 

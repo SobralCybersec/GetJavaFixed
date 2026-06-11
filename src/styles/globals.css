@@ -134,6 +134,12 @@
     @apply border-border outline-ring/50;
   }
 
+  *,
+  *::before,
+  *::after {
+    border-radius: 0 !important;
+  }
+
   html {
     @apply font-sans;
   }
@@ -274,6 +280,56 @@ html[data-chrome="borderless"] .javarf-bg-surface {
   background-size: auto, 100% 4px;
   opacity: 0.28;
   mix-blend-mode: screen;
+}
+
+.javarf-explorer-row {
+  position: relative;
+  transform-origin: left center;
+  animation: javarf-explorer-row-in 120ms ease-out both;
+}
+
+.javarf-explorer-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--primary-10), transparent 42%),
+    linear-gradient(var(--foreground-2) 1px, transparent 1px);
+  background-size: auto, 100% 4px;
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+  mix-blend-mode: screen;
+}
+
+.javarf-explorer-row:hover::after,
+.javarf-explorer-row[data-selected="true"]::after {
+  opacity: 1;
+}
+
+.javarf-explorer-row:hover {
+  border-left-color: var(--primary);
+}
+
+@keyframes javarf-explorer-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .javarf-explorer-row {
+    animation: none;
+  }
+
+  .javarf-explorer-row::after {
+    transition: none;
+  }
 }
 
 /* ==========================================

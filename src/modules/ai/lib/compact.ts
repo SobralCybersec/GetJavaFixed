@@ -1,10 +1,66 @@
-import type { ModelMessage } from "ai";
+import { pruneMessages, type ModelMessage } from "ai";
 
-const KEEP_TAIL = 24;
-const ELISION_TEXT = "[elided to save context — see prior tool call in history]";
+const KEEP_TAIL_MESSAGES = 12;
+const KEEP_RECENT_TOOL_RESULTS = 3;
+const ELISION_TEXT = "[elided to save context — raw tool result was removed from model context]";
+const MESSAGE_DROP_TEXT = "[older conversation messages were removed to keep this request inside the model context window]";
+
+/**
+ * Token estimates must be conservative. The old compactor used 5 bytes/token,
+ * which under-counts dense JSON, URLs, stack traces, minified code, and search
+ * payloads. Custom OpenAI-compatible endpoints also frequently report tokens
+ * differently from hosted providers, so use a safer character/token ratio and
+ * compact to a target well below the advertised context limit.
+ *
+ * SYSTEM PROMPT RESERVE: The compactor operates only on conversation history.
+ * The system prompt (base + persona + memory + turn blocks) is added after
+ * compaction and is never seen by compactModelMessages. We subtract a
+ * conservative headroom before computing any target so the total sent to the
+ * API (system + history) stays inside the context window.
+ */
+const ASCII_CHARS_PER_TOKEN = 3.25;
+const NON_ASCII_CHARS_PER_TOKEN = 1.25;
+const SOFT_TRIGGER_RATIO = 0.20;
+const TARGET_RATIO = 0.45;
+const HARD_TARGET_RATIO = 0.55;
+/** Tokens reserved for the system prompt that is added after compaction. */
+const SYSTEM_PROMPT_TOKEN_RESERVE = 6_000;
+
+const MAX_OLD_TOOL_RESULT_CHARS = 800;
+const MAX_RECENT_TOOL_RESULT_CHARS = 3_000;
+const MAX_EXA_TOOL_RESULT_CHARS = 4_000;
+const MAX_OLD_TOOL_INPUT_CHARS = 600;
+const MAX_RECENT_TOOL_INPUT_CHARS = 2_000;
+const MAX_OLD_TEXT_CHARS = 1_500;
+const MAX_ANY_TEXT_CHARS = 6_000;
+
+const MUTATING_TOOLS = new Set([
+  "edit",
+  "multi_edit",
+  "write_file",
+  "create_directory",
+]);
+
+const EXA_FETCH_TOOLS = new Set([
+  "web_fetch_exa",
+]);
+
+const TOKEN_DENSE_TOOLS = new Set([
+  "web_search_exa",
+  "web_search_advanced_exa",
+  "web_fetch_exa",
+  "get-library-docs",
+  "resolve-library-id",
+  "read_file",
+  "grep",
+  "glob",
+  "bash_run",
+  "bash_logs",
+]);
 
 type ToolPart = {
   type: string;
+  text?: unknown;
   toolName?: string;
   toolCallId?: string;
   input?: unknown;
@@ -12,44 +68,141 @@ type ToolPart = {
   [k: string]: unknown;
 };
 
-// Web search results (JSON, URLs, HTML) are token-dense: ~6 bytes/token.
-// Plain prose is ~4 bytes/token. Using 4 here causes a 40-100% undercount
-// that prevents the compaction thresholds from ever triggering.
-const BYTES_PER_TOKEN = 6;
+export type CompactResult = {
+  messages: ModelMessage[];
+  compacted: boolean;
+  droppedCount: number;
+  /** Conservative estimate before custom compaction. Useful for telemetry. */
+  estimatedBeforeTokens?: number;
+  /** Conservative estimate after custom compaction. Useful for telemetry. */
+  estimatedAfterTokens?: number;
+  /** The internal budget this function tried to fit under. */
+  targetTokens?: number;
+};
 
-function approxTokens(messages: ModelMessage[]): number {
-  let n = 0;
-  for (const m of messages) {
-    if (typeof m.content === "string") n += m.content.length;
-    else if (Array.isArray(m.content)) {
-      for (const part of m.content as ToolPart[]) {
-        if (part.type === "text" && typeof part.text === "string")
-          n += (part.text as string).length;
-        else if (part.type === "tool-result")
-          n += JSON.stringify(part.output ?? "").length;
-        else if (part.type === "tool-call")
-          n += JSON.stringify(part.input ?? "").length;
-        else n += 64;
-      }
-    }
+function countStringTokens(text: string): number {
+  if (!text) return 0;
+  let ascii = 0;
+  let nonAscii = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code <= 0x7f) ascii++;
+    else nonAscii++;
   }
-  return n / BYTES_PER_TOKEN;
+  return Math.ceil(ascii / ASCII_CHARS_PER_TOKEN + nonAscii / NON_ASCII_CHARS_PER_TOKEN);
 }
 
-function elideToolResult(part: ToolPart): { changed: boolean; part: ToolPart } {
-  if (part.type !== "tool-result") return { changed: false, part };
-  if (
-    part.output &&
-    typeof part.output === "object" &&
-    (part.output as { __elided?: boolean }).__elided
-  ) {
-    return { changed: false, part };
+function safeJsonStringify(value: unknown, pretty = false): string {
+  if (typeof value === "string") return value;
+  const seen = new WeakSet<object>();
+  try {
+    return JSON.stringify(
+      value,
+      (_key, v) => {
+        if (typeof v === "bigint") return v.toString();
+        if (typeof v === "function") return "[function]";
+        if (v && typeof v === "object") {
+          if (seen.has(v)) return "[circular]";
+          seen.add(v);
+        }
+        return v;
+      },
+      pretty ? 2 : 0,
+    );
+  } catch {
+    return String(value);
   }
+}
+
+function approxValueTokens(value: unknown): number {
+  return countStringTokens(safeJsonStringify(value));
+}
+
+function approxMessageTokens(message: ModelMessage): number {
+  let total = 8; // role / formatting overhead
+  if (typeof message.content === "string") {
+    return total + countStringTokens(message.content);
+  }
+  if (!Array.isArray(message.content)) return total + 16;
+
+  for (const part of message.content as ToolPart[]) {
+    total += 8;
+    if (part.type === "text" && typeof part.text === "string") {
+      total += countStringTokens(part.text);
+    } else if (part.type === "tool-result") {
+      total += approxValueTokens(part.output ?? "");
+    } else if (part.type === "tool-call") {
+      total += approxValueTokens(part.input ?? "");
+    } else if (part.type === "reasoning" && typeof part.text === "string") {
+      total += countStringTokens(part.text);
+    } else {
+      total += approxValueTokens(part);
+    }
+  }
+  return total;
+}
+
+function approxTokens(messages: ModelMessage[]): number {
+  let total = 0;
+  for (const message of messages) total += approxMessageTokens(message);
+  return total;
+}
+
+function compactTarget(contextLimit: number): number {
+  const safeLimit = Math.max(4_096, contextLimit || 4_096);
+  const historyBudget = Math.max(2_048, safeLimit - SYSTEM_PROMPT_TOKEN_RESERVE);
+  return Math.max(2_048, Math.floor(historyBudget * TARGET_RATIO));
+}
+
+function hardTarget(contextLimit: number): number {
+  const safeLimit = Math.max(4_096, contextLimit || 4_096);
+  const historyBudget = Math.max(3_072, safeLimit - SYSTEM_PROMPT_TOKEN_RESERVE);
+  return Math.max(3_072, Math.floor(historyBudget * HARD_TARGET_RATIO));
+}
+
+function shouldCompact(messages: ModelMessage[], contextLimit: number): boolean {
+  const safeLimit = Math.max(4_096, contextLimit || 4_096);
+  const historyBudget = Math.max(2_048, safeLimit - SYSTEM_PROMPT_TOKEN_RESERVE);
+  return approxTokens(messages) >= historyBudget * SOFT_TRIGGER_RATIO;
+}
+
+function truncateMiddle(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  if (maxChars <= 32) return `${text.slice(0, Math.max(0, maxChars - 1))}…`;
+  const head = Math.floor(maxChars * 0.65);
+  const tail = Math.max(16, maxChars - head - 80);
+  return `${text.slice(0, head)}\n\n[... ${text.length - head - tail} chars elided ...]\n\n${text.slice(-tail)}`;
+}
+
+function isCompactedPayload(value: unknown): boolean {
+  return !!(
+    value &&
+    typeof value === "object" &&
+    ((value as { __compacted?: unknown }).__compacted ||
+      (value as { __elided?: unknown }).__elided)
+  );
+}
+
+function compactPayload(value: unknown, maxChars: number, label: string): unknown {
+  if (isCompactedPayload(value)) return value;
+  const raw = safeJsonStringify(value, true);
+  if (raw.length <= maxChars) return value;
+  return {
+    type: "text",
+    value: `${label}\nOriginal payload size: ${raw.length} chars.\nPreview:\n${truncateMiddle(raw, maxChars)}`,
+    __compacted: true,
+    originalChars: raw.length,
+  };
+}
+
+function elideToolResult(part: ToolPart, label = ELISION_TEXT): { changed: boolean; part: ToolPart } {
+  if (part.type !== "tool-result") return { changed: false, part };
+  if (isCompactedPayload(part.output)) return { changed: false, part };
   return {
     changed: true,
     part: {
       ...part,
-      output: { type: "text", value: ELISION_TEXT, __elided: true },
+      output: { type: "text", value: label, __elided: true },
     },
   };
 }
@@ -62,35 +215,25 @@ function pathOfInput(input: unknown): string | null {
 
 function collectMutationPaths(messages: ModelMessage[]): Set<string> {
   const paths = new Set<string>();
-  for (const m of messages) {
-    if (!Array.isArray(m.content)) continue;
-    for (const part of m.content as ToolPart[]) {
+  for (const message of messages) {
+    if (!Array.isArray(message.content)) continue;
+    for (const part of message.content as ToolPart[]) {
       if (part.type !== "tool-call") continue;
-      const name = part.toolName;
-      if (
-        name === "edit" ||
-        name === "multi_edit" ||
-        name === "write_file" ||
-        name === "create_directory"
-      ) {
-        const p = pathOfInput(part.input);
-        if (p) paths.add(p);
-      }
+      if (!part.toolName || !MUTATING_TOOLS.has(part.toolName)) continue;
+      const p = pathOfInput(part.input);
+      if (p) paths.add(p);
     }
   }
   return paths;
 }
 
-function collectLastReadIdxPerPath(
-  messages: ModelMessage[],
-): Map<string, number> {
+function collectLastReadIdxPerPath(messages: ModelMessage[]): Map<string, number> {
   const lastIdx = new Map<string, number>();
   for (let i = 0; i < messages.length; i++) {
-    const m = messages[i];
-    if (!Array.isArray(m.content)) continue;
-    for (const part of m.content as ToolPart[]) {
-      if (part.type !== "tool-call") continue;
-      if (part.toolName !== "read_file") continue;
+    const message = messages[i];
+    if (!Array.isArray(message.content)) continue;
+    for (const part of message.content as ToolPart[]) {
+      if (part.type !== "tool-call" || part.toolName !== "read_file") continue;
       const p = pathOfInput(part.input);
       if (p) lastIdx.set(p, i);
     }
@@ -98,55 +241,229 @@ function collectLastReadIdxPerPath(
   return lastIdx;
 }
 
-function dropSupersededReads(messages: ModelMessage[]): {
-  out: ModelMessage[];
-  touched: boolean;
-} {
-  const mutated = collectMutationPaths(messages);
-  const lastReadIdx = collectLastReadIdxPerPath(messages);
-
-  const callIdxToPath = new Map<string, string>();
-  for (let i = 0; i < messages.length; i++) {
-    const m = messages[i];
-    if (!Array.isArray(m.content)) continue;
-    for (const part of m.content as ToolPart[]) {
+function collectReadCallIdToPath(messages: ModelMessage[]): Map<string, string> {
+  const callIdToPath = new Map<string, string>();
+  for (const message of messages) {
+    if (!Array.isArray(message.content)) continue;
+    for (const part of message.content as ToolPart[]) {
       if (part.type !== "tool-call" || part.toolName !== "read_file") continue;
-      const p = pathOfInput(part.input);
       const id = part.toolCallId;
-      if (p && typeof id === "string") callIdxToPath.set(id, p);
+      const p = pathOfInput(part.input);
+      if (typeof id === "string" && p) callIdToPath.set(id, p);
     }
   }
+  return callIdToPath;
+}
 
-  let touched = false;
-  const out = messages.map((m, i): ModelMessage => {
-    if (!Array.isArray(m.content)) return m;
+function dropSupersededReads(messages: ModelMessage[]): { out: ModelMessage[]; changed: number } {
+  const mutated = collectMutationPaths(messages);
+  const lastReadIdx = collectLastReadIdxPerPath(messages);
+  const callIdToPath = collectReadCallIdToPath(messages);
+  let changed = 0;
+
+  const out = messages.map((message, messageIndex): ModelMessage => {
+    if (!Array.isArray(message.content)) return message;
     let local = false;
-    const nextContent = (m.content as ToolPart[]).map((part) => {
+    const nextContent = (message.content as ToolPart[]).map((part) => {
       if (part.type !== "tool-result") return part;
       const id = part.toolCallId;
       if (typeof id !== "string") return part;
-      const path = callIdxToPath.get(id);
+      const path = callIdToPath.get(id);
       if (!path) return part;
-      const isStale =
-        mutated.has(path) ||
-        (lastReadIdx.has(path) && (lastReadIdx.get(path) as number) > i);
-      if (!isStale) return part;
-      const r = elideToolResult(part);
-      if (r.changed) local = true;
-      return r.part;
+      const laterReadIdx = lastReadIdx.get(path);
+      const stale = mutated.has(path) || (typeof laterReadIdx === "number" && laterReadIdx > messageIndex);
+      if (!stale) return part;
+      const result = elideToolResult(part);
+      if (result.changed) {
+        changed++;
+        local = true;
+      }
+      return result.part;
     });
-    if (!local) return m;
-    touched = true;
-    return { ...m, content: nextContent } as ModelMessage;
+    return local ? ({ ...message, content: nextContent } as ModelMessage) : message;
   });
-  return { out, touched };
+
+  return { out, changed };
 }
 
-export type CompactResult = {
-  messages: ModelMessage[];
-  compacted: boolean;
-  droppedCount: number;
-};
+function compactToolPayloads(
+  messages: ModelMessage[],
+  options: {
+    compactAllToolResults: boolean;
+    compactAllToolInputs: boolean;
+  },
+): { out: ModelMessage[]; changed: number } {
+  let changed = 0;
+  let toolResultOrdinalFromEnd = 0;
+
+  const out = messages.map((message, messageIndex): ModelMessage => {
+    if (!Array.isArray(message.content)) return message;
+    const isRecentMessage = messageIndex >= Math.max(0, messages.length - KEEP_TAIL_MESSAGES);
+    let local = false;
+
+    const nextContentReversed = [...(message.content as ToolPart[])].reverse().map((part) => {
+      const next = { ...part };
+
+      if (part.type === "tool-result") {
+        toolResultOrdinalFromEnd++;
+        const keepLargerPreview = toolResultOrdinalFromEnd <= KEEP_RECENT_TOOL_RESULTS && isRecentMessage;
+        const maxChars = keepLargerPreview ? MAX_RECENT_TOOL_RESULT_CHARS : MAX_OLD_TOOL_RESULT_CHARS;
+        const isExaFetch = EXA_FETCH_TOOLS.has(String(part.toolName ?? ""));
+        const effectiveMaxChars = isExaFetch
+          ? Math.min(maxChars, MAX_EXA_TOOL_RESULT_CHARS)
+          : maxChars;
+        if (options.compactAllToolResults || TOKEN_DENSE_TOOLS.has(String(part.toolName ?? "")) || !keepLargerPreview || isExaFetch) {
+          const output = compactPayload(
+            part.output,
+            effectiveMaxChars,
+            `[compacted ${part.toolName ?? "tool"} result for context budget]`,
+          );
+          if (output !== part.output) {
+            next.output = output;
+            local = true;
+            changed++;
+          }
+        }
+      }
+
+      if (part.type === "tool-call") {
+        const maxChars = isRecentMessage ? MAX_RECENT_TOOL_INPUT_CHARS : MAX_OLD_TOOL_INPUT_CHARS;
+        const denseInput =
+          options.compactAllToolInputs ||
+          TOKEN_DENSE_TOOLS.has(String(part.toolName ?? "")) ||
+          MUTATING_TOOLS.has(String(part.toolName ?? ""));
+        if (denseInput) {
+          const input = compactPayload(
+            part.input,
+            maxChars,
+            `[compacted ${part.toolName ?? "tool"} input for context budget]`,
+          );
+          if (input !== part.input) {
+            next.input = input;
+            local = true;
+            changed++;
+          }
+        }
+      }
+
+      return next;
+    });
+
+    const nextContent = nextContentReversed.reverse();
+    return local ? ({ ...message, content: nextContent } as ModelMessage) : message;
+  });
+
+  return { out, changed };
+}
+
+function pruneOldToolParts(messages: ModelMessage[]): { out: ModelMessage[]; changed: number } {
+  const before = approxTokens(messages);
+  const out = pruneMessages({
+    messages,
+    reasoning: "all",
+    toolCalls: "before-last-2-messages",
+    emptyMessages: "remove",
+  });
+  const after = approxTokens(out);
+  return { out, changed: after < before ? 1 : 0 };
+}
+
+function dropOldMessagesToBudget(
+  messages: ModelMessage[],
+  targetTokens: number,
+): { out: ModelMessage[]; changed: number } {
+  const tokenByIndex = messages.map(approxMessageTokens);
+  let total = tokenByIndex.reduce((sum, n) => sum + n, 0);
+  if (total <= targetTokens) return { out: messages, changed: 0 };
+
+  const keepFrom = Math.max(0, messages.length - KEEP_TAIL_MESSAGES);
+  const out: ModelMessage[] = [];
+  let dropped = 0;
+  let insertedDropNotice = false;
+
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    const mustKeep = message.role === "system" || i >= keepFrom;
+
+    if (!mustKeep && total > targetTokens) {
+      total -= tokenByIndex[i];
+      dropped++;
+      if (!insertedDropNotice) {
+        out.push({ role: "system", content: MESSAGE_DROP_TEXT } as ModelMessage);
+        insertedDropNotice = true;
+      }
+      continue;
+    }
+
+    out.push(message);
+  }
+
+  return { out, changed: dropped };
+}
+
+function truncateTextContent(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return `${truncateMiddle(text, maxChars)}\n\n[compacted text part from ${text.length} chars]`;
+}
+
+function truncateTextParts(
+  messages: ModelMessage[],
+  options: {
+    maxChars: number;
+    includeLatestUser: boolean;
+    oldOnly: boolean;
+  },
+): { out: ModelMessage[]; changed: number } {
+  let changed = 0;
+  let latestUserIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      latestUserIndex = i;
+      break;
+    }
+  }
+
+  const oldCutoff = Math.max(0, messages.length - KEEP_TAIL_MESSAGES);
+  const out = messages.map((message, index): ModelMessage => {
+    if (message.role === "system") return message;
+    if (!options.includeLatestUser && index === latestUserIndex) return message;
+    if (options.oldOnly && index >= oldCutoff) return message;
+
+    if (typeof message.content === "string") {
+      const next = truncateTextContent(message.content, options.maxChars);
+      if (next === message.content) return message;
+      changed++;
+      return { ...message, content: next } as ModelMessage;
+    }
+
+    if (!Array.isArray(message.content)) return message;
+    let local = false;
+    const nextContent = (message.content as ToolPart[]).map((part) => {
+      if (part.type !== "text" || typeof part.text !== "string") return part;
+      const nextText = truncateTextContent(part.text, options.maxChars);
+      if (nextText === part.text) return part;
+      local = true;
+      changed++;
+      return { ...part, text: nextText };
+    });
+
+    return local ? ({ ...message, content: nextContent } as ModelMessage) : message;
+  });
+
+  return { out, changed };
+}
+
+function runPhase(
+  current: ModelMessage[],
+  changedTotal: number,
+  phase: () => { out: ModelMessage[]; changed: number },
+): { working: ModelMessage[]; changedTotal: number } {
+  const result = phase();
+  return {
+    working: result.out,
+    changedTotal: changedTotal + result.changed,
+  };
+}
 
 export function compactModelMessages(
   messages: ModelMessage[],
@@ -159,47 +476,94 @@ export function compactModelMessagesDetailed(
   messages: ModelMessage[],
   contextLimit: number,
 ): CompactResult {
-  let elided = 0;
-  let working = messages;
-  let tokens = approxTokens(working);
+  const before = approxTokens(messages);
+  const target = compactTarget(contextLimit);
+  const hard = hardTarget(contextLimit);
 
-  if (tokens >= 0.55 * contextLimit) {
-    const r = dropSupersededReads(working);
-    if (r.touched) {
-      working = r.out;
-      tokens = approxTokens(working);
-      elided++;
-    }
-  }
-
-  if (tokens < 0.7 * contextLimit) {
+  if (!shouldCompact(messages, contextLimit)) {
     return {
-      messages: working,
-      compacted: elided > 0,
-      droppedCount: elided,
+      messages,
+      compacted: false,
+      droppedCount: 0,
+      estimatedBeforeTokens: before,
+      estimatedAfterTokens: before,
+      targetTokens: target,
     };
   }
 
-  const out = working.slice();
-  const stopIdx = Math.max(0, out.length - KEEP_TAIL);
-  for (let i = 0; i < stopIdx; i++) {
-    if (out[i].role === "system") continue;
-    if (!Array.isArray(out[i].content)) continue;
-    let local = false;
-    const next = (out[i].content as ToolPart[]).map((part) => {
-      const r = elideToolResult(part);
-      if (r.changed) { local = true; elided++; }
-      return r.part;
-    });
-    if (local) {
-      out[i] = { ...out[i], content: next } as ModelMessage;
-      if (approxTokens(out) < 0.6 * contextLimit) break;
-    }
+  let working = messages;
+  let changedTotal = 0;
+
+  ({ working, changedTotal } = runPhase(working, changedTotal, () => dropSupersededReads(working)));
+
+  if (approxTokens(working) > target) {
+    ({ working, changedTotal } = runPhase(working, changedTotal, () =>
+      compactToolPayloads(working, {
+        compactAllToolResults: false,
+        compactAllToolInputs: false,
+      }),
+    ));
   }
 
+  if (approxTokens(working) > target) {
+    ({ working, changedTotal } = runPhase(working, changedTotal, () => pruneOldToolParts(working)));
+  }
+
+  if (approxTokens(working) > target) {
+    ({ working, changedTotal } = runPhase(working, changedTotal, () =>
+      compactToolPayloads(working, {
+        compactAllToolResults: true,
+        compactAllToolInputs: true,
+      }),
+    ));
+  }
+
+  if (approxTokens(working) > hard) {
+    ({ working, changedTotal } = runPhase(working, changedTotal, () =>
+      truncateTextParts(working, {
+        maxChars: MAX_OLD_TEXT_CHARS,
+        includeLatestUser: false,
+        oldOnly: true,
+      }),
+    ));
+  }
+
+  if (approxTokens(working) > target) {
+    ({ working, changedTotal } = runPhase(working, changedTotal, () =>
+      dropOldMessagesToBudget(working, target),
+    ));
+  }
+
+  if (approxTokens(working) > hard) {
+    ({ working, changedTotal } = runPhase(working, changedTotal, () =>
+      truncateTextParts(working, {
+        maxChars: MAX_ANY_TEXT_CHARS,
+        includeLatestUser: false,
+        oldOnly: false,
+      }),
+    ));
+  }
+
+  // Last-resort guard. Prevents a single giant latest user paste or tool
+  // payload from pushing the API above 100% after the system prompt is added.
+  if (approxTokens(working) > hard) {
+    const historyBudget = Math.max(2_048, contextLimit - SYSTEM_PROMPT_TOKEN_RESERVE);
+    ({ working, changedTotal } = runPhase(working, changedTotal, () =>
+      truncateTextParts(working, {
+        maxChars: Math.max(1_000, Math.floor((historyBudget * HARD_TARGET_RATIO * ASCII_CHARS_PER_TOKEN) / Math.max(1, working.length))),
+        includeLatestUser: true,
+        oldOnly: false,
+      }),
+    ));
+  }
+
+  const after = approxTokens(working);
   return {
-    messages: out,
-    compacted: elided > 0,
-    droppedCount: elided,
+    messages: working,
+    compacted: changedTotal > 0 || after < before,
+    droppedCount: changedTotal,
+    estimatedBeforeTokens: before,
+    estimatedAfterTokens: after,
+    targetTokens: target,
   };
 }

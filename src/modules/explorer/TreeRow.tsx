@@ -103,10 +103,11 @@ function EntryRowImpl(props: EntryRowProps) {
           <button
             type="button"
             data-fs-path={path}
+            data-selected={isSelected ? "true" : undefined}
             onClick={handleClick}
             onDoubleClick={() => !isDir && tree.beginRename(path)}
             className={cn(
-              "group flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-none border-l border-transparent px-2 text-left font-mono text-[12px] text-white/72 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.03] hover:text-white",
+              "javarf-explorer-row group flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden border-l border-transparent px-2 text-left font-mono text-[12px] text-white/72 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.03] hover:text-white",
               isSelected && "border-l-primary bg-primary/10 text-white",
             )}
             style={{ paddingLeft }}

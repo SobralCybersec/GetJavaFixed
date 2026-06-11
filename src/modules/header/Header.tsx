@@ -4,6 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WindowControls } from "@/components/WindowControls";
@@ -18,7 +19,12 @@ import type { Tab } from "@/modules/tabs";
 import { TabBar } from "@/modules/tabs";
 import { NotificationBell } from "@/modules/agents";
 import {
+  Add01Icon,
+  FileAddIcon,
+  FileTerminalIcon,
+  GitBranchIcon,
   GridViewIcon,
+  Hamburger01Icon,
   LayoutTwoColumnIcon,
   LayoutTwoRowIcon,
   Settings01Icon,
@@ -33,6 +39,7 @@ import {
 } from "./SearchInline";
 
 type Props = {
+  placement?: "top" | "bottom";
   tabs: Tab[];
   activeId: number;
   onSelect: (id: number) => void;
@@ -62,6 +69,7 @@ type Props = {
 const COMPACT_WIDTH = 720;
 
 export function Header({
+  placement = "top",
   tabs,
   activeId,
   onSelect,
@@ -122,6 +130,11 @@ export function Header({
       <HugeiconsIcon icon={Settings01Icon} size={15} strokeWidth={1.75} />
     </Button>
   );
+  const hiddenInZenClass = hiddenInZen
+    ? placement === "bottom"
+      ? "translate-y-full opacity-0 pointer-events-none"
+      : "-translate-y-full opacity-0 pointer-events-none"
+    : null;
 
   return (
     <div
@@ -130,9 +143,10 @@ export function Header({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       className={cn(
-        "javarf-terminal-shell flex h-12 shrink-0 items-center gap-2 border-b border-[color:var(--border)] bg-[#050506]/96 select-none backdrop-blur-sm transition-[transform,opacity,background-color] duration-150",
+        "javarf-terminal-shell flex h-12 shrink-0 items-center gap-2 border-[color:var(--border)] bg-[#050506]/96 select-none backdrop-blur-sm transition-[transform,opacity,background-color] duration-150",
+        placement === "bottom" ? "border-t" : "border-b",
         zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
-        hiddenInZen && "-translate-y-full opacity-0 pointer-events-none",
+        hiddenInZenClass,
         IS_MAC ? "pr-2 pl-20" : "pr-0 pl-2",
       )}
     >
@@ -144,10 +158,10 @@ export function Header({
             </span>
             <div className="flex min-w-0 flex-col leading-none">
               <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-white/88">
-                Javarf Terminal
+                Anime Terminal
               </span>
               <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary/72">
-                v2.1 secure workspace
+                v1.0
               </span>
             </div>
           </div>
@@ -161,6 +175,60 @@ export function Header({
         >
           <HugeiconsIcon icon={SidebarLeftIcon} size={18} strokeWidth={1.75} />
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0 border border-[color:var(--border)] bg-black/30 text-white/46 hover:border-primary/50 hover:bg-primary/10 hover:text-white"
+              title="Compact menu"
+            >
+              <HugeiconsIcon icon={Hamburger01Icon} size={16} strokeWidth={1.75} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side={placement === "bottom" ? "top" : "bottom"} className="min-w-56">
+            <DropdownMenuItem onSelect={onNew}>
+              <HugeiconsIcon icon={FileTerminalIcon} size={14} strokeWidth={1.75} />
+              <span>New terminal</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onNewPrivate}>
+              <HugeiconsIcon icon={FileTerminalIcon} size={14} strokeWidth={1.75} />
+              <span>New private terminal</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onNewEditor}>
+              <HugeiconsIcon icon={FileAddIcon} size={14} strokeWidth={1.75} />
+              <span>New editor</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onNewPreview}>
+              <HugeiconsIcon icon={Add01Icon} size={14} strokeWidth={1.75} />
+              <span>New preview</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onNewGitGraph}>
+              <HugeiconsIcon icon={GitBranchIcon} size={14} strokeWidth={1.75} />
+              <span>Git graph</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onToggleSidebar}>
+              <HugeiconsIcon icon={SidebarLeftIcon} size={14} strokeWidth={1.75} />
+              <span>Toggle sidebar</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSplit("row")} disabled={!canSplit}>
+              <HugeiconsIcon icon={LayoutTwoColumnIcon} size={14} strokeWidth={1.75} />
+              <span className="flex-1">Split right</span>
+              {splitRightTokens && <span className="text-xs text-muted-foreground">{splitRightTokens}</span>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSplit("col")} disabled={!canSplit}>
+              <HugeiconsIcon icon={LayoutTwoRowIcon} size={14} strokeWidth={1.75} />
+              <span className="flex-1">Split down</span>
+              {splitDownTokens && <span className="text-xs text-muted-foreground">{splitDownTokens}</span>}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onOpenSettings}>
+              <HugeiconsIcon icon={Settings01Icon} size={14} strokeWidth={1.75} />
+              <span>Settings</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           onClick={onToggleZenMode}
           title={zenMode ? "Disable Zen mode" : "Enable Zen mode"}

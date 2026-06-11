@@ -24,7 +24,7 @@ export function JavaRefactorPreviewPane({
   onRetry,
   onClose,
 }: Props) {
-  const label = filePath?.replace(/\\/g, "/").split("/").pop() ?? "Java file";
+  const label = filePath?.replace(/\\/g, "/").split("/").pop() ?? "Source file";
 
   return (
     <section className="java-panel flex h-full min-h-0 flex-col overflow-hidden">
@@ -32,13 +32,13 @@ export function JavaRefactorPreviewPane({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              JavaRf Preview
+              Refactor Preview
             </p>
             <h2 className="truncate text-sm font-semibold text-foreground">
               {title ?? label}
             </h2>
             <p className="truncate text-xs text-muted-foreground">
-              {description ?? "Safe Java refactor preview with KISS, YAGNI, DRY, and Clean Code guidance."}
+              {description ?? "Safe source refactor preview with KISS, YAGNI, DRY, SOLID, and tooling guidance."}
             </p>
           </div>
           <Button size="sm" variant="ghost" onClick={onClose} className="h-8 px-3 text-xs">

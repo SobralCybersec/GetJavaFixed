@@ -13,7 +13,7 @@ export type CreditEntry = {
 export const PEOPLE_CREDITS: readonly CreditEntry[] = [
   {
     name: "SobralCybersec",
-    role: "Creator and primary maintainer of JavaRf / GetJavaFixed",
+    role: "Creator and primary maintainer of this Project",
     url: "https://github.com/SobralCybersec",
   },
   {

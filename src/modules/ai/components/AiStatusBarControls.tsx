@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   Add01Icon,
   AiBookIcon,
@@ -42,7 +43,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion } from "motion/react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   getModel,
   MODELS,
@@ -56,7 +57,6 @@ import {
 import { ACCEPTED_FILES, useComposer } from "../lib/composer-context";
 import { toggleFavoriteModel } from "../lib/modelPrefs";
 import { useChatStore } from "../store/chatStore";
-import { usePreferencesStore } from "@/modules/settings/preferences";
 
 const PROVIDER_ICON = {
   openai: ChatGptIcon,
@@ -73,6 +73,43 @@ const PROVIDER_ICON = {
   mlx: AppleIcon,
   ollama: ServerStack01Icon,
 } as const satisfies Record<ProviderId, typeof ChatGptIcon>;
+
+type AiIcon = typeof ChatGptIcon;
+
+function getModelIcon(
+  model: Pick<ModelInfo, "id" | "label" | "hint" | "provider" | "tags">,
+): AiIcon {
+  const text = [
+    model.id,
+    model.label,
+    model.hint,
+    model.provider,
+    ...(model.tags ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (model.provider === "openai-compatible") return PlugIcon;
+  if (text.includes("custom") || text.includes("endpoint")) return PlugIcon;
+
+  if (text.includes("gpt") || text.includes("openai")) return ChatGptIcon;
+  if (text.includes("claude") || text.includes("anthropic")) return ClaudeIcon;
+  if (text.includes("gemini") || text.includes("google")) {
+    return GoogleGeminiIcon;
+  }
+  if (text.includes("grok") || text.includes("xai")) return Grok02Icon;
+  if (text.includes("deepseek")) return DeepseekIcon;
+  if (text.includes("mistral") || text.includes("mixtral")) return MistralIcon;
+  if (text.includes("groq")) return FlashIcon;
+  if (text.includes("cerebras")) return CpuIcon;
+  if (text.includes("ollama")) return ServerStack01Icon;
+  if (text.includes("lmstudio") || text.includes("lm studio")) {
+    return ComputerIcon;
+  }
+  if (text.includes("mlx")) return AppleIcon;
+
+  return PROVIDER_ICON[model.provider] ?? AiBookIcon;
+}
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
   return (
@@ -139,7 +176,7 @@ export function AiStatusBarControls() {
           disabled={c.isBusy || c.voice.transcribing || !c.voice.hasKey}
           className={cn(
             c.voice.recording &&
-            "bg-destructive/10 text-destructive hover:bg-destructive/15",
+              "bg-destructive/10 text-destructive hover:bg-destructive/15",
           )}
         >
           {c.voice.recording ? (
@@ -155,18 +192,20 @@ export function AiStatusBarControls() {
       <ModelDropdown />
 
       <span className="mx-1 h-8 w-px bg-border" aria-hidden />
+
       <Button
         onClick={closePanel}
         title="Close AI panel"
         size="xs"
         variant="ghost"
         aria-label="Close AI panel"
-        className="text-[11px] text-foreground/85 px-1"
+        className="px-1 text-[11px] text-foreground/85"
       >
         <Kbd className="h-4 gap-px px-2 font-mono text-[11px]">
           {fmtShortcut(MOD_KEY, "I")}
         </Kbd>
       </Button>
+
       <IconBtn
         title={miniOpen ? "Mini-window open" : "Open conversation"}
         onClick={openMini}
@@ -193,7 +232,7 @@ export function AiStatusBarControls() {
           size="icon"
           onClick={c.submit}
           disabled={!c.canSend}
-          className="h-5.5 w-7.5 ml-1"
+          className="ml-1 h-5.5 w-7.5"
           aria-label="Send"
           title="Send (Enter)"
         >
@@ -213,10 +252,13 @@ function ModelDropdown() {
   const favoriteIds = usePreferencesStore((s) => s.favoriteModelIds);
   const recentIds = usePreferencesStore((s) => s.recentModelIds);
   const current = getModel(selected);
+
   const [search, setSearch] = useState("");
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
   const [tab, setTab] = useState<Tab>("all");
+
   const inputRef = useRef<HTMLInputElement>(null);
+
   const currentProviderHasKey = providerNeedsKey(current.provider)
     ? !!apiKeys[current.provider]
     : true;
@@ -227,27 +269,34 @@ function ModelDropdown() {
   const sortedProviders = useMemo(() => {
     const configured: (typeof PROVIDERS)[number][] = [];
     const unconfigured: (typeof PROVIDERS)[number][] = [];
+
     for (const p of PROVIDERS) {
       (hasKeyFor(p.id) ? configured : unconfigured).push(p);
     }
+
     return { configured, unconfigured };
   }, [apiKeys]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+
     let pool: readonly ModelInfo[] = MODELS;
+
     if (tab === "favorites") {
       pool = pool.filter((m) => favoriteIds.includes(m.id));
     } else if (tab === "recent") {
       const order = new Map(recentIds.map((id, i) => [id, i]));
+
       pool = pool
         .filter((m) => order.has(m.id))
         .slice()
         .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
     }
+
     if (activeProvider !== null) {
       pool = pool.filter((m) => m.provider === activeProvider);
     }
+
     if (q) {
       pool = pool.filter(
         (m) =>
@@ -258,6 +307,7 @@ function ModelDropdown() {
           (m.tags?.some((t) => t.includes(q)) ?? false),
       );
     }
+
     return pool;
   }, [activeProvider, favoriteIds, recentIds, search, tab]);
 
@@ -269,7 +319,7 @@ function ModelDropdown() {
           variant="ghost"
           size="sm"
           className={cn(
-            "h-5.5 gap-1 rounded-md px-1.5 my-1 text-xs hover:bg-accent hover:text-foreground",
+            "my-1 h-5.5 gap-1 rounded-md px-1.5 text-xs hover:bg-accent hover:text-foreground",
             currentProviderHasKey
               ? "text-muted-foreground"
               : "text-amber-600 dark:text-amber-400",
@@ -279,8 +329,17 @@ function ModelDropdown() {
               ? `Model: ${current.label}`
               : `${current.label} — no key configured`
           }
+          aria-label={`Selected model: ${current.label}`}
         >
-          {current.label}
+          <HugeiconsIcon
+            icon={getModelIcon(current)}
+            size={15}
+            strokeWidth={1.75}
+            className="shrink-0"
+          />
+
+          <span className="sr-only">{current.label}</span>
+
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={11}
@@ -292,12 +351,11 @@ function ModelDropdown() {
 
       <DropdownMenuContent
         align="end"
-        className="w-[28rem] p-0 overflow-hidden rounded-xl border border-border/70 shadow-xl"
+        className="w-[28rem] overflow-hidden rounded-xl border border-border/70 p-0 shadow-xl"
         onFocusCapture={(e) => {
           if (e.target !== inputRef.current) inputRef.current?.focus();
         }}
       >
-        {/* Search */}
         <div className="flex items-center gap-2.5 border-b border-border/70 px-3 py-2.5">
           <HugeiconsIcon
             icon={Search01Icon}
@@ -305,6 +363,7 @@ function ModelDropdown() {
             strokeWidth={1.75}
             className="shrink-0 text-muted-foreground/70"
           />
+
           <input
             ref={inputRef}
             value={search}
@@ -315,7 +374,6 @@ function ModelDropdown() {
           />
         </div>
 
-        {/* Tabs */}
         <div className="flex items-center gap-0.5 border-b border-border/70 px-2 py-1.5">
           <TabButton
             label="All"
@@ -323,6 +381,7 @@ function ModelDropdown() {
             active={tab === "all"}
             onClick={() => setTab("all")}
           />
+
           <TabButton
             label="Favorites"
             icon={FavouriteIcon}
@@ -330,6 +389,7 @@ function ModelDropdown() {
             onClick={() => setTab("favorites")}
             count={favoriteIds.length || undefined}
           />
+
           <TabButton
             label="Recent"
             icon={Clock01Icon}
@@ -340,7 +400,6 @@ function ModelDropdown() {
         </div>
 
         <div className="flex max-h-104 min-h-0">
-          {/* Provider sidebar — configured first, unconfigured muted, no dividers. */}
           <div className="flex w-11 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border/70 bg-muted/20 py-1.5">
             <ProviderPill
               icon={AiBookIcon}
@@ -348,16 +407,13 @@ function ModelDropdown() {
               active={activeProvider === null}
               onClick={() => setActiveProvider(null)}
             />
+
             {[...sortedProviders.configured, ...sortedProviders.unconfigured].map(
               (p) => (
                 <ProviderPill
                   key={p.id}
                   icon={PROVIDER_ICON[p.id]}
-                  title={
-                    hasKeyFor(p.id)
-                      ? p.label
-                      : `${p.label} — not configured`
-                  }
+                  title={hasKeyFor(p.id) ? p.label : `${p.label} — not configured`}
                   active={activeProvider === p.id}
                   muted={!hasKeyFor(p.id)}
                   onClick={() => setActiveProvider(p.id)}
@@ -366,14 +422,15 @@ function ModelDropdown() {
             )}
           </div>
 
-          {/* Models list */}
           <div className="min-h-0 flex-1 overflow-y-auto py-1">
             {activeProvider !== null ? (
               <ProviderHeader providerId={activeProvider} />
             ) : null}
+
             {activeProvider !== null && !hasKeyFor(activeProvider) ? (
               <ProviderConfigureCTA providerId={activeProvider} />
             ) : null}
+
             {filtered.length === 0 ? (
               <div className="flex items-center justify-center px-4 py-10 text-xs text-muted-foreground/70">
                 {tab === "favorites"
@@ -390,12 +447,13 @@ function ModelDropdown() {
                   selected={m.id === selected}
                   hasKey={hasKeyFor(m.provider)}
                   favorite={favoriteIds.includes(m.id)}
-                  showProviderIcon={activeProvider === null}
+                  showModelIcon={activeProvider === null}
                   onPick={() => {
                     if (!hasKeyFor(m.provider)) {
                       void openSettingsWindow("models");
                       return;
                     }
+
                     setSelected(m.id as ModelId);
                   }}
                   onToggleFavorite={() => void toggleFavoriteModel(m.id)}
@@ -434,7 +492,9 @@ function TabButton({
       )}
     >
       <HugeiconsIcon icon={icon} size={12} strokeWidth={1.75} />
+
       {label}
+
       {count != null ? (
         <span className="rounded-full bg-muted/60 px-1.5 text-[9.5px] tabular-nums text-muted-foreground">
           {count}
@@ -465,7 +525,7 @@ function ProviderPill({
       className={cn(
         "relative mx-auto flex size-8 items-center justify-center rounded-md transition-colors",
         active
-          ? "bg-accent text-foreground after:absolute after:right-0 after:top-1.5 after:bottom-1.5 after:w-[2px] after:rounded-full after:bg-primary after:content-['']"
+          ? "bg-accent text-foreground after:absolute after:bottom-1.5 after:right-0 after:top-1.5 after:w-[2px] after:rounded-full after:bg-primary after:content-['']"
           : muted
             ? "text-muted-foreground/50 hover:bg-accent/40 hover:text-foreground"
             : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
@@ -478,14 +538,17 @@ function ProviderPill({
 
 function ProviderHeader({ providerId }: { providerId: ProviderId }) {
   const p = PROVIDERS.find((x) => x.id === providerId);
+
   if (!p) return null;
+
   return (
-    <div className="flex items-center gap-1.5 px-3 pt-1 pb-1.5 text-[11px] font-medium tracking-tight text-muted-foreground/90">
+    <div className="flex items-center gap-1.5 px-3 pb-1.5 pt-1 text-[11px] font-medium tracking-tight text-muted-foreground/90">
       <HugeiconsIcon
         icon={PROVIDER_ICON[p.id]}
         size={13}
         strokeWidth={1.75}
       />
+
       <span>{p.label}</span>
     </div>
   );
@@ -493,7 +556,9 @@ function ProviderHeader({ providerId }: { providerId: ProviderId }) {
 
 function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
   const p = PROVIDERS.find((x) => x.id === providerId);
+
   if (!p) return null;
+
   return (
     <button
       type="button"
@@ -501,9 +566,11 @@ function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
       className="group mx-2 mb-1 flex w-[calc(100%-1rem)] items-center gap-2 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-accent/40 hover:text-foreground"
     >
       <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
+
       <span className="flex-1 truncate">
         Configure {p.label} to use these models.
       </span>
+
       <span className="shrink-0 text-[10px] underline-offset-2 group-hover:underline">
         Open
       </span>
@@ -516,7 +583,7 @@ function ModelRow({
   selected,
   hasKey,
   favorite,
-  showProviderIcon,
+  showModelIcon,
   onPick,
   onToggleFavorite,
 }: {
@@ -524,7 +591,7 @@ function ModelRow({
   selected: boolean;
   hasKey: boolean;
   favorite: boolean;
-  showProviderIcon: boolean;
+  showModelIcon: boolean;
   onPick: () => void;
   onToggleFavorite: () => void;
 }) {
@@ -563,9 +630,9 @@ function ModelRow({
         />
       </button>
 
-      {showProviderIcon ? (
+      {showModelIcon ? (
         <HugeiconsIcon
-          icon={PROVIDER_ICON[model.provider]}
+          icon={getModelIcon(model)}
           size={13}
           strokeWidth={1.5}
           className="shrink-0 text-muted-foreground/70"
@@ -576,6 +643,7 @@ function ModelRow({
         <span className="shrink-0 text-[12px] font-medium leading-none">
           {model.label}
         </span>
+
         <span className="truncate text-[10.5px] leading-none text-muted-foreground">
           {model.description}
         </span>
@@ -600,11 +668,7 @@ function CapabilityBars({ caps }: { caps: ModelCapabilities }) {
     <div className="ml-auto flex items-center gap-1.5">
       <CapBar icon={BrainIcon} value={caps.intelligence} label="Intelligence" />
       <CapBar icon={FlashIcon} value={caps.speed} label="Speed" />
-      <CapBar
-        icon={CoinsDollarIcon}
-        value={caps.cost}
-        label="Affordability"
-      />
+      <CapBar icon={CoinsDollarIcon} value={caps.cost} label="Affordability" />
     </div>
   );
 }
@@ -619,16 +683,14 @@ function CapBar({
   label: string;
 }) {
   return (
-    <span
-      className="flex items-center gap-0.5"
-      title={`${label}: ${value}/5`}
-    >
+    <span className="flex items-center gap-0.5" title={`${label}: ${value}/5`}>
       <HugeiconsIcon
         icon={icon}
         size={10}
         strokeWidth={1.75}
         className="text-muted-foreground/60"
       />
+
       <span className="flex items-center gap-px">
         {[1, 2, 3, 4, 5].map((i) => (
           <span
@@ -655,7 +717,7 @@ function IconBtn({
   onClick: () => void;
   disabled?: boolean;
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <Button

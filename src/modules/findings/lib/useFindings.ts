@@ -20,7 +20,19 @@ const snapshotSchema = z.object({
   progress: z.number(),
   message: z.string(),
   repoName: z.string(),
-  projectType: z.enum(["maven", "gradle"]),
+  projectType: z.enum([
+    "maven",
+    "gradle",
+    "node",
+    "rust",
+    "python",
+    "go",
+    "dotnet",
+    "php",
+    "ruby",
+    "cpp",
+    "generic",
+  ]),
   scanPath: z.string(),
   scopeLabel: z.string(),
   filesScanned: z.number(),
@@ -82,7 +94,7 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
   const [panelState, setPanelState] = useState<FindingsPanelState>("empty");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState(
-    "Start full analysis to build the ranked refactor findings queue.",
+    "Start full analysis to build the ranked polyglot refactor findings queue.",
   );
   const [findings, setFindings] = useState<Phase1Finding[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -170,7 +182,7 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     setPartialReason(null);
     if (repo) {
       setPanelState("empty");
-      setMessage("Start full analysis to build the ranked refactor findings queue.");
+      setMessage("Start full analysis to build the ranked polyglot refactor findings queue.");
       invoke<unknown>("java_safety_snapshot", {
         path: repo.path,
         workspace: currentWorkspaceEnv(),
@@ -179,7 +191,7 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
         .catch(() => setSafety(null));
     } else {
       setPanelState("empty");
-      setMessage("Choose a supported Java repository to begin.");
+      setMessage("Choose a code repository to begin.");
     }
   }, [repo, stopPolling]);
 
@@ -189,7 +201,7 @@ export function useFindings(repo: FindingsRepo | null): UseFindingsResult {
     setPanelState("analyzing");
     setError(null);
     setProgress(8);
-    setMessage("Preparing analysis…");
+    setMessage("Preparing analysis...");
     try {
       const result = await invoke<unknown>("phase1_analysis_start", {
         repoPath: repo.path,

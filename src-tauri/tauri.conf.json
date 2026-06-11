@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "JavaRf",
+        "title": "AnimeAIAssistant",
         "width": 800,
         "height": 600,
         "minWidth": 420,
@@ -37,9 +37,9 @@
       "../mcps/x64dbgmcp/src/": "mcps/x64dbgmcp/src/"
     },
     "createUpdaterArtifacts": true,
-    "copyright": "Copyright 2026 JavaRf",
+    "copyright": "Copyright 2026 AnimeAIAssistant",
     "license": "Apache-2.0",
-    "publisher": "JavaRf",
+    "publisher": "AnimeAIAssistant",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -75,8 +75,8 @@
       }
     },
     "category": "DeveloperTool",
-    "shortDescription": "Java refactor AI desktop assistant",
-    "longDescription": "JavaRf - a Java refactor AI desktop assistant with repository intake, findings review, terminal, file explorer, code editor, and safe AI workflows."
+    "shortDescription": "Refactor AI desktop assistant",
+    "longDescription": "AnimeAIAssistant - a refactor AI desktop assistant with repository intake, findings review, terminal, file explorer, code editor, and safe AI workflows."
   },
   "plugins": {
     "updater": {

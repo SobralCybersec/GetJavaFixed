@@ -36,10 +36,10 @@ export function JavaFirstRunSetup({
                 First setup
               </Badge>
               <CardTitle className="text-4xl tracking-tight">
-                Configure JavaRf before opening the workspace
+                Configure the IDE before opening the workspace
               </CardTitle>
               <CardDescription className="max-w-2xl text-sm leading-7 text-muted-foreground">
-                Connect a model, choose your first Java Maven or Gradle repository,
+                Connect a model, choose your first code repository,
                 then land directly in the IDE-style review workspace.
               </CardDescription>
             </div>
@@ -66,7 +66,7 @@ export function JavaFirstRunSetup({
           <div className="rounded-sm border border-border/60 bg-card/80 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">2. First Java repository</p>
+                <p className="text-sm font-medium">2. First code repository</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Pick a supported Maven or Gradle root to mount the explorer and review tools.
                 </p>
@@ -79,7 +79,7 @@ export function JavaFirstRunSetup({
               {repoLabel ?? "No repository selected yet."}
             </p>
             <Button size="sm" className="mt-4" variant="outline" onClick={onChooseRepo}>
-              Choose Java repository
+              Choose code repository
             </Button>
           </div>
         </CardContent>

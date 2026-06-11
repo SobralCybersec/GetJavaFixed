@@ -49,6 +49,26 @@ public class App {
 }
 
 #[test]
+fn scan_findings_detects_typescript_debug_output() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/app.ts",
+        r#"
+export function run(value: string) {
+    console.log(value);
+    return value.trim();
+}
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings.iter().any(|f| f.id.contains("debug-output:")),
+        "Expected debug output finding in TypeScript source"
+    );
+}
+
+#[test]
 fn scan_findings_detects_empty_catch_block() {
     let fx = FsFixture::new();
     fx.write(
@@ -363,7 +383,7 @@ public class App {
     let findings = scan_findings(&fx.root).expect("scan_findings");
     let println_ids: Vec<_> = findings
         .iter()
-        .filter(|f| f.id.starts_with("println:"))
+        .filter(|f| f.id.starts_with("debug-output:"))
         .map(|f| f.id.clone())
         .collect();
 

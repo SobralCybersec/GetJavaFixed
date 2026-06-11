@@ -22,7 +22,16 @@ import type { ToolContext } from "./context";
 const TYPE_KEYS = Object.keys(SUBAGENTS) as [SubagentType, ...SubagentType[]];
 const SUBAGENT_MCP_BOOTSTRAP_TIMEOUT_MS = 4_000;
 
-function subagentPromptNeedsMcp(prompt: string): boolean {
+const RESEARCH_CAPABLE_SUBAGENT_TYPES: ReadonlySet<SubagentType> = new Set([
+  "general",
+  "osint-recon",
+  "detection",
+  "exploration",
+  "post-exploration",
+]);
+
+function subagentNeedsMcp(type: SubagentType, prompt: string): boolean {
+  if (RESEARCH_CAPABLE_SUBAGENT_TYPES.has(type)) return true;
   const messages = [
     {
       id: "subagent-prompt",
@@ -55,8 +64,8 @@ function withTimeout<T>(
   });
 }
 
-async function maybeLoadSubagentMcpBundle(prompt: string) {
-  if (!subagentPromptNeedsMcp(prompt)) return null;
+async function maybeLoadSubagentMcpBundle(type: SubagentType, prompt: string) {
+  if (!subagentNeedsMcp(type, prompt)) return null;
 
   const prefs = usePreferencesStore.getState();
   const baseConfig: McpConfig = buildRuntimeMcpConfig({
@@ -131,15 +140,17 @@ Auto-executes (no approval) — subagents are read-only by design.`,
           useChatStore.getState();
         try {
           const prefs = usePreferencesStore.getState();
-          const mcpBundle = await maybeLoadSubagentMcpBundle(prompt);
+          const mcpBundle = await maybeLoadSubagentMcpBundle(type, prompt);
+          const subagentUsesResearchTools = RESEARCH_CAPABLE_SUBAGENT_TYPES.has(type);
           const runtimeNotices =
-            messageLikelyNeedsResearchMcpTools([
-              {
-                id: "subagent-prompt",
-                role: "user",
-                parts: [{ type: "text", text: prompt }],
-              },
-            ] as UIMessage[]) &&
+            (subagentUsesResearchTools ||
+              messageLikelyNeedsResearchMcpTools([
+                {
+                  id: "subagent-prompt",
+                  role: "user",
+                  parts: [{ type: "text", text: prompt }],
+                },
+              ] as UIMessage[])) &&
             (mcpBundle?.toolNames.length ?? 0) === 0
               ? [LIVE_RESEARCH_UNAVAILABLE_NOTICE]
               : [];

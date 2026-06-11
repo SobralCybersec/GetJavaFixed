@@ -18,6 +18,7 @@ import { CwdBreadcrumb } from "./CwdBreadcrumb";
 import { WorkspaceEnvSelector } from "./WorkspaceEnvSelector";
 
 type Props = {
+  placement?: "top" | "bottom";
   cwd: string | null;
   filePath?: string | null;
   home: string | null;
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export function StatusBar({
+  placement = "bottom",
   cwd,
   filePath,
   home,
@@ -64,7 +66,8 @@ export function StatusBar({
         onHoverChange?.(false);
       }}
       className={cn(
-        "javarf-terminal-shell flex h-10 shrink-0 items-center justify-between gap-3 border-t border-[color:var(--border)] bg-[#050506]/96 px-3 text-[11px] backdrop-blur-sm",
+        "javarf-terminal-shell flex h-10 shrink-0 items-center justify-between gap-3 border-[color:var(--border)] bg-[#050506]/96 px-3 text-[11px] backdrop-blur-sm",
+        placement === "top" ? "border-b" : "border-t",
         zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
       )}
     >
@@ -113,9 +116,6 @@ export function StatusBar({
               <span className="javarf-cat__muzzle" />
             </span>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/48">
-            {t("status.strayDaemon")}
-          </span>
         </div>
         <AgentStatusPill onClick={onOpenMini} />
         {panelOpen && hasComposer ? (

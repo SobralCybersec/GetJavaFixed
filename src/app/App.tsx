@@ -2012,7 +2012,7 @@ export default function App() {
                           className="w-full justify-start border-[color:var(--border)] bg-white/[0.03] font-mono text-[11px] uppercase tracking-[0.16em] text-white/82 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
                           onClick={handleOpenJavaRefactor}
                         >
-                          Java refactor
+                          Refactor
                         </Button>
                       </div>
                       <SidebarRail

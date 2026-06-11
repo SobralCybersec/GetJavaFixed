@@ -12,15 +12,16 @@ describe("JavaRepoHome intake shell", () => {
     expect(homeSrc).toContain("Start full analysis");
   });
 
-  it("uses the Phase 1 unsupported repo recovery action", () => {
+  it("keeps a recovery action for inspection failures", () => {
     expect(homeSrc).toContain("Choose another folder");
-    expect(homeSrc).toContain("This folder is not supported in Phase 1.");
+    expect(homeSrc).toContain("This folder could not be prepared for analysis.");
   });
 
-  it("keeps the readiness copy minimal and Maven/Gradle focused", () => {
+  it("keeps the readiness copy minimal and polyglot focused", () => {
     expect(homeSrc).toContain("Repository ready for analysis");
-    expect(homeSrc).toContain("pom.xml");
-    expect(homeSrc).toContain("build.gradle.kts");
+    expect(homeSrc).toContain("package.json");
+    expect(homeSrc).toContain("Cargo.toml");
+    expect(homeSrc).toContain("generic code");
   });
 
   it("exposes an explicit start callback for dashboard entry", () => {
@@ -28,4 +29,3 @@ describe("JavaRepoHome intake shell", () => {
     expect(appSrc).toContain("onStartFullAnalysis={handleStartFullAnalysis}");
   });
 });
-

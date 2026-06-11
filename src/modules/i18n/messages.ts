@@ -61,20 +61,20 @@ export const messages = {
     "general.agents": "Agents",
     "general.agents.notifications.title": "Coding agent notifications",
     "general.agents.notifications.description":
-      "Alert when Claude Code or Codex running in a terminal needs your input or finishes. Desktop notification when JavaRf is unfocused, in-app otherwise.",
+      "Alert when Claude Code or Codex running in a terminal needs your input or finishes. Desktop notification when the agent is unfocused, in-app otherwise.",
     "general.agents.sounds.title": "Interaction sounds",
     "general.agents.sounds.description":
       "Play quiet clicks, approval cues, and completion chimes after you interact with the app.",
     "general.startup": "Startup",
     "general.startup.autostart.title": "Launch at login",
     "general.startup.autostart.description":
-      "Open JavaRf automatically when you sign in.",
+      "Open automatically when you sign in.",
     "general.startup.restoreWindow.title": "Restore window position & size",
     "general.startup.restoreWindow.description":
       "Reopen the main window where you left it. Applies on next launch.",
 
     "about.title": "About",
-    "about.tagline": "Java refactor AI desktop assistant",
+    "about.tagline": "Polyglot refactor AI desktop assistant",
     "about.build": "Build",
     "about.bundleId": "Bundle ID",
     "about.license": "License",
@@ -101,7 +101,7 @@ export const messages = {
     "agents.customInstructions.placeholder":
       "For example: always reply in concise bullet points. Prefer pnpm over npm.",
     "agents.customInstructions.help":
-      "These instructions apply to the main chat agent. Java refactor previews use the separate Refactor prompt control in Models.",
+      "These instructions apply to the main chat agent. Refactor previews use the separate Refactor prompt control in Models.",
     "agents.save": "Save",
     "agents.agentsLabel": "Agents",
     "agents.newAgent": "New agent",
@@ -123,7 +123,7 @@ export const messages = {
     "agents.dialog.description": "Description",
     "agents.dialog.instructions": "Instructions",
     "agents.dialog.instructions.placeholder":
-      "Persona and rules. Appended to JavaRf's core system prompt.",
+      "Persona and rules. Appended to core system prompt.",
     "agents.dialog.cancel": "Cancel",
     "agents.dialog.save": "Save",
     "agents.dialog.newSnippet": "New snippet",
@@ -136,7 +136,7 @@ export const messages = {
 
     "models.title": "Models",
     "models.description":
-      "Connect the providers you use. Keys live in your OS keychain and are used only by JavaRf.",
+      "Connect the providers you use. Keys live in your OS keychain and are used only by the agent.",
     "models.agentResearch": "Agent research",
     "models.agentResearch.description":
       "Remote MCPs power live web and docs research. Managed presets add local specialists like x64dbg.",
@@ -171,7 +171,7 @@ export const messages = {
       "Use a python.exe path or a PATH-resolved command like python.",
     "mcp.port": "Local MCP port",
     "mcp.port.description":
-      "The local HTTP endpoint JavaRf will call for this preset.",
+      "The local HTTP endpoint the agent will call for this preset.",
     "mcp.upstreamUrl": "Upstream debugger URL",
     "mcp.upstreamUrl.description":
       "HTTP URL exposed by the x64dbg plugin itself.",
@@ -208,9 +208,9 @@ export const messages = {
     "home.hero.description":
       "Mount the repository, verify model access, and move into analysis through a denser terminal-like workflow instead of generic landing cards.",
     "home.openWorkspace": "Open workspace",
-    "home.javaRefactor": "Java refactor",
+    "home.javaRefactor": "Code refactor",
     "home.javaRefactorDisabled":
-      "Connect a model in Settings to unlock Java refactor.",
+      "Connect a model in Settings to unlock code refactor.",
     "home.kpi.explorer.label": "Explorer",
     "home.kpi.explorer.value": "Workspace gated",
     "home.kpi.explorer.hint":
@@ -344,20 +344,20 @@ export const messages = {
     "general.agents": "Agentes",
     "general.agents.notifications.title": "Notificacoes dos agentes de codigo",
     "general.agents.notifications.description":
-      "Avisa quando Claude Code ou Codex em um terminal precisa da sua entrada ou termina. Notificacao desktop quando o JavaRf estiver desfocado, interna caso contrario.",
+      "Avisa quando Claude Code ou Codex em um terminal precisa da sua entrada ou termina. Notificacao desktop quando o agente estiver desfocado, interna caso contrario.",
     "general.agents.sounds.title": "Sons da interface",
     "general.agents.sounds.description":
       "Toca cliques sutis, avisos de aprovacao e sinais de conclusao depois que voce interagir com o app.",
     "general.startup": "Inicializacao",
     "general.startup.autostart.title": "Abrir ao entrar",
     "general.startup.autostart.description":
-      "Abre o JavaRf automaticamente quando voce faz login.",
+      "Abre o agente automaticamente quando voce faz login.",
     "general.startup.restoreWindow.title": "Restaurar posicao e tamanho da janela",
     "general.startup.restoreWindow.description":
       "Reabre a janela principal onde voce deixou. Aplica no proximo inicio.",
 
     "about.title": "Sobre",
-    "about.tagline": "Assistente desktop de IA para refatoracao Java",
+    "about.tagline": "Assistente desktop de IA para refatoracao poliglota",
     "about.build": "Build",
     "about.bundleId": "Bundle ID",
     "about.license": "Licenca",
@@ -406,7 +406,7 @@ export const messages = {
     "agents.dialog.description": "Descricao",
     "agents.dialog.instructions": "Instrucoes",
     "agents.dialog.instructions.placeholder":
-      "Persona e regras. Anexadas ao prompt principal do sistema do JavaRf.",
+      "Persona e regras. Anexadas ao prompt principal do sistema do agente.",
     "agents.dialog.cancel": "Cancelar",
     "agents.dialog.save": "Salvar",
     "agents.dialog.newSnippet": "Novo snippet",
@@ -419,7 +419,7 @@ export const messages = {
 
     "models.title": "Modelos",
     "models.description":
-      "Conecte os provedores que voce usa. As chaves ficam no keychain do sistema e sao usadas apenas pelo JavaRf.",
+      "Conecte os provedores que voce usa. As chaves ficam no keychain do sistema e sao usadas apenas pelo agente.",
     "models.agentResearch": "Pesquisa dos agentes",
     "models.agentResearch.description":
       "MCPs remotos habilitam pesquisa web e docs ao vivo. Presets gerenciados adicionam especialistas locais como x64dbg.",
@@ -454,7 +454,7 @@ export const messages = {
       "Use um caminho para python.exe ou um comando no PATH como python.",
     "mcp.port": "Porta local do MCP",
     "mcp.port.description":
-      "Endpoint HTTP local que o JavaRf vai chamar para este preset.",
+      "Endpoint HTTP local que o ageente vai chamar para este preset.",
     "mcp.upstreamUrl": "URL do debugger upstream",
     "mcp.upstreamUrl.description":
       "URL HTTP exposta pelo plugin do x64dbg.",
@@ -491,9 +491,9 @@ export const messages = {
     "home.hero.description":
       "Monte o repositorio, valide o acesso a modelos e avance para a analise por um fluxo mais denso e orientado a terminal.",
     "home.openWorkspace": "Abrir workspace",
-    "home.javaRefactor": "Refatoracao Java",
+    "home.javaRefactor": "Refatoracao de codigo",
     "home.javaRefactorDisabled":
-      "Conecte um modelo em Configuracoes para liberar a refatoracao Java.",
+      "Conecte um modelo em Configuracoes para liberar a refatoracao de codigo.",
     "home.kpi.explorer.label": "Explorador",
     "home.kpi.explorer.value": "Workspace bloqueado",
     "home.kpi.explorer.hint":

@@ -10,7 +10,7 @@ use serde::Serialize;
 use crate::modules::java_repo::{classify_selected_root, inspect_repo_root, JavaProjectType};
 use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
-const JAVA_FILE_LIMIT: usize = 8_000;
+const CODE_FILE_LIMIT: usize = 8_000;
 const ENTRY_LIMIT: usize = 100_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -173,7 +173,7 @@ pub async fn phase1_analysis_start(
         return Err("scan path must be a directory".to_string());
     }
     if !canonical_scan.starts_with(&canonical_repo) {
-        return Err("scan path must stay inside the selected Java repository".to_string());
+        return Err("scan path must stay inside the selected repository".to_string());
     }
     let repo_name = readiness.repo_name.clone();
     let scan_path_string = crate::modules::fs::to_canon(&canonical_scan);
@@ -244,7 +244,7 @@ fn run_phase1_analysis(
     state.set(Phase1AnalysisSnapshot {
         status: Phase1AnalysisStatus::Running,
         progress: 34,
-        message: "Scanning Java sources…".to_string(),
+        message: "Scanning code sources...".to_string(),
         repo_name: repo_name.clone(),
         project_type: project_type.clone(),
         scan_path: scan_path.clone(),
@@ -311,9 +311,9 @@ fn scan_findings_in_scope(
     repo_root: &Path,
     scan_root: &Path,
 ) -> Result<ScanFindingsResult, String> {
-    let scan = collect_java_files(scan_root)?;
+    let scan = collect_code_files(scan_root)?;
 
-    let mut findings = Vec::new();
+    let mut findings = repo_tooling_findings(repo_root);
     for path in &scan.files {
         let rel = path
             .strip_prefix(repo_root)
@@ -324,22 +324,19 @@ fn scan_findings_in_scope(
         let lines: Vec<&str> = content.lines().collect();
         let line_count = lines.len();
 
-        if content.contains("System.out.println") {
+        if has_debug_output(&content) {
             findings.push(Phase1Finding {
-                id: format!("println:{rel}"),
-                title: "Console output left in production code".to_string(),
+                id: format!("debug-output:{rel}"),
+                title: "Debug output left in production code".to_string(),
                 category: "safe".to_string(),
                 priority: 92,
-                rationale: "Direct console output is a quick signal for refactor cleanup. It often points to debugging residue that should be replaced with structured logging or removed.".to_string(),
+                rationale: "Direct console output is a quick signal for refactor cleanup. It often points to debugging residue that should be replaced with structured logging, tracing, or removed.".to_string(),
                 principles: vec!["CleanCode".to_string(), "KISS".to_string()],
                 affected_files: vec![rel.clone()],
             });
         }
 
-        if lines
-            .iter()
-            .any(|line| line.trim_start().starts_with("import ") && line.contains(".*;"))
-        {
+        if has_wildcard_import(&lines) {
             findings.push(Phase1Finding {
                 id: format!("wildcard-import:{rel}"),
                 title: "Wildcard imports can hide unnecessary dependencies".to_string(),
@@ -376,7 +373,7 @@ fn scan_findings_in_scope(
         if line_count > 180 {
             findings.push(Phase1Finding {
                 id: format!("long-file:{rel}"),
-                title: "Large Java file may hide extract-method opportunities".to_string(),
+                title: "Large source file may hide extract-method opportunities".to_string(),
                 category: "performance".to_string(),
                 priority: 84,
                 rationale: format!(
@@ -561,7 +558,7 @@ fn scan_findings_in_scope(
             title: "Starter scan found no obvious lightweight heuristics".to_string(),
             category: "maintainability".to_string(),
             priority: 24,
-            rationale: "Phase 1 ran a real repository scan but did not find the small deterministic heuristics it checks today. This still confirms the dashboard pipeline is analyzing the selected root.".to_string(),
+            rationale: "The scan ran real polyglot repository checks but did not find the small deterministic heuristics it checks today. This still confirms the dashboard pipeline is analyzing the selected root.".to_string(),
             principles: vec!["KISS".to_string(), "YAGNI".to_string()],
             affected_files: Vec::new(),
         });
@@ -576,14 +573,14 @@ fn scan_findings_in_scope(
     })
 }
 
-struct JavaScan {
+struct CodeScan {
     files: Vec<PathBuf>,
     entries_visited: usize,
     partial: bool,
     partial_reason: Option<String>,
 }
 
-fn collect_java_files(root: &Path) -> Result<JavaScan, String> {
+fn collect_code_files(root: &Path) -> Result<CodeScan, String> {
     let mut files = Vec::new();
     let mut entries_visited = 0usize;
     let mut partial = false;
@@ -617,20 +614,20 @@ fn collect_java_files(root: &Path) -> Result<JavaScan, String> {
                 .path()
                 .extension()
                 .and_then(|value| value.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+                .is_some_and(is_supported_code_extension)
         {
             files.push(entry.into_path());
-            if files.len() >= JAVA_FILE_LIMIT {
+            if files.len() >= CODE_FILE_LIMIT {
                 partial = true;
                 partial_reason = Some(format!(
-                    "Stopped after scanning {JAVA_FILE_LIMIT} Java files for safety."
+                    "Stopped after scanning {CODE_FILE_LIMIT} code files for safety."
                 ));
                 break;
             }
         }
     }
 
-    Ok(JavaScan {
+    Ok(CodeScan {
         files,
         entries_visited,
         partial,
@@ -638,10 +635,77 @@ fn collect_java_files(root: &Path) -> Result<JavaScan, String> {
     })
 }
 
+fn is_supported_code_extension(ext: &str) -> bool {
+    matches!(
+        ext.to_ascii_lowercase().as_str(),
+        "java"
+            | "kt"
+            | "kts"
+            | "scala"
+            | "groovy"
+            | "js"
+            | "jsx"
+            | "ts"
+            | "tsx"
+            | "mjs"
+            | "cjs"
+            | "py"
+            | "rs"
+            | "go"
+            | "c"
+            | "cc"
+            | "cpp"
+            | "cxx"
+            | "h"
+            | "hpp"
+            | "cs"
+            | "fs"
+            | "php"
+            | "rb"
+            | "swift"
+            | "m"
+            | "mm"
+            | "lua"
+            | "dart"
+            | "ex"
+            | "exs"
+            | "erl"
+            | "hrl"
+            | "clj"
+            | "cljs"
+            | "sql"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "fish"
+            | "ps1"
+            | "html"
+            | "css"
+            | "scss"
+            | "vue"
+            | "svelte"
+    )
+}
+
 fn should_skip_dir_name(name: &str) -> bool {
     matches!(
         name,
-        ".git" | ".gradle" | "target" | "build" | "node_modules" | ".idea" | "out" | ".settings"
+        ".git"
+            | ".gradle"
+            | "target"
+            | "build"
+            | "node_modules"
+            | ".idea"
+            | "out"
+            | ".settings"
+            | "dist"
+            | ".next"
+            | ".turbo"
+            | "vendor"
+            | "__pycache__"
+            | ".venv"
+            | "venv"
+            | ".cargo"
     )
 }
 
@@ -650,6 +714,121 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::from_secs(0))
         .as_millis() as u64
+}
+
+fn repo_tooling_findings(repo_root: &Path) -> Vec<Phase1Finding> {
+    let mut findings = Vec::new();
+    let mut push_tooling = |id: &str, title: &str, rationale: &str, tools: &[&str]| {
+        findings.push(Phase1Finding {
+            id: format!("tooling:{id}"),
+            title: title.to_string(),
+            category: "tooling".to_string(),
+            priority: 68,
+            rationale: format!(
+                "{rationale} Suggested verification gates: {}.",
+                tools.join(", ")
+            ),
+            principles: vec![
+                "KISS".to_string(),
+                "DRY".to_string(),
+                "YAGNI".to_string(),
+                "SOLID".to_string(),
+            ],
+            affected_files: Vec::new(),
+        });
+    };
+
+    if repo_root.join("package.json").is_file() {
+        push_tooling(
+            "javascript-typescript",
+            "Run JS/TS lint, type, and format gates before applying broad refactors",
+            "ESLint/Biome plus tsc catches unsafe imports, dead code, type drift, and style churn before a generated refactor lands",
+            &["eslint --fix or biome check --write", "tsc --noEmit", "prettier/biome format"],
+        );
+    }
+    if repo_root.join("Cargo.toml").is_file() {
+        push_tooling(
+            "rust",
+            "Run Rust compiler and Clippy gates before accepting generated refactors",
+            "cargo check and Clippy catch borrow, lifetime, allocation, and API-shape regressions that text-only review misses",
+            &["cargo fmt", "cargo check", "cargo clippy --all-targets --all-features"],
+        );
+    }
+    if repo_root.join("pyproject.toml").is_file()
+        || repo_root.join("requirements.txt").is_file()
+        || repo_root.join("setup.py").is_file()
+    {
+        push_tooling(
+            "python",
+            "Run Python lint, type, and test gates before accepting generated refactors",
+            "Ruff, type checkers, and tests catch import cleanup, dead code, typing drift, and behavior regressions quickly",
+            &["ruff check --fix", "ruff format", "mypy or pyright", "pytest"],
+        );
+    }
+    if repo_root.join("go.mod").is_file() {
+        push_tooling(
+            "go",
+            "Run Go format, vet, and static analysis before accepting generated refactors",
+            "Go's formatter and analyzers keep generated changes idiomatic and catch common correctness issues",
+            &["gofmt", "go vet ./...", "staticcheck ./...", "go test ./..."],
+        );
+    }
+    if repo_root.join("pom.xml").is_file()
+        || repo_root.join("build.gradle").is_file()
+        || repo_root.join("build.gradle.kts").is_file()
+    {
+        push_tooling(
+            "jvm",
+            "Run JVM build and static-analysis gates before accepting generated refactors",
+            "Compiler, tests, and analyzers catch signature drift, unsafe modernization, and behavior changes",
+            &["mvn test or gradle test", "SpotBugs/ErrorProne when configured", "Checkstyle/PMD when configured"],
+        );
+    }
+    if repo_root.join("composer.json").is_file() {
+        push_tooling(
+            "php",
+            "Run PHP style and static-analysis gates before accepting generated refactors",
+            "PHPStan/Psalm and formatters catch type assumptions, unused symbols, and unsafe API moves",
+            &["phpstan or psalm", "php-cs-fixer or pint", "composer test"],
+        );
+    }
+    if repo_root.join("Gemfile").is_file() {
+        push_tooling(
+            "ruby",
+            "Run Ruby lint and test gates before accepting generated refactors",
+            "RuboCop and tests catch unsafe rewrites, dead code, and style churn in dynamic code",
+            &["rubocop -A", "bundle exec rspec or rake test"],
+        );
+    }
+    if repo_root.join("CMakeLists.txt").is_file() {
+        push_tooling(
+            "cpp",
+            "Run C/C++ format, compile, and static-analysis gates before accepting generated refactors",
+            "Compiler diagnostics, clang-tidy, and sanitizers catch lifetime, ownership, and performance regressions",
+            &["clang-format", "cmake --build", "clang-tidy", "ASan/UBSan tests when configured"],
+        );
+    }
+
+    findings
+}
+
+fn has_debug_output(content: &str) -> bool {
+    content.contains("System.out.println")
+        || content.contains("console.log(")
+        || content.contains("console.debug(")
+        || content.contains("println!(")
+        || content.lines().any(|line| {
+            let trimmed = line.trim_start();
+            trimmed.starts_with("print(") || trimmed.starts_with("puts ")
+        })
+}
+
+fn has_wildcard_import(lines: &[&str]) -> bool {
+    lines.iter().any(|line| {
+        let trimmed = line.trim_start();
+        (trimmed.starts_with("import ") && trimmed.contains(".*;"))
+            || (trimmed.starts_with("from ") && trimmed.contains(" import *"))
+    })
 }
 
 fn has_deep_nesting(content: &str) -> bool {

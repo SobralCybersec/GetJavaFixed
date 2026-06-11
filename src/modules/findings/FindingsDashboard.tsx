@@ -187,7 +187,7 @@ export function FindingsDashboard({
         <div className="flex min-h-8 flex-wrap items-center gap-3">
           <img src="/java.png" alt="" className="size-7 object-contain" />
           <div className="min-w-0 flex-1">
-            <div className="font-heading text-xl font-semibold leading-none tracking-[0.08em] text-foreground">Refactor Java</div>
+            <div className="font-heading text-xl font-semibold leading-none tracking-[0.08em] text-foreground">Refactor Code</div>
             <div className="break-words text-xs leading-snug text-muted-foreground">
               {repo.readiness.repoName}
             </div>
@@ -247,7 +247,7 @@ export function FindingsDashboard({
                 <div>
                   <CardTitle className="whitespace-normal leading-tight">Refactor findings queue</CardTitle>
                   <CardDescription>
-                    Ranked Java hotspots first, plus direct file previews before any write path.
+                    Ranked code hotspots first, plus direct file previews before any write path.
                   </CardDescription>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline" className="border-border/70 bg-background/60 uppercase tracking-[0.14em]">{scopeLabel ?? "Whole repository"}</Badge>
@@ -255,7 +255,7 @@ export function FindingsDashboard({
                       <span className="max-w-full break-all font-mono">{activeScanPath}</span>
                     ) : null}
                     {filesScanned > 0 ? (
-                      <span>{filesScanned} Java files scanned</span>
+                      <span>{filesScanned} source files scanned</span>
                     ) : null}
                     {entriesVisited > 0 ? (
                       <span>{entriesVisited} entries visited</span>
@@ -474,7 +474,7 @@ export function FindingsDashboard({
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Run analysis or click a Java file to populate the right-side detail surface.
+                  Run analysis or click a source file to populate the right-side detail surface.
                 </p>
               )}
             </CardContent>
@@ -789,7 +789,7 @@ function DashboardHeroSummary({
               {repoName}
             </div>
             <p className="mt-1 text-pretty text-sm leading-6 text-muted-foreground">
-              Current scan scope: {scopeLabel ?? "Whole repository"}. The findings engine scans Java
+              Current scan scope: {scopeLabel ?? "Whole repository"}. The findings engine scans source
               sources only, while the queue, hotspot map, and AI refactor preview stay in one review surface.
             </p>
           </div>
