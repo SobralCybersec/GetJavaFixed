@@ -9,6 +9,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
@@ -128,6 +129,7 @@ function getModelIcon(
 }
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
+  const { t } = useI18n();
   return (
     <motion.button
       initial={{ y: -15 }}
@@ -138,15 +140,16 @@ export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
         "flex h-6 items-center gap-1.5 rounded-md border border-border/60 bg-card px-2 text-xs",
         "text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground",
       )}
-      title="Open AI agent"
+      title={t("ai.openAgent")}
     >
-      <span>Open AI agent</span>
+      <span>{t("ai.openAgent")}</span>
       <Kbd className="h-4 min-w-4 px-1">{fmtShortcut(MOD_KEY, "I")}</Kbd>
     </motion.button>
   );
 }
 
 export function AiStatusBarControls() {
+  const { t } = useI18n();
   const c = useComposer();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openMini = useChatStore((s) => s.openMini);
@@ -168,7 +171,7 @@ export function AiStatusBarControls() {
       />
 
       <IconBtn
-        title="Attach file or image"
+        title={t("ai.attachFile")}
         onClick={() => fileInputRef.current?.click()}
         disabled={c.isBusy}
       >
@@ -179,12 +182,12 @@ export function AiStatusBarControls() {
         <IconBtn
           title={
             !c.voice.hasKey
-              ? "Voice needs an OpenAI key"
+              ? t("ai.voiceNeedsOpenAiKey")
               : c.voice.recording
-                ? "Stop & transcribe"
+                ? t("ai.stopTranscribe")
                 : c.voice.transcribing
-                  ? "Transcribing…"
-                  : "Voice input"
+                  ? t("ai.input.transcribing")
+                  : t("ai.voiceInput")
           }
           onClick={() =>
             c.voice.recording ? c.voice.stop() : void c.voice.start()
@@ -211,10 +214,10 @@ export function AiStatusBarControls() {
 
       <Button
         onClick={closePanel}
-        title="Close AI panel"
+        title={t("ai.closePanel")}
         size="xs"
         variant="ghost"
-        aria-label="Close AI panel"
+        aria-label={t("ai.closePanel")}
         className="px-1 text-[11px] text-foreground/85"
       >
         <Kbd className="h-4 gap-px px-2 font-mono text-[11px]">
@@ -223,7 +226,7 @@ export function AiStatusBarControls() {
       </Button>
 
       <IconBtn
-        title={miniOpen ? "Mini-window open" : "Open conversation"}
+        title={miniOpen ? t("ai.miniOpen") : t("ai.openConversation")}
         onClick={openMini}
         disabled={miniOpen}
       >
@@ -237,8 +240,8 @@ export function AiStatusBarControls() {
           variant="ghost"
           onClick={c.stop}
           className="size-6"
-          aria-label="Stop"
-          title="Stop"
+          aria-label={t("ai.stop")}
+          title={t("ai.stop")}
         >
           <HugeiconsIcon icon={StopCircleIcon} size={13} strokeWidth={1.75} />
         </Button>
@@ -249,8 +252,8 @@ export function AiStatusBarControls() {
           onClick={c.submit}
           disabled={!c.canSend}
           className="ml-1 h-5.5 w-7.5"
-          aria-label="Send"
-          title="Send (Enter)"
+          aria-label={t("ai.send")}
+          title={`${t("ai.send")} (Enter)`}
         >
           <HugeiconsIcon icon={ArrowUpIcon} size={13} strokeWidth={1.75} />
         </Button>
@@ -262,6 +265,7 @@ export function AiStatusBarControls() {
 type Tab = "all" | "favorites" | "recent";
 
 function ModelDropdown() {
+  const { t } = useI18n();
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const setSelected = useChatStore((s) => s.setSelectedModelId);
@@ -385,21 +389,21 @@ function ModelDropdown() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
-            placeholder="Search models, providers, capabilities…"
+            placeholder={t("ai.searchModels")}
             className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground/60"
           />
         </div>
 
         <div className="flex items-center gap-0.5 border-b border-border/70 px-2 py-1.5">
           <TabButton
-            label="All"
+            label={t("ai.all")}
             icon={AiBookIcon}
             active={tab === "all"}
             onClick={() => setTab("all")}
           />
 
           <TabButton
-            label="Favorites"
+            label={t("ai.favorites")}
             icon={FavouriteIcon}
             active={tab === "favorites"}
             onClick={() => setTab("favorites")}
@@ -407,7 +411,7 @@ function ModelDropdown() {
           />
 
           <TabButton
-            label="Recent"
+            label={t("ai.recent")}
             icon={Clock01Icon}
             active={tab === "recent"}
             onClick={() => setTab("recent")}
@@ -419,7 +423,7 @@ function ModelDropdown() {
           <div className="flex w-11 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border/70 bg-muted/20 py-1.5">
             <ProviderPill
               icon={AiBookIcon}
-              title="All providers"
+              title={t("ai.allProviders")}
               active={activeProvider === null}
               onClick={() => setActiveProvider(null)}
             />
@@ -429,7 +433,11 @@ function ModelDropdown() {
                 <ProviderPill
                   key={p.id}
                   icon={PROVIDER_ICON[p.id]}
-                  title={hasKeyFor(p.id) ? p.label : `${p.label} — not configured`}
+                  title={
+                    hasKeyFor(p.id)
+                      ? p.label
+                      : `${p.label} — ${t("ai.notConfigured")}`
+                  }
                   active={activeProvider === p.id}
                   muted={!hasKeyFor(p.id)}
                   onClick={() => setActiveProvider(p.id)}
@@ -450,10 +458,10 @@ function ModelDropdown() {
             {filtered.length === 0 ? (
               <div className="flex items-center justify-center px-4 py-10 text-xs text-muted-foreground/70">
                 {tab === "favorites"
-                  ? "No favorites yet — star a model to pin it here."
+                  ? t("ai.noFavorites")
                   : tab === "recent"
-                    ? "No recently-used models."
-                    : "No models match."}
+                    ? t("ai.noRecentModels")
+                    : t("ai.noModelMatches")}
               </div>
             ) : (
               filtered.map((m) => (
@@ -571,6 +579,7 @@ function ProviderHeader({ providerId }: { providerId: ProviderId }) {
 }
 
 function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
+  const { t } = useI18n();
   const p = PROVIDERS.find((x) => x.id === providerId);
 
   if (!p) return null;
@@ -584,11 +593,11 @@ function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
       <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
 
       <span className="flex-1 truncate">
-        Configure {p.label} to use these models.
+        {t("ai.configureProvider", { provider: p.label })}
       </span>
 
       <span className="shrink-0 text-[10px] underline-offset-2 group-hover:underline">
-        Open
+        {t("ai.open")}
       </span>
     </button>
   );
@@ -611,6 +620,7 @@ function ModelRow({
   onPick: () => void;
   onToggleFavorite: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <DropdownMenuItem
       onSelect={(e) => {
@@ -630,7 +640,7 @@ function ModelRow({
           e.stopPropagation();
           onToggleFavorite();
         }}
-        title={favorite ? "Unfavorite" : "Favorite"}
+        title={favorite ? t("ai.unfavorite") : t("ai.favorite")}
         className={cn(
           "shrink-0 rounded p-0.5 transition-colors",
           favorite
@@ -680,11 +690,12 @@ function ModelRow({
 }
 
 function CapabilityBars({ caps }: { caps: ModelCapabilities }) {
+  const { t } = useI18n();
   return (
     <div className="ml-auto flex items-center gap-1.5">
-      <CapBar icon={BrainIcon} value={caps.intelligence} label="Intelligence" />
-      <CapBar icon={FlashIcon} value={caps.speed} label="Speed" />
-      <CapBar icon={CoinsDollarIcon} value={caps.cost} label="Affordability" />
+      <CapBar icon={BrainIcon} value={caps.intelligence} label={t("ai.cap.intelligence")} />
+      <CapBar icon={FlashIcon} value={caps.speed} label={t("ai.cap.speed")} />
+      <CapBar icon={CoinsDollarIcon} value={caps.cost} label={t("ai.cap.affordability")} />
     </div>
   );
 }

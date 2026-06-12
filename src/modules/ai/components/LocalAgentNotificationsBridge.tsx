@@ -1,4 +1,5 @@
 import { routeAgentNotification } from "@/modules/agents/lib/route";
+import { useI18n } from "@/modules/i18n";
 import { useWindowFocus } from "@/modules/agents/lib/useWindowFocus";
 import { useAgentStore } from "@/modules/agents/store/agentStore";
 import type { AgentStatus } from "@/modules/agents/lib/types";
@@ -26,6 +27,7 @@ function liveStatus(s: RunStatus): AgentStatus | null {
 }
 
 export function LocalAgentNotificationsBridge() {
+  const { t } = useI18n();
   const status = useChatStore((s) => s.agentMeta.status) as RunStatus;
   const error = useChatStore((s) => s.agentMeta.error);
   const visible = useChatStore((s) => s.panelOpen || s.mini.open);
@@ -66,13 +68,21 @@ export function LocalAgentNotificationsBridge() {
     };
 
     if (status === "awaiting-approval") {
-      fire("attention", "The Agent needs your approval", "Approve a tool to continue");
+      fire(
+        "attention",
+        t("agent.notification.approvalTitle"),
+        t("agent.notification.approvalBody"),
+      );
     } else if (status === "error") {
-      fire("error", "The Agent run failed", error ?? undefined);
+      fire("error", t("agent.notification.errorTitle"), error ?? undefined);
     } else if (status === "idle" && isBusy(was)) {
-      fire("finished", "The Agent finished", "Your task is ready");
+      fire(
+        "finished",
+        t("agent.notification.finishedTitle"),
+        t("agent.notification.finishedBody"),
+      );
     }
-  }, [status, error]);
+  }, [status, error, t]);
 
   return null;
 }

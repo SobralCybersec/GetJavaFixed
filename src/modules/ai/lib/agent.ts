@@ -208,6 +208,8 @@ const TOOL_JSON_RE =
 const PATH_OR_URL_LINE_RE = /^(?:[A-Za-z]:[\\/].+|\/.+|https?:\/\/\S+)$/i;
 const TOOL_AVAILABILITY_RE =
   /\b(?:TOOL AVAILABILITY THIS TURN|plain-text-only turn|no tools are available)\b/i;
+const TRANSCRIPT_RESEARCH_CONTEXT_RE =
+  /\b(?:busca profunda|pesquisa profunda|deep[- ]?search|google dork|dork(?:ing)?|filetype:|site:|inurl:|intitle:|ext:|websearch|web search)\b/i;
 const TRANSCRIPT_ARTIFACT_ANY_RE = new RegExp(
   [
     TRANSCRIPT_MARKER_RE.source,
@@ -268,6 +270,32 @@ function extractTrailingLiveLineCluster(text: string): string | null {
   return candidate && !isArtifactLikeParagraph(candidate) ? candidate : null;
 }
 
+function isTranscriptResearchContextParagraph(paragraph: string): boolean {
+  const trimmed = paragraph.trim();
+  return !!trimmed && !isArtifactLikeParagraph(trimmed) && TRANSCRIPT_RESEARCH_CONTEXT_RE.test(trimmed);
+}
+
+function withTranscriptResearchContext(
+  candidate: string,
+  paragraphs: readonly string[],
+): string {
+  const researchContext = paragraphs.filter(isTranscriptResearchContextParagraph);
+  if (researchContext.length < 2) return candidate;
+  if (
+    !isTranscriptResearchContextParagraph(candidate) &&
+    !isLikelyContextDependentFollowUp(candidate)
+  ) {
+    return candidate;
+  }
+
+  const selected: string[] = [];
+  for (const paragraph of researchContext) {
+    if (!selected.includes(paragraph)) selected.push(paragraph);
+  }
+  if (!selected.includes(candidate)) selected.push(candidate);
+  return selected.join("\n\n").trim();
+}
+
 function getRecentConversationContextText(
   messages: UIMessage[],
   maxMessages = 4,
@@ -326,7 +354,9 @@ export function extractLikelyLiveRequestText(messages: UIMessage[]): string {
     .filter(Boolean);
   for (let index = paragraphs.length - 1; index >= 0; index -= 1) {
     const candidate = paragraphs[index];
-    if (!isArtifactLikeParagraph(candidate)) return candidate;
+    if (!isArtifactLikeParagraph(candidate)) {
+      return withTranscriptResearchContext(candidate, paragraphs);
+    }
   }
   return extractTrailingLiveLineCluster(raw) ?? raw.trim();
 }

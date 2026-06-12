@@ -10,9 +10,9 @@ const detailSrc = readFileSync(path.join(here, "FindingDetailSheet.tsx"), "utf8"
 
 describe("FindingsDashboard shell", () => {
   it("keeps the primary analysis trigger and watch-only progress copy", () => {
-    expect(dashboardSrc).toContain("Start full analysis");
-    expect(dashboardSrc).toContain("watch-only");
-    expect(dashboardSrc).toContain("Progress");
+    expect(dashboardSrc).toContain('t("findings.startFull")');
+    expect(dashboardSrc).toContain('t("findings.watchOnly")');
+    expect(dashboardSrc).toContain('t("findings.progress")');
   });
 
   it("renders the minimal persistent repo header", () => {
@@ -29,12 +29,12 @@ describe("FindingsDashboard shell", () => {
   });
 
   it("adds analytics summary surfaces and built-in charts", () => {
-    expect(dashboardSrc).toContain("Refactor intelligence");
-    expect(dashboardSrc).toContain("Issue mix");
-    expect(dashboardSrc).toContain("Performance outlook");
+    expect(dashboardSrc).toContain('t("findings.widget.refactorIntelligence")');
+    expect(dashboardSrc).toContain('t("findings.issueMix")');
+    expect(dashboardSrc).toContain('t("findings.performanceOutlook")');
     expect(dashboardSrc).toContain("issue-mix-chart");
     expect(dashboardSrc).toContain("impact-strip");
-    expect(dashboardSrc).toContain("Hotspot map");
+    expect(dashboardSrc).toContain('t("findings.hotspotMap")');
   });
 
   it("keeps the dashboard responsive with a lower breakpoint split", () => {

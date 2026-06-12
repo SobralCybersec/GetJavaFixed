@@ -127,7 +127,7 @@ describe("context-aware transport", () => {
     const transport = createContextAwareTransport({
       ...makeDeps(),
       getAgentPersona: () => ({
-        name: "Juuzou Suzuya",
+        name: "Bulma",
         instructions: "Debugger-first reverse-engineering specialist.",
         requiresManagedMcp: "x64dbg",
       }),
@@ -145,7 +145,7 @@ describe("context-aware transport", () => {
     expect(runAgentStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
         agentPersona: expect.objectContaining({
-          name: "Juuzou Suzuya",
+          name: "Bulma",
           requiresManagedMcp: "x64dbg",
         }),
       }),

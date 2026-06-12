@@ -10,12 +10,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Settings01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useI18n } from "@/modules/i18n";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import {
   getBindingTokens,
   SHORTCUTS,
   SHORTCUT_GROUPS,
+  shortcutGroupKey,
+  shortcutLabelKey,
 } from "./shortcuts";
 
 type Props = {
@@ -24,6 +27,7 @@ type Props = {
 };
 
 export function ShortcutsDialog({ open, onOpenChange }: Props) {
+  const { t } = useI18n();
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
 
   const onOpenSettings = () => {
@@ -36,9 +40,9 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader className="flex-row items-start justify-between pr-10">
           <div className="flex flex-col gap-1.5">
-            <DialogTitle>Keyboard shortcuts</DialogTitle>
+            <DialogTitle>{t("shortcuts.dialog.title")}</DialogTitle>
             <DialogDescription>
-              Quick reference for controls.
+              {t("shortcuts.dialog.description")}
             </DialogDescription>
           </div>
           <Button
@@ -48,7 +52,7 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
             onClick={onOpenSettings}
           >
             <HugeiconsIcon icon={Settings01Icon} size={12} strokeWidth={2} />
-            <span>Customize</span>
+            <span>{t("shortcuts.dialog.customize")}</span>
           </Button>
         </DialogHeader>
 
@@ -60,7 +64,7 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
               return (
                 <section key={group} className="flex flex-col gap-2">
                   <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {group}
+                    {t(shortcutGroupKey(group))}
                   </h3>
                   <ul className="flex flex-col divide-y divide-border/60">
                     {items.map((s) => {
@@ -73,7 +77,7 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
                           className="flex items-center justify-between py-2"
                         >
                           <span className="text-sm text-foreground/90">
-                            {s.label}
+                            {t(shortcutLabelKey(s.id))}
                           </span>
                           {tokens.length > 0 ? (
                             <KbdGroup>
@@ -83,14 +87,14 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
                                   s.id === "tab.selectByIndex" &&
                                   i === tokens.length - 1
                                 ) {
-                                  label = "1…9";
+                                  label = t("shortcuts.tabRange");
                                 }
                                 return <Kbd key={i}>{label}</Kbd>;
                               })}
                             </KbdGroup>
                           ) : (
                             <span className="text-xs text-muted-foreground italic">
-                              Unassigned
+                              {t("shortcuts.unassigned")}
                             </span>
                           )}
                         </li>

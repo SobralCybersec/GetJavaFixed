@@ -153,8 +153,13 @@ type TuiWaitResult = "ready" | "gone" | "timeout";
 
 const TUTORIAL_SLIDES = [
   "workspace",
+  "browser",
+  "terminal",
+  "findings",
+  "sourceControl",
   "agents",
   "models",
+  "settings",
   "layout",
 ] as const;
 
@@ -162,18 +167,50 @@ type TutorialSlide = (typeof TUTORIAL_SLIDES)[number];
 
 const TUTORIAL_IMAGES: Record<TutorialSlide, string> = {
   workspace: "/wallpapers/dragon-ball-sunset.png",
+  browser: "/wallpapers/gintama-neon-city.png",
+  terminal: "/wallpapers/naruto-leaf-storm.png",
+  findings: "/wallpapers/bungou-noir-ink.png",
+  sourceControl: "/wallpapers/one-piece-grand-line.png",
   agents: "/wallpapers/tokyo-ghoul-red-black.png",
   models: "/wallpapers/solo-leveling-shadow.png",
+  settings: "/wallpapers/gintama-neon-city.png",
   layout: "/wallpapers/one-piece-grand-line.png",
 };
+
+const TUTORIAL_ACTION_SLIDES = [
+  "workspace",
+  "browser",
+  "terminal",
+  "findings",
+  "sourceControl",
+  "agents",
+  "models",
+  "settings",
+] as const;
+
+type TutorialActionSlide = (typeof TUTORIAL_ACTION_SLIDES)[number];
+
+const TUTORIAL_ACTION_SLIDE_SET = new Set<TutorialSlide>(
+  TUTORIAL_ACTION_SLIDES,
+);
+
+function hasTutorialAction(slide: TutorialSlide): slide is TutorialActionSlide {
+  return TUTORIAL_ACTION_SLIDE_SET.has(slide);
+}
+
+function tutorialActionLabel(slide: TutorialActionSlide) {
+  return `tutorial.${slide}.action` as const;
+}
 
 function TutorialDialog({
   open,
   layoutMode,
+  onSlideAction,
   onOpenChange,
 }: {
   open: boolean;
   layoutMode: LayoutMode;
+  onSlideAction: (slide: TutorialActionSlide) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useI18n();
@@ -199,13 +236,13 @@ function TutorialDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl overflow-hidden border border-border/80 bg-popover/98">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto border border-border/80 bg-popover/98 p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{t("tutorial.title")}</DialogTitle>
           <DialogDescription>{t("tutorial.description")}</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-52 overflow-hidden">
+        <div className="min-h-0 overflow-hidden">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.section
               key={slide}
@@ -214,27 +251,38 @@ function TutorialDialog({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction > 0 ? -36 : 36 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="space-y-4"
+              className="space-y-3 sm:space-y-4"
             >
               <div>
                 <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-primary">
                   {index + 1} / {TUTORIAL_SLIDES.length}
                 </div>
-                <h2 className="mt-2 text-xl font-semibold">
+                <h2 className="mt-2 text-lg font-semibold sm:text-xl">
                   {t(`tutorial.${slide}.title`)}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                <p className="mt-2 text-[13px] leading-6 text-muted-foreground sm:text-sm">
                   {t(`tutorial.${slide}.body`)}
                 </p>
+                {hasTutorialAction(slide) ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full sm:w-auto"
+                    onClick={() => onSlideAction(slide)}
+                  >
+                    {t(tutorialActionLabel(slide))}
+                  </Button>
+                ) : null}
               </div>
 
-              <div className="relative h-40 overflow-hidden rounded-lg border border-border/70 bg-background/70 sm:h-48">
+              <div className="relative h-32 overflow-hidden rounded-lg border border-border/70 bg-background/70 sm:h-44 md:h-52">
                 <img
                   src={image}
                   alt={t(`tutorial.${slide}.imageAlt`)}
                   className="size-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/55 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-background/55 via-transparent to-transparent" />
               </div>
 
               {slide === "layout" ? (
@@ -246,7 +294,7 @@ function TutorialDialog({
                         type="button"
                         onClick={() => void setLayoutMode(mode)}
                         className={cn(
-                          "min-h-24 rounded-md border p-3 text-left transition-colors",
+                          "min-h-20 rounded-md border p-3 text-left transition-colors sm:min-h-24",
                           layoutMode === mode
                             ? "border-primary/70 bg-primary/10 text-foreground"
                             : "border-border/70 bg-background/65 text-muted-foreground hover:border-primary/40",
@@ -267,34 +315,45 @@ function TutorialDialog({
           </AnimatePresence>
         </div>
 
-        <DialogFooter className="items-center justify-between sm:justify-between">
-          <div className="flex gap-1">
+        <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex max-w-full flex-wrap justify-center gap-1 sm:justify-start">
             {TUTORIAL_SLIDES.map((item, i) => (
               <span
                 key={item}
                 className={cn(
-                  "h-1.5 w-6 rounded-full",
+                  "h-1.5 w-4 rounded-full sm:w-6",
                   i === index ? "bg-primary" : "bg-muted",
                 )}
               />
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full gap-2 sm:w-auto">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => go(index - 1)}
               disabled={index === 0}
             >
               {t("tutorial.back")}
             </Button>
             {last ? (
-              <Button type="button" size="sm" onClick={() => void finish()}>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => void finish()}
+              >
                 {t("tutorial.done")}
               </Button>
             ) : (
-              <Button type="button" size="sm" onClick={() => go(index + 1)}>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => go(index + 1)}
+              >
                 {t("tutorial.next")}
               </Button>
             )}
@@ -337,6 +396,11 @@ const FindingsDashboardLazy = lazy(() =>
     default: m.FindingsDashboard,
   })),
 );
+const AgentConversationDashboardLazy = lazy(() =>
+  import("@/modules/ai/components/AgentConversationDashboard").then((m) => ({
+    default: m.AgentConversationDashboard,
+  })),
+);
 const JavaRefactorPreviewPaneLazy = lazy(() =>
   import("@/modules/findings/JavaRefactorPreviewPane").then((m) => ({
     default: m.JavaRefactorPreviewPane,
@@ -370,10 +434,70 @@ function normalizeRepoPath(path: string | null | undefined): string | null {
   return path.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+const PHASE1_CODE_EXTENSIONS = new Set([
+  "java",
+  "kt",
+  "kts",
+  "scala",
+  "groovy",
+  "js",
+  "jsx",
+  "ts",
+  "tsx",
+  "mjs",
+  "cjs",
+  "py",
+  "rs",
+  "go",
+  "c",
+  "cc",
+  "cpp",
+  "cxx",
+  "h",
+  "hpp",
+  "cs",
+  "fs",
+  "php",
+  "rb",
+  "swift",
+  "m",
+  "mm",
+  "lua",
+  "dart",
+  "ex",
+  "exs",
+  "erl",
+  "hrl",
+  "clj",
+  "cljs",
+  "sql",
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "ps1",
+  "html",
+  "css",
+  "scss",
+  "vue",
+  "svelte",
+  "asm",
+  "s",
+  "nasm",
+  "inc",
+]);
+
+function isPhase1CodePath(path: string): boolean {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return PHASE1_CODE_EXTENSIONS.has(ext);
+}
+
 function tabShouldHidePhase1(tab: Tab | undefined, repoPath: string | null): boolean {
   if (!tab) return false;
   if (
     tab.kind === "terminal" ||
+    tab.kind === "dashboard" ||
+    tab.kind === "agent-dashboard" ||
     tab.kind === "preview" ||
     tab.kind === "markdown" ||
     tab.kind === "ai-diff" ||
@@ -386,7 +510,7 @@ function tabShouldHidePhase1(tab: Tab | undefined, repoPath: string | null): boo
   if (tab.kind !== "editor") return false;
   const normalizedPath = tab.path.replace(/\\/g, "/");
   if (!repoPath) return true;
-  if (!normalizedPath.endsWith(".java")) return true;
+  if (!isPhase1CodePath(normalizedPath)) return true;
   return !(
     normalizedPath === repoPath ||
     normalizedPath.startsWith(`${repoPath}/`)
@@ -440,6 +564,17 @@ type Phase1DashboardRepo = {
 };
 
 export default function App() {
+  return (
+    <AiComposerProvider>
+      <AppProviders>
+        <AppContent />
+      </AppProviders>
+    </AiComposerProvider>
+  );
+}
+
+function AppContent() {
+  const { t } = useI18n();
   const {
     tabs,
     activeId,
@@ -450,6 +585,8 @@ export default function App() {
     openFileTab,
     pinTab,
     newPreviewTab,
+    newDashboardTab,
+    newAgentDashboardTab,
     newMarkdownTab,
     openAiDiffTab,
     setAiDiffStatus,
@@ -721,7 +858,7 @@ export default function App() {
   }, []);
 
   const [phase1Mode, setPhase1Mode] = useState<"hidden" | "intake" | "dashboard">(
-    "intake",
+    "hidden",
   );
   const [phase1Repo, setPhase1Repo] = useState<Phase1DashboardRepo | null>(
     null,
@@ -738,7 +875,7 @@ export default function App() {
   const handleChooseJavaRepo = useCallback(async () => {
     setJavaRepoHomeState({ kind: "loading" });
     try {
-      const selected = await pickJavaRepoDirectory();
+      const selected = await pickJavaRepoDirectory(t("setup.chooseRepo"));
       if (!selected) {
         setJavaRepoHomeState({ kind: "idle" });
         return;
@@ -988,9 +1125,6 @@ export default function App() {
       const normalizedPath = firstRunRepoPath.replace(/\\/g, "/");
       setJavaWorkspaceRoot(normalizedPath);
       setLaunchCwd(normalizedPath);
-      if (firstRunSetupDone) {
-        setPhase1Mode("dashboard");
-      }
     })().catch(() => {});
   }, [prefsHydrated, firstRunRepoPath, firstRunSetupDone]);
 
@@ -1002,6 +1136,8 @@ export default function App() {
   }, [hydrateSessions]);
 
   const activeTab = tabs.find((t) => t.id === activeId);
+  const isDashboardTab = activeTab?.kind === "dashboard";
+  const isAgentDashboardTab = activeTab?.kind === "agent-dashboard";
   const isTerminalTab = activeTab?.kind === "terminal";
   const isEditorTab = activeTab?.kind === "editor";
   const isPreviewTab = activeTab?.kind === "preview";
@@ -1010,6 +1146,13 @@ export default function App() {
   const isGitDiffTab =
     activeTab?.kind === "git-diff" || activeTab?.kind === "git-commit-file";
   const isGitHistoryTab = activeTab?.kind === "git-history";
+  const aiDiffTabs = useMemo(
+    () =>
+      tabs.filter(
+        (tab): tab is Extract<Tab, { kind: "ai-diff" }> => tab.kind === "ai-diff",
+      ),
+    [tabs],
+  );
 
   const appliedDiffsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -1425,7 +1568,7 @@ export default function App() {
       const normalizedRepoPath = normalizeRepoPath(activeJavaRepo?.path);
       if (
         normalizedRepoPath &&
-        normalizedPath.endsWith(".java") &&
+        isPhase1CodePath(normalizedPath) &&
         (normalizedPath === normalizedRepoPath ||
           normalizedPath.startsWith(`${normalizedRepoPath}/`))
       ) {
@@ -1547,6 +1690,15 @@ export default function App() {
   const toggleSourceControl = useCallback(() => {
     cycleSidebarView("source-control");
   }, [cycleSidebarView]);
+  const openSourceControlPanel = useCallback(() => {
+    const panel = sidebarRef.current;
+    if (panel && panel.getSize().asPercentage <= 0) {
+      panel.resize(`${sidebarWidthRef.current}px`);
+    }
+    if (sidebarView !== "source-control") {
+      persistSidebarView("source-control");
+    }
+  }, [persistSidebarView, sidebarView]);
 
   const openGitGraphFromContext = useCallback(async () => {
     const known = sourceControl.hasRepo ? sourceControl.repo : null;
@@ -1582,6 +1734,51 @@ export default function App() {
       return id;
     },
     [newPreviewTab],
+  );
+  const openDashboardTab = useCallback(() => {
+    newDashboardTab();
+  }, [newDashboardTab]);
+  const openAgentDashboardTab = useCallback(() => {
+    newAgentDashboardTab();
+  }, [newAgentDashboardTab]);
+
+  const handleTutorialSlideAction = useCallback(
+    (slide: TutorialActionSlide) => {
+      switch (slide) {
+        case "workspace":
+          void handleChooseJavaRepo();
+          break;
+        case "browser":
+          openPreviewTab("");
+          break;
+        case "terminal":
+          openNewTab();
+          break;
+        case "findings":
+          handleOpenJavaRefactor();
+          break;
+        case "sourceControl":
+          openSourceControlPanel();
+          break;
+        case "agents":
+          openAgentDashboardTab();
+          break;
+        case "models":
+          void openSettingsWindow("models");
+          break;
+        case "settings":
+          void openSettingsWindow();
+          break;
+      }
+    },
+    [
+      handleChooseJavaRepo,
+      handleOpenJavaRefactor,
+      openAgentDashboardTab,
+      openNewTab,
+      openPreviewTab,
+      openSourceControlPanel,
+    ],
   );
 
   const openMarkdownPreview = useCallback(
@@ -2124,13 +2321,13 @@ export default function App() {
     activeTab.path.replace(/\\/g, "/") === javaPreviewFilePath.replace(/\\/g, "/");
 
   const previewWorkspaceSurface = javaPreviewActive ? (
-    <ResizablePanelGroup orientation="horizontal" className="h-full min-h-0">
-      <ResizablePanel defaultSize="58%" minSize="32%">
+    <ResizablePanelGroup orientation="horizontal" className="h-full min-h-0 min-w-0 overflow-hidden">
+      <ResizablePanel className="min-w-0" defaultSize="58%" minSize="32%">
         {workspaceSurface}
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize="42%" minSize="26%">
-        <div className="h-full min-h-0 px-3 pt-2 pb-2">
+      <ResizablePanel className="min-w-0" defaultSize="42%" minSize="26%">
+        <div className="h-full min-h-0 min-w-0 overflow-hidden px-3 pt-2 pb-2">
           <JavaRefactorPreviewShell
             repo={phase1Repo}
             filePath={javaPreviewFilePath}
@@ -2143,7 +2340,7 @@ export default function App() {
     workspaceSurface
   );
 
-  const homeSurface = (
+  const dashboardSurface = (
     <Suspense fallback={null}>
       <HomeDashboardLazy
         hasModelAccess={hasComposer}
@@ -2152,18 +2349,25 @@ export default function App() {
       />
     </Suspense>
   );
+  const agentDashboardSurface = (
+    <Suspense fallback={null}>
+      <AgentConversationDashboardLazy
+        aiDiffTabs={aiDiffTabs}
+        onOpenBrowser={openPreviewTab}
+      />
+    </Suspense>
+  );
 
-  const shell = (
-    <AppProviders>
-      <TooltipProvider>
-        <div
-          data-layout-mode={layoutMode}
-          className={cn(
-            "relative flex h-screen flex-col overflow-hidden bg-background text-foreground",
-            layoutMode === "terminal-focus" && "javarf-layout-terminal-focus",
-            layoutMode === "compact-ops" && "javarf-layout-compact-ops",
-          )}
-        >
+  return (
+    <TooltipProvider>
+      <div
+        data-layout-mode={layoutMode}
+        className={cn(
+          "relative flex h-screen flex-col overflow-hidden bg-background text-foreground",
+          layoutMode === "terminal-focus" && "javarf-layout-terminal-focus",
+          layoutMode === "compact-ops" && "javarf-layout-compact-ops",
+        )}
+      >
           {zenMode ? (
             <div
               className="absolute inset-x-0 top-0 z-40 h-3"
@@ -2189,6 +2393,8 @@ export default function App() {
             onNew={openNewTab}
             onNewPrivate={openNewPrivateTab}
             onNewPreview={() => openPreviewTab("")}
+            onNewDashboard={openDashboardTab}
+            onNewAgentDashboard={openAgentDashboardTab}
             onNewEditor={() => setNewEditorOpen(true)}
             onNewGitGraph={openGitGraphFromContext}
             onClose={handleClose}
@@ -2209,16 +2415,17 @@ export default function App() {
             onOpenSettings={() => void openSettingsWindow()}
             searchTarget={searchTarget}
             searchRef={searchInlineRef}
+            layoutMode={layoutMode}
             zenMode={zenMode}
             hiddenInZen={hideHeaderInZen}
             onToggleZenMode={handleZenModeToggle}
             onHoverChange={setHeaderHover}
           />
 
-          <main className="zoom-content flex min-h-0 flex-1 flex-col">
+          <main className="zoom-content flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <ResizablePanelGroup
               orientation="horizontal"
-              className="min-h-0 flex-1"
+              className="min-h-0 min-w-0 flex-1 overflow-hidden"
             >
               <ResizablePanel
                 id="sidebar"
@@ -2268,6 +2475,13 @@ export default function App() {
                 >
                   {hasWorkspace ? (
                     <>
+                      {layoutMode !== "compact-ops" ? (
+                        <SidebarRail
+                          activeView={sidebarView}
+                          onSelectView={persistSidebarView}
+                          changedCount={sourceControl.changedCount}
+                        />
+                      ) : null}
                       <div className="min-h-0 flex-1">
                         {sidebarView === "explorer" ? (
                           <FileExplorer
@@ -2291,31 +2505,16 @@ export default function App() {
                           />
                         )}
                       </div>
-                      <div className="border-t border-[color:var(--border)] bg-black/30 px-2 py-2">
-                        <Button
-                          size="sm"
-                          variant={phase1Mode === "hidden" ? "outline" : "secondary"}
-                          className="w-full justify-start border-[color:var(--border)] bg-white/[0.03] font-mono text-[11px] uppercase tracking-[0.16em] text-white/82 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
-                          onClick={handleOpenJavaRefactor}
-                        >
-                          Refactor
-                        </Button>
-                      </div>
-                      <SidebarRail
-                        activeView={sidebarView}
-                        onSelectView={persistSidebarView}
-                        changedCount={sourceControl.changedCount}
-                      />
                     </>
                   ) : null}
                 </div>
               </ResizablePanel>
               <ResizableHandle withHandle />
-              <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
-                <div className="flex h-full min-h-0 flex-col">
+              <ResizablePanel id="workspace" className="min-w-0" defaultSize="78%" minSize="30%">
+                <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
                   <div
                     className={cn(
-                      "relative min-h-0 flex-1 transition-opacity duration-150 ease-out",
+                      "relative min-h-0 min-w-0 flex-1 overflow-hidden transition-opacity duration-150 ease-out",
                       zenMode ? "opacity-[0.985]" : "opacity-100",
                     )}
                   >
@@ -2332,12 +2531,14 @@ export default function App() {
                         onChooseRepo={handleChooseJavaRepo}
                         onContinue={handleCompleteFirstRunSetup}
                       />
-                    ) : !hasWorkspace ? (
-                      homeSurface
-                    ) : phase1Mode === "hidden" || javaPreviewActive ? (
-                      previewWorkspaceSurface
-                    ) : (
+                    ) : phase1Mode !== "hidden" && !javaPreviewActive ? (
                       phase1Surface
+                    ) : isAgentDashboardTab ? (
+                      agentDashboardSurface
+                    ) : isDashboardTab ? (
+                      dashboardSurface
+                    ) : (
+                      previewWorkspaceSurface
                     )}
                   </div>
 
@@ -2380,6 +2581,16 @@ export default function App() {
             onOpenMini={openMini}
             hasComposer={hasComposer}
             zenMode={zenMode}
+            compactSidebarRail={
+              hasWorkspace && layoutMode === "compact-ops" ? (
+                <SidebarRail
+                  compact
+                  activeView={sidebarView}
+                  onSelectView={persistSidebarView}
+                  changedCount={sourceControl.changedCount}
+                />
+              ) : null
+            }
             collapsePathBarInZen={zenMode && !statusBarHover}
             privateActive={
               activeTab?.kind === "terminal" && activeTab.private === true
@@ -2396,6 +2607,7 @@ export default function App() {
           <TutorialDialog
             open={tutorialOpen}
             layoutMode={layoutMode}
+            onSlideAction={handleTutorialSlideAction}
             onOpenChange={setTutorialOpen}
           />
           <AniCliDialog
@@ -2415,7 +2627,9 @@ export default function App() {
           ) : null}
 
           <AnimatePresence>
-            {miniOpen && hasComposer ? <AiMiniWindow key="ai-mini" /> : null}
+            {miniOpen && hasComposer ? (
+              <AiMiniWindow key="ai-mini" onOpenPreview={openPreviewTab} />
+            ) : null}
             {askPopup ? (
               <SelectionAskAi
                 key="ask-ai-popup"
@@ -2441,68 +2655,105 @@ export default function App() {
 
           <UpdaterDialog />
 
-          <AlertDialog
-            open={pendingCloseTab !== null}
-            onOpenChange={(open) => !open && cancelClose()}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {tabs.find((t) => t.id === pendingCloseTab)?.title
-                    ? `"${
-                        tabs.find((t) => t.id === pendingCloseTab)?.title
-                      }" has unsaved changes. Close anyway?`
-                    : "This file has unsaved changes. Close anyway?"}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={cancelClose}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={confirmClose}>
-                  Close Anyway
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <AlertDialog
-            open={pendingDeleteTabs !== null}
-            onOpenChange={(open) => !open && cancelDeleteClose()}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {pendingDeleteTabs?.length === 1
-                    ? (() => {
-                        const title = tabs.find(
-                          (t) => t.id === pendingDeleteTabs[0],
-                        )?.title;
-                        return title
-                          ? `"${title}" has unsaved changes. The file has been deleted. Close anyway?`
-                          : "This file has unsaved changes. The file has been deleted. Close anyway?";
-                      })()
-                    : `${pendingDeleteTabs?.length ?? 0} files have unsaved changes. They have been deleted. Close all anyway?`}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={cancelDeleteClose}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDeleteClose}>
-                  Close Anyway
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </TooltipProvider>
-    </AppProviders>
+          <UnsavedDialogs
+            tabs={tabs}
+            pendingCloseTab={pendingCloseTab}
+            pendingDeleteTabs={pendingDeleteTabs}
+            cancelClose={cancelClose}
+            confirmClose={confirmClose}
+            cancelDeleteClose={cancelDeleteClose}
+            confirmDeleteClose={confirmDeleteClose}
+          />
+      </div>
+    </TooltipProvider>
   );
+}
 
-  return <AiComposerProvider>{shell}</AiComposerProvider>;
+function UnsavedDialogs({
+  tabs,
+  pendingCloseTab,
+  pendingDeleteTabs,
+  cancelClose,
+  confirmClose,
+  cancelDeleteClose,
+  confirmDeleteClose,
+}: {
+  tabs: Tab[];
+  pendingCloseTab: number | null;
+  pendingDeleteTabs: number[] | null;
+  cancelClose: () => void;
+  confirmClose: () => void;
+  cancelDeleteClose: () => void;
+  confirmDeleteClose: () => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <>
+      <AlertDialog
+        open={pendingCloseTab !== null}
+        onOpenChange={(open) => !open && cancelClose()}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dialog.unsavedChanges.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tabs.find((tab) => tab.id === pendingCloseTab)?.title
+                ? t("dialog.unsavedChanges.singleClose", {
+                    title: String(
+                      tabs.find((tab) => tab.id === pendingCloseTab)?.title ?? "",
+                    ),
+                  })
+                : t("dialog.unsavedChanges.singleCloseFallback")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelClose}>
+              {t("agents.dialog.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClose}>
+              {t("dialog.closeAnyway")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingDeleteTabs !== null}
+        onOpenChange={(open) => !open && cancelDeleteClose()}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dialog.unsavedChanges.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeleteTabs?.length === 1
+                ? (() => {
+                    const title = tabs.find(
+                      (tab) => tab.id === pendingDeleteTabs[0],
+                    )?.title;
+                    return title
+                      ? t("dialog.unsavedChanges.singleDeletedClose", {
+                          title,
+                        })
+                      : t("dialog.unsavedChanges.singleDeletedCloseFallback");
+                  })()
+                : t("dialog.unsavedChanges.multiDeletedClose", {
+                    count: pendingDeleteTabs?.length ?? 0,
+                  })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteClose}>
+              {t("agents.dialog.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteClose}>
+              {t("dialog.closeAnyway")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }
 
 function JavaRefactorPreviewShell({

@@ -32,6 +32,7 @@ import { fileIconUrl, folderIconUrl } from "./lib/iconResolver";
 import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
 import { useFileTree } from "./lib/useFileTree";
 import { useGlobalShortcuts } from "@/modules/shortcuts";
+import { useI18n } from "@/modules/i18n";
 
 export type FileExplorerHandle = {
   focus: () => void;
@@ -160,6 +161,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     },
     ref,
   ) {
+    const { t } = useI18n();
     const tree = useFileTree(rootPath, { onPathRenamed, onPathDeleted });
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -244,7 +246,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             className="text-muted-foreground"
           />
           <div className="text-xs text-muted-foreground">
-            No current directory
+            {t("explorer.noDirectory")}
           </div>
         </div>
       );
@@ -395,8 +397,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             size="icon"
             className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => setIsSearchOpen((v) => !v)}
-            title="Search files"
-            aria-label="Search files"
+            title={t("explorer.searchFiles")}
+            aria-label={t("explorer.searchFiles")}
           >
             <HugeiconsIcon icon={Search01Icon} size={13} strokeWidth={2} />
           </Button>
@@ -406,7 +408,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             size="icon"
             className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => tree.beginCreate(rootPath, "file")}
-            title="New file"
+            title={t("explorer.newFile")}
           >
             <HugeiconsIcon icon={FileAddIcon} size={13} strokeWidth={2} />
           </Button>
@@ -415,7 +417,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             size="icon"
             className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => tree.beginCreate(rootPath, "dir")}
-            title="New folder"
+            title={t("explorer.newFolder")}
           >
             <HugeiconsIcon icon={FolderAddIcon} size={13} strokeWidth={2} />
           </Button>
@@ -424,7 +426,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             size="icon"
             className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
             onClick={() => tree.refresh(rootPath)}
-            title="Refresh"
+            title={t("explorer.refresh")}
           >
             <HugeiconsIcon icon={Refresh01Icon} size={12} strokeWidth={2} />
           </Button>
@@ -463,19 +465,21 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                       alt=""
                       className="size-4 shrink-0 opacity-70"
                     />
-                    <InlineInput
-                      initial=""
-                      placeholder={
-                        pendingAtRoot.kind === "dir" ? "New folder" : "New file"
-                      }
-                      onCommit={tree.commitCreate}
-                      onCancel={tree.cancelCreate}
-                    />
+                      <InlineInput
+                        initial=""
+                        placeholder={
+                          pendingAtRoot.kind === "dir"
+                            ? t("explorer.newFolder")
+                            : t("explorer.newFile")
+                        }
+                        onCommit={tree.commitCreate}
+                        onCancel={tree.cancelCreate}
+                      />
                   </div>
                 ) : null}
                 {root?.status === "loading" && (
                   <div className="px-3 py-3 font-mono text-[11px] text-white/42">
-                    Loading…
+                    {t("explorer.loading")}
                   </div>
                 )}
                 {root?.status === "error" && (
@@ -526,40 +530,40 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                   className={COMPACT_ITEM}
                   onSelect={() => onRevealInTerminal(rootPath)}
                 >
-                  Open in Terminal
+                  {t("explorer.openTerminal")}
                 </ContextMenuItem>
               )}
               <ContextMenuItem
                 className={COMPACT_ITEM}
                 onSelect={() => void revealInFinder(rootPath)}
               >
-                Reveal in Finder
+                {t("explorer.reveal")}
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
                 className={COMPACT_ITEM}
                 onSelect={() => tree.beginCreate(rootPath, "file")}
               >
-                New File
+                {t("explorer.newFile")}
               </ContextMenuItem>
               <ContextMenuItem
                 className={COMPACT_ITEM}
                 onSelect={() => tree.beginCreate(rootPath, "dir")}
               >
-                New Folder
+                {t("explorer.newFolder")}
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
                 className={COMPACT_ITEM}
                 onSelect={() => void copyToClipboard(rootPath)}
               >
-                Copy Path
+                {t("explorer.copyPath")}
               </ContextMenuItem>
               <ContextMenuItem
                 className={COMPACT_ITEM}
                 onSelect={() => tree.refresh(rootPath)}
               >
-                Refresh
+                {t("explorer.refresh")}
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>

@@ -11,10 +11,14 @@ const projectTypeSchema = z.enum([
   "rust",
   "python",
   "go",
+  "swift",
+  "dart",
+  "elixir",
   "dotnet",
   "php",
   "ruby",
   "cpp",
+  "assembly",
   "generic",
 ]);
 
@@ -32,11 +36,13 @@ export type SupportedJavaRepoReadiness = JavaRepoReadiness & {
   reason: null;
 };
 
-export async function pickJavaRepoDirectory(): Promise<string | null> {
+export async function pickJavaRepoDirectory(
+  title: string = "Choose code repository",
+): Promise<string | null> {
   const selected = await open({
     directory: true,
     multiple: false,
-    title: "Choose code repository",
+    title,
   });
   return typeof selected === "string" ? selected : null;
 }

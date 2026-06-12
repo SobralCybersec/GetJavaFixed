@@ -34,6 +34,7 @@
     "active": true,
     "targets": "all",
     "resources": {
+      "resources/extensions/": "extensions/",
       "../mcps/x64dbgmcp/serve_http.py": "mcps/x64dbgmcp/serve_http.py",
       "../mcps/x64dbgmcp/requirements.txt": "mcps/x64dbgmcp/requirements.txt",
       "../mcps/x64dbgmcp/src/": "mcps/x64dbgmcp/src/"

@@ -25,7 +25,7 @@ export function AgentIcon({
   if (agent.toLowerCase().includes("javarf") || agent.toLowerCase().includes("java")) {
     return (
       <img
-        src="/java.png"
+        src="/app.png"
         alt=""
         width={size}
         height={size}

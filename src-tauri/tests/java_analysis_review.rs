@@ -69,6 +69,27 @@ export function run(value: string) {
 }
 
 #[test]
+fn scan_findings_detects_assembly_debug_output() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main.asm",
+        r#"
+global _start
+extern printf
+section .text
+_start:
+    call printf
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    assert!(
+        findings.iter().any(|f| f.id.contains("debug-output:")),
+        "Expected debug output finding in Assembly source"
+    );
+}
+
+#[test]
 fn scan_findings_detects_empty_catch_block() {
     let fx = FsFixture::new();
     fx.write(
@@ -236,6 +257,46 @@ public class Nested {
         findings.iter().any(|f| f.id.contains("deep-nesting")),
         "Expected deep nesting finding"
     );
+}
+
+#[test]
+fn scan_findings_detects_control_flow_flattening_signal() {
+    let fx = FsFixture::new();
+    fx.write(
+        "src/main/java/Flattened.java",
+        r#"
+public class Flattened {
+    public int run(boolean admin) {
+        int state = 0;
+        int result = 0;
+        while (true) {
+            switch (state) {
+                case 0:
+                    state = admin ? 1 : 2;
+                    break;
+                case 1:
+                    result = 42;
+                    state = 3;
+                    break;
+                case 2:
+                    result = -1;
+                    state = 3;
+                    break;
+                case 3:
+                    return result;
+            }
+        }
+    }
+}
+"#,
+    );
+
+    let findings = scan_findings(&fx.root).expect("scan_findings");
+    let finding = findings
+        .iter()
+        .find(|f| f.id.contains("control-flow-flattening"))
+        .expect("Expected control-flow-flattening finding");
+    assert_eq!(finding.category, "cybersecurity");
 }
 
 #[test]

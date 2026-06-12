@@ -326,14 +326,29 @@ html[data-chrome="borderless"] .javarf-bg-surface {
 
 .javarf-explorer-row {
   position: relative;
+  isolation: isolate;
+  contain: paint;
+  overflow: hidden;
   transform-origin: left center;
   animation: javarf-explorer-row-in 120ms ease-out both;
+}
+
+@supports (overflow: clip) {
+  .javarf-explorer-row {
+    overflow: clip;
+  }
+}
+
+.javarf-explorer-row > * {
+  position: relative;
+  z-index: 1;
 }
 
 .javarf-explorer-row::after {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   background:
     linear-gradient(90deg, var(--primary-10), transparent 42%),
@@ -344,9 +359,65 @@ html[data-chrome="borderless"] .javarf-bg-surface {
   mix-blend-mode: screen;
 }
 
-.javarf-explorer-row:hover::after,
-.javarf-explorer-row[data-selected="true"]::after {
+.javarf-explorer-row {
+  position: relative;
+  isolation: isolate;
+  contain: paint;
+  overflow: hidden;
+  transform-origin: left center;
+  animation: javarf-explorer-row-in 120ms ease-out both;
+}
+
+@supports (overflow: clip) {
+  .javarf-explorer-row {
+    overflow: clip;
+  }
+}
+
+.javarf-explorer-row > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Stable selected layer */
+.javarf-explorer-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--primary-10), transparent 55%);
+  opacity: 0;
+}
+
+/* Hover-only FX layer */
+.javarf-explorer-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--primary-10), transparent 42%),
+    linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px);
+  background-size: auto, 100% 4px;
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+
+/* selected row: no animated/blend overlay */
+.javarf-explorer-row[data-selected="true"]::before {
   opacity: 1;
+}
+
+/* hover row: FX only on the row being hovered */
+.javarf-explorer-row:hover::after {
+  opacity: 1;
+}
+
+/* selected + hover: slightly stronger, but still only one FX row */
+.javarf-explorer-row[data-selected="true"]:hover::after {
+  opacity: 0.65;
 }
 
 .javarf-explorer-row:hover {
@@ -358,6 +429,7 @@ html[data-chrome="borderless"] .javarf-bg-surface {
     opacity: 0;
     transform: translateX(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);

@@ -40,6 +40,12 @@ export const DOC_CREDITS: readonly CreditEntry[] = [
     url: "https://fastmcp.wiki/en/deployment/running-server",
   },
   {
+    name: "uBlock Origin",
+    role: "Bundled content blocker for native browser webviews",
+    url: "https://github.com/gorhill/uBlock",
+    note: "GPL-3.0; full license is bundled with the extension resources.",
+  },
+  {
     name: "Tauri OS Plugin Docs",
     role: "Locale resolution reference for OS-language detection",
     url: "https://v2.tauri.app/reference/javascript/os/",

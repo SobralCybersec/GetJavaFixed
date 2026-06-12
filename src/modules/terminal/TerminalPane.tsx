@@ -1,4 +1,5 @@
 import { useTheme } from "@/modules/theme";
+import { useI18n } from "@/modules/i18n";
 import type { SearchAddon } from "@xterm/addon-search";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useTerminalSession } from "./lib/useTerminalSession";
@@ -38,6 +39,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
     const { resolvedMode, themeId, customThemes } = useTheme();
+    const { t } = useI18n();
 
     const session = useTerminalSession({
       leafId,
@@ -69,12 +71,24 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
     return (
       <div
         ref={containerRef}
-        className="zoom-exempt h-full w-full"
+        className="zoom-exempt relative h-full w-full"
         style={{
           visibility: visible ? "visible" : "hidden",
           pointerEvents: visible ? "auto" : "none",
         }}
-      />
+      >
+        {session.bootState.status !== "ready" ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/75">
+            <div className="rounded-md border border-border/70 bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+              {session.bootState.status === "error"
+                ? t("terminal.failed", {
+                    message: session.bootState.message ?? t("terminal.unknownError"),
+                  })
+                : t("terminal.loading")}
+            </div>
+          </div>
+        ) : null}
+      </div>
     );
   },
 );

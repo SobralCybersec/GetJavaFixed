@@ -438,7 +438,7 @@ function AgentEditorDialog({
                   setDraft({ ...draft, name: event.target.value })
                 }
                 className="h-8 text-[12px]"
-                placeholder="e.g. Test Engineer"
+                placeholder={t("agents.dialog.namePlaceholder")}
               />
             </div>
           </div>
@@ -449,7 +449,7 @@ function AgentEditorDialog({
               onChange={(event) =>
                 setDraft({ ...draft, description: event.target.value })
               }
-              placeholder="One line shown in the agent picker"
+              placeholder={t("agents.dialog.descriptionPlaceholder")}
               className="h-8 text-[12px]"
             />
           </div>
@@ -499,11 +499,11 @@ function SnippetEditorDialog({
   if (!draft) return null;
 
   const handleErr = !draft.handle
-    ? "Required."
+    ? t("agents.dialog.handleRequired")
     : !isValidHandle(draft.handle)
-      ? "Lowercase letters, digits, and dashes only."
+      ? t("agents.dialog.handleInvalid")
       : existing.some((entry) => entry.id !== draft.id && entry.handle === draft.handle)
-        ? "Already in use."
+        ? t("agents.dialog.handleTaken")
         : null;
   const canSave =
     !handleErr &&
@@ -536,7 +536,7 @@ function SnippetEditorDialog({
                       handle: normalizeHandle(event.target.value),
                     })
                   }
-                  placeholder="review"
+                  placeholder={t("agents.dialog.snippetHandlePlaceholder")}
                   className="h-8 pl-5 font-mono text-[11.5px]"
                 />
               </div>
@@ -553,7 +553,7 @@ function SnippetEditorDialog({
                 onChange={(event) =>
                   setDraft({ ...draft, name: event.target.value })
                 }
-                placeholder="e.g. Pre-merge review checklist"
+                placeholder={t("agents.dialog.snippetNamePlaceholder")}
                 className="h-8 text-[12px]"
               />
             </div>
@@ -565,7 +565,7 @@ function SnippetEditorDialog({
               onChange={(event) =>
                 setDraft({ ...draft, description: event.target.value })
               }
-              placeholder="One line shown in the # picker"
+              placeholder={t("agents.dialog.snippetDescriptionPlaceholder")}
               className="h-8 text-[12px]"
             />
           </div>
@@ -576,7 +576,7 @@ function SnippetEditorDialog({
               onChange={(event) =>
                 setDraft({ ...draft, content: event.target.value })
               }
-              placeholder="Inserted into the prompt as a <snippet> block when you use #handle."
+              placeholder={t("agents.dialog.snippetContentPlaceholder")}
               className="min-h-40 resize-y font-mono text-[11.5px] leading-relaxed"
             />
           </div>

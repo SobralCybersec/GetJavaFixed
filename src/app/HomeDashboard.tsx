@@ -356,7 +356,7 @@ export function HomeDashboard({
               >
                 <DashboardWidget title={t("home.tabs.launch")}>
                   <section className="javarf-terminal-frame ops-card ops-hero border border-border/70 p-5 sm:p-6 lg:p-7">
-                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,430px)] xl:items-stretch">
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,430px)] xl:items-stretch">
                       <div className="flex min-w-0 flex-col justify-between gap-5">
                         <motion.div
                           className="min-w-0 max-w-3xl space-y-4"
@@ -389,7 +389,7 @@ export function HomeDashboard({
                           <Button
                             size="lg"
                             variant="outline"
-                            className="min-w-[170px] border border-border/80 bg-background/70 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:border-primary/40"
+                            className="w-full border border-border/80 bg-background/70 px-6 font-mono uppercase tracking-[0.16em] transition-all duration-200 hover:border-primary/40 sm:w-auto sm:min-w-[170px]"
                             onClick={onOpenJavaRefactor}
                             disabled={!hasModelAccess}
                             title={!hasModelAccess ? t("home.javaRefactorDisabled") : undefined}
@@ -429,7 +429,7 @@ export function HomeDashboard({
                 exit="exit"
                 className="mt-0 flex-1"
               >
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.95fr)]">
                   <motion.div
                     className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                     variants={reduced ? undefined : staggerContainer}
@@ -470,7 +470,7 @@ export function HomeDashboard({
                         size="sm"
                         className="javarf-terminal-frame java-panel ops-card h-full border-border/70"
                       >
-                        <CardHeader className="gap-2 border-b border-border/60 bg-background/55">
+                        <CardHeader className="gap-2 border-b border-border/60 ">
                           <CardTitle>{t("home.readiness.nextAction")}</CardTitle>
                           <CardDescription>
                             {hasModelAccess
@@ -529,11 +529,11 @@ export function HomeDashboard({
                     size="sm"
                     className="javarf-terminal-frame java-panel ops-card border-border/70"
                   >
-                      <CardHeader className="border-b border-border/60 bg-background/55">
+                      <CardHeader className="border-b border-border/60 ">
                         <CardTitle>{t("home.workflow.title")}</CardTitle>
                         <CardDescription>{t("home.workflow.description")}</CardDescription>
                       </CardHeader>
-                    <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
+                    <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
                       <div className="grid gap-3 lg:grid-cols-3 xl:grid-cols-1">
                         {(["intake", "analysis", "refactor"] as const).map((step, i) => (
                           <motion.div
@@ -575,13 +575,13 @@ export function HomeDashboard({
                 exit="exit"
                 className="mt-0 flex-1"
               >
-                <section className="grid gap-4 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)]">
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
                   <DashboardWidget title={t("home.context.note.title")}>
                     <Card
                       size="sm"
                       className="javarf-terminal-frame java-panel ops-card border-border/70"
                     >
-                      <CardHeader className="border-b border-border/60 bg-background/55">
+                      <CardHeader className="border-b border-border/60 ">
                         <CardTitle className="flex items-center gap-2">
                           <HugeiconsIcon icon={Note01Icon} size={16} strokeWidth={1.75} />
                           {t("home.context.note.title")}
@@ -619,7 +619,7 @@ export function HomeDashboard({
                       size="sm"
                       className="javarf-terminal-frame java-panel ops-card border-border/70"
                     >
-                      <CardHeader className="border-b border-border/60 bg-background/55">
+                      <CardHeader className="border-b border-border/60 ">
                         <CardTitle className="flex items-center gap-2">
                           <HugeiconsIcon
                             icon={MessageSearch01Icon}

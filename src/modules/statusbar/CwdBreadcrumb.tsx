@@ -22,6 +22,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/modules/i18n";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { segmentsFromCwd } from "./lib/pathUtils";
@@ -45,6 +46,7 @@ function basename(path: string): string {
 }
 
 export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
+  const { t } = useI18n();
   if (filePath) {
     const dir = dirname(filePath);
     const name = basename(filePath);
@@ -86,7 +88,7 @@ export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
 
   if (!cwd) {
     return (
-      <span className="text-xs text-muted-foreground/70">no directory</span>
+      <span className="text-xs text-muted-foreground/70">{t("status.noDirectory")}</span>
     );
   }
 
@@ -139,6 +141,7 @@ function BreadcrumbSegment({
   isHome: boolean;
   onClick: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
       <BreadcrumbItem>
@@ -159,7 +162,7 @@ function BreadcrumbSegment({
                   strokeWidth={1.75}
                 />
               ) : null}
-              <span className="truncate">{isHome ? "Home" : label}</span>
+              <span className="truncate">{isHome ? t("common.home") : label}</span>
             </Badge>
           </button>
         </BreadcrumbLink>
@@ -178,6 +181,7 @@ function CurrentSegmentDropdown({
   path: string;
   onCd: (p: string) => void;
 }) {
+  const { t } = useI18n();
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const [open, setOpen] = useState(false);
   const [children, setChildren] = useState<string[] | null>(null);
@@ -213,7 +217,7 @@ function CurrentSegmentDropdown({
                 className="size-3"
                 strokeWidth={1.75}
               />
-              Home
+              {t("common.home")}
             </>
           ) : (
             <span className="truncate">{label}</span>
@@ -228,11 +232,11 @@ function CurrentSegmentDropdown({
       <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
         {children === null ? (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            Loading…
+            {t("common.loading")}
           </div>
         ) : children.length === 0 ? (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            {error ?? "No subfolders"}
+            {error ?? t("status.noSubfolders")}
           </div>
         ) : (
           children.map((name) => (
@@ -263,6 +267,7 @@ function CollapsedSegments({
   segments: { fullPath: string; label: string; isHome: boolean }[];
   onCd: (p: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <span className="contents md:hidden">
       <BreadcrumbItem>
@@ -270,7 +275,7 @@ function CollapsedSegments({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title="Show hidden folders"
+              title={t("status.showHiddenFolders")}
               className="flex items-center rounded-sm px-1 text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               <HugeiconsIcon
@@ -291,7 +296,7 @@ function CollapsedSegments({
                   className="size-3.5 text-muted-foreground"
                   strokeWidth={1.75}
                 />
-                <span className="truncate">{s.isHome ? "Home" : s.label}</span>
+                <span className="truncate">{s.isHome ? t("common.home") : s.label}</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

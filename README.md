@@ -506,9 +506,9 @@ This tool is for **educational and authorized security research only**. The cybe
 * [x] Plan + todo strip in the AI composer
 * [x] Managed agent orchestration (Claude Code TUI via PTY injection)
 * [x] CI pipeline (TypeScript, Vitest, Clippy, CodeQL, Gitleaks, Trivy)
-* [ ] Control flow flattening detection in cybersecurity mode (planned)
-* [ ] Remote process inspection agent (planned)
-* [ ] Additional language intakes beyond Java (planned)
+* [x] Control flow flattening detection in cybersecurity mode
+* [x] Remote process inspection agent (x64dbg managed debugger)
+* [x] Additional language intakes beyond Java (Swift, Dart, Elixir)
 
 ---
 

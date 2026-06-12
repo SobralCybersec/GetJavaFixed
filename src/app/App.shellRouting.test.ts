@@ -10,6 +10,8 @@ describe("App shell routing", () => {
   it("keeps dashboard dismissal tied to normal workspace tab kinds", () => {
     expect(appSrc).toContain("function tabShouldHidePhase1");
     expect(appSrc).toContain('tab.kind === "terminal"');
+    expect(appSrc).toContain('tab.kind === "dashboard"');
+    expect(appSrc).toContain('tab.kind === "agent-dashboard"');
     expect(appSrc).toContain('tab.kind === "markdown"');
     expect(appSrc).toContain("tabShouldHidePhase1(nextTab, activeJavaRepoPath)");
   });

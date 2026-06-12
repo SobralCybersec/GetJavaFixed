@@ -265,7 +265,7 @@ export function GeneralSection() {
                   <TooltipTrigger asChild>
                     <span
                       className="cursor-help text-[11px] leading-none text-muted-foreground/70"
-                      aria-label="More info about WebGL renderer"
+                      aria-label={t("general.terminal.webgl.moreInfo")}
                     >
                       i
                     </span>

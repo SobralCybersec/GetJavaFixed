@@ -36,6 +36,10 @@ import { JAVARF_CMD_RE, SLASH_COMMANDS } from "../lib/slashCommands";
 import { Spinner } from "@/components/ui/spinner";
 import { useI18n, type TranslateFn } from "@/modules/i18n";
 import { useChatStore, sendMessage } from "../store/chatStore";
+import {
+  extractLinkPreviewSeeds,
+  loadLinkPreviewMeta,
+} from "../lib/linkPreview";
 import type {
   ChatStatus,
   DynamicToolUIPart,
@@ -43,7 +47,7 @@ import type {
   UIMessage,
   UIMessagePart,
 } from "ai";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { AiToolApproval } from "./AiToolApproval";
 
 function CommandSnippet({ name }: { name: string }) {
@@ -85,7 +89,6 @@ const SELECTION_RE =
 const FILE_RE =
   /<file\s+name="([^"]+)"[^>]*>\n?([\s\S]*?)\n?<\/file>/g;
 const SNIPPET_RE = /<snippet\s+name="([^"]+)">\n?[\s\S]*?\n?<\/snippet>/g;
-const URL_RE = /\b(?:https?|file):\/\/[^\s<>"')\]]+/gi;
 
 function countLines(s: string): number {
   if (!s) return 0;
@@ -173,42 +176,43 @@ type LinkPreview = {
   url: string;
   host: string;
   path: string;
+  kind: "file" | "remote";
 };
 
-function cleanPreviewUrl(raw: string): string {
-  return raw.replace(/[),.;:!?]+$/g, "");
-}
-
-function linkPreviewsFromText(text: string): LinkPreview[] {
-  const seen = new Set<string>();
-  const previews: LinkPreview[] = [];
-  for (const match of text.matchAll(URL_RE)) {
-    const url = cleanPreviewUrl(match[0]);
-    if (seen.has(url)) continue;
-    try {
-      const parsed = new URL(url);
-      const host =
-        parsed.protocol === "file:" ? "Local file" : parsed.hostname || url;
-      const path =
-        parsed.protocol === "file:"
-          ? decodeURIComponent(parsed.pathname)
-          : `${parsed.pathname}${parsed.search}`;
-      seen.add(url);
-      previews.push({
-        url,
-        host,
-        path: path && path !== "/" ? path : parsed.protocol.replace(":", ""),
-      });
-    } catch {
-      // Ignore malformed matches; plain text still renders normally.
-    }
-  }
-  return previews;
-}
-
-const LinkPreviews = memo(function LinkPreviews({ text }: { text: string }) {
+const LinkPreviews = memo(function LinkPreviews({
+  text,
+  onOpenPreview,
+}: {
+  text: string;
+  onOpenPreview?: (url: string) => void;
+}) {
   const { t } = useI18n();
-  const previews = useMemo(() => linkPreviewsFromText(text), [text]);
+  const previews = useMemo<LinkPreview[]>(
+    () => extractLinkPreviewSeeds(text),
+    [text],
+  );
+  const [metaByUrl, setMetaByUrl] = useState<Record<string, Awaited<ReturnType<typeof loadLinkPreviewMeta>>>>({});
+
+  useEffect(() => {
+    let alive = true;
+    const remote = previews.filter((preview) => preview.kind === "remote");
+    if (remote.length === 0) {
+      setMetaByUrl({});
+      return () => {
+        alive = false;
+      };
+    }
+    void Promise.all(
+      remote.map(async (preview) => [preview.url, await loadLinkPreviewMeta(preview.url)] as const),
+    ).then((entries) => {
+      if (!alive) return;
+      setMetaByUrl(Object.fromEntries(entries));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [previews]);
+
   if (previews.length === 0) return null;
 
   return (
@@ -217,21 +221,37 @@ const LinkPreviews = memo(function LinkPreviews({ text }: { text: string }) {
         <button
           key={preview.url}
           type="button"
-          onClick={() => void openUrl(preview.url).catch(console.error)}
-          className="group flex min-w-0 items-center gap-2 rounded-md border border-border/55 bg-card/65 px-2 py-1.5 text-left transition-colors hover:border-primary/45 hover:bg-primary/10"
+          onClick={() => {
+            if (onOpenPreview) onOpenPreview(preview.url);
+            else void openUrl(preview.url).catch(console.error);
+          }}
+          className="group flex min-w-0 flex-col gap-2 rounded-md border border-border/55 bg-card/65 px-2 py-1.5 text-left transition-colors hover:border-primary/45 hover:bg-primary/10 sm:flex-row sm:items-center"
         >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">
-            <HugeiconsIcon icon={Link01Icon} size={13} strokeWidth={1.75} />
-          </span>
+          {metaByUrl[preview.url]?.imageUrl ? (
+            <img
+              src={metaByUrl[preview.url]?.imageUrl ?? ""}
+              alt=""
+              className="size-10 shrink-0 rounded-md border border-border/50 object-cover"
+            />
+          ) : (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">
+              <HugeiconsIcon icon={Link01Icon} size={13} strokeWidth={1.75} />
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[11px] font-medium text-foreground">
-              {preview.host}
+              {metaByUrl[preview.url]?.title || metaByUrl[preview.url]?.siteName || preview.host}
             </span>
+            {metaByUrl[preview.url]?.description ? (
+              <span className="block line-clamp-2 text-[10.5px] text-muted-foreground">
+                {metaByUrl[preview.url]?.description}
+              </span>
+            ) : null}
             <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
-              {preview.path}
+              {preview.host} · {preview.path}
             </span>
           </span>
-          <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-muted-foreground group-hover:text-primary">
+          <span className="self-end shrink-0 text-[10px] uppercase tracking-[0.14em] text-muted-foreground group-hover:text-primary sm:self-auto">
             {t("ai.linkPreview.open")}
           </span>
           <span className="sr-only">{t("ai.linkPreview.title")}</span>
@@ -256,6 +276,7 @@ type Props = {
   clearError: () => void;
   addToolApprovalResponse: (arg: ApprovalArg) => void | PromiseLike<void>;
   stop: () => void | PromiseLike<void>;
+  onOpenPreview?: (url: string) => void;
 };
 
 export function AiChatView({
@@ -264,7 +285,9 @@ export function AiChatView({
   error,
   clearError,
   addToolApprovalResponse,
+  onOpenPreview,
 }: Props) {
+  const { t } = useI18n();
   const isBusy = status === "submitted" || status === "streaming";
   const lastMessage = messages[messages.length - 1];
   const showSpinner = isBusy && lastMessage?.role === "user";
@@ -289,8 +312,8 @@ export function AiChatView({
       <Conversation>
         <ConversationContent>
           <ConversationEmptyState
-            title="Ask anything"
-            description="Explain command output, fix errors, generate snippets, or run a task."
+            title={t("ai.empty.title")}
+            description={t("ai.empty.description")}
           />
         </ConversationContent>
       </Conversation>
@@ -306,6 +329,7 @@ export function AiChatView({
             message={m}
             onApproval={onApproval}
             streaming={m.id === streamingMessageId}
+            onOpenPreview={onOpenPreview}
           />
         ))}
         {compactionNotice && (
@@ -317,7 +341,7 @@ export function AiChatView({
         {showSpinner && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Spinner />
-            <span className="truncate">{step ?? "Thinking…"}</span>
+            <span className="truncate">{step ?? t("agentStatus.thinking")}</span>
           </div>
         )}
         {showContinue && (
@@ -332,7 +356,7 @@ export function AiChatView({
         )}
         {error && (
           <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            <div className="font-medium">Something went wrong.</div>
+            <div className="font-medium">{t("ai.error.title")}</div>
             <div className="mt-0.5 leading-relaxed opacity-90">
               {error.message}
             </div>
@@ -341,7 +365,7 @@ export function AiChatView({
               onClick={clearError}
               className="mt-1 underline opacity-80 hover:opacity-100"
             >
-              Dismiss
+              {t("ai.error.dismiss")}
             </button>
           </div>
         )}
@@ -358,19 +382,22 @@ const CompactionNotice = memo(function CompactionNotice({
   droppedCount: number;
   onDismiss: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2 rounded-md border border-border/40 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
       <span className="size-1.5 shrink-0 rounded-full bg-amber-500/80" />
       <span className="flex-1 truncate">
-        Context compacted — {droppedCount} older tool result
-        {droppedCount === 1 ? "" : "s"} elided to save tokens.
+        {t("ai.compacted", {
+          count: droppedCount,
+          plural: droppedCount === 1 ? "" : "s",
+        })}
       </span>
       <button
         type="button"
         onClick={onDismiss}
         className="text-[10.5px] underline opacity-70 hover:opacity-100"
       >
-        Dismiss
+        {t("ai.error.dismiss")}
       </button>
     </div>
   );
@@ -381,17 +408,18 @@ const ContinueRow = memo(function ContinueRow({
 }: {
   onContinue: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2 rounded-md border border-border/50 bg-card/60 px-2.5 py-1.5 text-[11px]">
       <span className="flex-1 text-muted-foreground">
-        Hit the step limit. Continue to keep going.
+        {t("ai.continue.limit")}
       </span>
       <button
         type="button"
         onClick={onContinue}
         className="rounded-md border border-border/60 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
       >
-        Continue
+        {t("ai.continue")}
       </button>
     </div>
   );
@@ -401,10 +429,12 @@ const RenderedMessage = memo(function RenderedMessage({
   message,
   onApproval,
   streaming,
+  onOpenPreview,
 }: {
   message: UIMessage;
   onApproval: (id: string, approved: boolean) => void;
   streaming: boolean;
+  onOpenPreview?: (url: string) => void;
 }) {
   let lastTextIdx = -1;
   for (let i = message.parts.length - 1; i >= 0; i -= 1) {
@@ -436,6 +466,9 @@ const RenderedMessage = memo(function RenderedMessage({
               {stripped.text}
             </p>
           ) : null}
+          {stripped.text ? (
+            <LinkPreviews text={stripped.text} onOpenPreview={onOpenPreview} />
+          ) : null}
         </MessageContent>
       </Message>
     );
@@ -444,6 +477,14 @@ const RenderedMessage = memo(function RenderedMessage({
   const groups = useMemo(() => buildPartGroups(message.parts as AnyPart[]), [
     message.parts,
   ]);
+  const textContent = useMemo(
+    () =>
+      message.parts
+        .filter((part): part is Extract<AnyPart, { type: "text" }> => part.type === "text")
+        .map((part) => part.text)
+        .join("\n"),
+    [message.parts],
+  );
 
   return (
     <Message from={message.role}>
@@ -479,6 +520,9 @@ const RenderedMessage = memo(function RenderedMessage({
             );
           })}
         </div>
+        {textContent ? (
+          <LinkPreviews text={textContent} onOpenPreview={onOpenPreview} />
+        ) : null}
       </MessageContent>
     </Message>
   );
@@ -550,6 +594,7 @@ function basename(p: string): string {
 }
 
 const ReadGroup = memo(function ReadGroup({ parts }: { parts: AnyPart[] }) {
+  const { t } = useI18n();
   const paths = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -589,9 +634,12 @@ const ReadGroup = memo(function ReadGroup({ parts }: { parts: AnyPart[] }) {
           strokeWidth={1.75}
           className="shrink-0 text-muted-foreground"
         />
-        <span className="shrink-0 font-medium text-foreground">Read</span>
+        <span className="shrink-0 font-medium text-foreground">{t("ai.read")}</span>
         <span className="shrink-0 text-[11px] text-muted-foreground">
-          {count} file{count === 1 ? "" : "s"}
+          {t("ai.fileCount", {
+            count,
+            plural: count === 1 ? "" : "s",
+          })}
         </span>
         {paths.length > 0 ? (
           <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground/80 group-data-[state=open]/read:invisible">
@@ -642,6 +690,7 @@ const PartAppear = memo(function PartAppear({
 });
 
 const ReadRow = memo(function ReadRow({ part }: { part: AnyPart }) {
+  const { t } = useI18n();
   const path = readPathFromPart(part);
   const state = (part as { state?: string }).state ?? "";
   const isError = state === "output-error";
@@ -661,7 +710,7 @@ const ReadRow = memo(function ReadRow({ part }: { part: AnyPart }) {
         strokeWidth={1.75}
         className="shrink-0 text-muted-foreground"
       />
-      <span className="shrink-0 font-medium text-foreground">Read</span>
+      <span className="shrink-0 font-medium text-foreground">{t("ai.read")}</span>
       <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
         {path ?? ""}
       </span>

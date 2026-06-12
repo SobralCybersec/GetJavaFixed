@@ -34,6 +34,7 @@ type Props = {
   onOpenMini: () => void;
   hasComposer: boolean;
   privateActive: boolean;
+  compactSidebarRail?: React.ReactNode;
   zenMode?: boolean;
   collapsePathBarInZen?: boolean;
   onHoverChange?: (hovered: boolean) => void;
@@ -49,6 +50,7 @@ export function StatusBar({
   onOpenMini,
   hasComposer,
   privateActive,
+  compactSidebarRail,
   zenMode,
   collapsePathBarInZen = false,
   onHoverChange,
@@ -80,6 +82,7 @@ export function StatusBar({
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <WorkspaceEnvSelector onSelect={onWorkspaceChange} />
+        {compactSidebarRail ? <div className="shrink-0">{compactSidebarRail}</div> : null}
         <div
           className={cn(
             "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out",

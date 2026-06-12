@@ -5,6 +5,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import {
   CheckmarkCircle02Icon,
   Loading03Icon,
@@ -23,24 +24,29 @@ type Props = {
   onActivateLocal: () => void;
 };
 
-function relativeTime(ts: number): string {
+function relativeTime(
+  ts: number,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return t("notifications.justNow");
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return t("notifications.minutesAgo", { count: String(m) });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t("notifications.hoursAgo", { count: String(h) });
+  return t("notifications.daysAgo", { count: String(Math.floor(h / 24)) });
 }
 
 function StatusRow({
   agent,
   status,
   onClick,
+  t,
 }: {
   agent: string;
   status: AgentStatus;
   onClick: () => void;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   const waiting = status === "waiting";
   return (
@@ -62,25 +68,27 @@ function StatusRow({
         )}
       >
         {waiting ? <span className="size-1.5 rounded-full bg-primary" /> : null}
-        {waiting ? "waiting" : "working"}
+        {waiting ? t("notifications.waiting") : t("notifications.working")}
       </span>
     </button>
   );
 }
 
-const NOTIF_LABEL: Record<AgentNotification["kind"], string> = {
-  attention: "needs input",
-  finished: "finished",
-  error: "failed",
-};
-
 function NotificationRow({
   n,
   onClick,
+  t,
 }: {
   n: AgentNotification;
   onClick: () => void;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
+  const label =
+    n.kind === "attention"
+      ? t("notifications.needsInput")
+      : n.kind === "finished"
+        ? t("notifications.finished")
+        : t("notifications.failed");
   return (
     <button
       type="button"
@@ -106,16 +114,17 @@ function NotificationRow({
       </span>
       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
         {n.agent}{" "}
-        <span className="text-muted-foreground">{NOTIF_LABEL[n.kind]}</span>
+        <span className="text-muted-foreground">{label}</span>
       </span>
       <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-        {relativeTime(n.at)}
+        {relativeTime(n.at, t)}
       </span>
     </button>
   );
 }
 
 export function NotificationBell({ onActivate, onActivateLocal }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [hooksReady, setHooksReady] = useState<boolean | null>(null);
   const [installing, setInstalling] = useState(false);
@@ -184,7 +193,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
           variant="ghost"
           size="icon"
           className="relative size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="Agent notifications"
+          title={t("notifications.buttonTitle")}
         >
           <HugeiconsIcon
             icon={Notification01Icon}
@@ -205,20 +214,20 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
       >
         <div className="flex h-10 items-center px-3 pt-0.5">
           <span className="flex gap-1 text-[13px] text-foreground">
-            Notifications
+            {t("notifications.title")}
           </span>
           {activeCount > 0 ? (
             <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-              {activeCount} active
+              {t("notifications.activeCount", { count: String(activeCount) })}
             </span>
           ) : null}
         </div>
 
         {empty ? (
           <div className="border-t border-border/60 px-3 py-5 text-center text-xs leading-relaxed text-muted-foreground">
-            No agent activity yet.
+            {t("notifications.emptyTitle")}
             <br />
-            Run the agent or Claude Code to track it here.
+            {t("notifications.emptyBody")}
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto border-t border-border/60 p-1">
@@ -227,6 +236,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 agent={localAgent.agent}
                 status={localAgent.status}
                 onClick={activateLocal}
+                t={t}
               />
             ) : null}
             {active.map((s) => (
@@ -235,6 +245,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 agent={s.agent}
                 status={s.status}
                 onClick={() => activate(s.tabId, s.leafId)}
+                t={t}
               />
             ))}
             {activeCount > 0 && notifications.length > 0 ? (
@@ -245,6 +256,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 key={n.id}
                 n={n}
                 onClick={() => activateNotification(n)}
+                t={t}
               />
             ))}
           </div>
@@ -259,7 +271,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 strokeWidth={1.75}
                 className="text-primary"
               />
-              Claude Code alerts enabled
+              {t("notifications.claudeEnabled")}
             </div>
           ) : (
             <button
@@ -274,12 +286,14 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 strokeWidth={1.75}
                 className={cn(installing && "animate-spin")}
               />
-              {installing ? "Enabling..." : "Enable Claude Code alerts"}
+              {installing
+                ? t("notifications.enabling")
+                : t("notifications.enableClaude")}
             </button>
           )}
           {hooksReady === false && !installing ? (
             <p className="px-2 pt-1 text-[11px] text-destructive">
-              Could not update Claude Code config.
+              {t("notifications.enableFailed")}
             </p>
           ) : null}
         </div>

@@ -15,6 +15,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { currentWorkspaceEnv } from "@/modules/workspace";
+import { useI18n } from "@/modules/i18n";
 import {
   forwardRef,
   useEffect,
@@ -69,6 +70,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
 }: Props,
   ref,
 ) {
+  const { t } = useI18n();
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchHit[]>([]);
@@ -204,7 +206,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                 }
               }
             }}
-            placeholder="Search files…"
+            placeholder={t("explorer.searchFiles")}
             className="h-8 border-[color:var(--border)] bg-black/40 pr-7 pl-7 font-mono text-xs text-white placeholder:text-white/28"
           />
           {query ? (
@@ -212,7 +214,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
               type="button"
               onClick={() => setQuery("")}
               className="absolute top-1/2 right-4 -translate-y-1/2 rounded p-0.5 text-white/34 hover:bg-white/[0.06] hover:text-white"
-              aria-label="Clear search"
+              aria-label={t("search.clear")}
             >
               <HugeiconsIcon icon={Cancel01Icon} size={11} strokeWidth={2} />
             </button>
@@ -224,12 +226,12 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
         <ScrollArea className="min-h-0 min-w-0 flex-1">
           <div className="min-w-0 py-1" ref={scrollRef}>
             {searching && results.length === 0 ? (
-              <div className="px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-white/34">
-                Searching…
+                <div className="px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-white/34">
+                {t("explorer.searching")}
               </div>
             ) : results.length === 0 ? (
               <div className="px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-white/34">
-                No matches
+                {t("explorer.noMatches")}
               </div>
             ) : (
               results.map((hit, index) => {
@@ -277,7 +279,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                           className={COMPACT_ITEM}
                           onSelect={() => onOpenFile(hit.path)}
                         >
-                          Open
+                          {t("explorer.open")}
                         </ContextMenuItem>
                       )}
                       {hit.is_dir && onRevealInTerminal && (
@@ -285,28 +287,28 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                           className={COMPACT_ITEM}
                           onSelect={() => onRevealInTerminal(hit.path)}
                         >
-                          Open in Terminal
+                          {t("explorer.openTerminal")}
                         </ContextMenuItem>
                       )}
                       <ContextMenuItem
                         className={COMPACT_ITEM}
                         onSelect={() => void revealInFinder(hit.path)}
                       >
-                        Reveal in Finder
+                        {t("explorer.reveal")}
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
                         className={COMPACT_ITEM}
                         onSelect={() => void copyToClipboard(hit.path)}
                       >
-                        Copy Path
+                        {t("explorer.copyPath")}
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
                         className={COMPACT_ITEM}
                         onSelect={() => onAttachToAgent?.(hit.path)}
                       >
-                        Attach to Agent
+                        {t("explorer.attachAgent")}
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
@@ -315,7 +317,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
             )}
             {truncated && results.length > 0 ? (
               <div className="px-3 py-1.5 text-[10px] text-muted-foreground">
-                Showing partial results — refine your query.
+                {t("explorer.partialResults")}
               </div>
             ) : null}
           </div>

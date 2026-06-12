@@ -171,6 +171,12 @@ export type ProxyExampleStatus = {
   modelsError: string | null;
 };
 
+export type HttpResponse = {
+  status: number;
+  headers: Record<string, string>;
+  body: number[];
+};
+
 function trimTrailingSlash(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
@@ -356,6 +362,22 @@ export const native = {
     }),
   proxyexampleHealth: (baseUrl: string) =>
     invoke<ProxyExampleHealth>("proxyexample_health", { baseUrl }),
+  httpRequest: (
+    url: string,
+    options?: {
+      method?: string;
+      headers?: Record<string, string> | null;
+      body?: Uint8Array | number[] | null;
+      allowPrivateNetwork?: boolean | null;
+    },
+  ) =>
+    invoke<HttpResponse>("ai_http_request", {
+      url,
+      method: options?.method ?? "GET",
+      headers: options?.headers ?? null,
+      body: options?.body ? Array.from(options.body) : null,
+      allowPrivateNetwork: options?.allowPrivateNetwork ?? null,
+    }),
   proxyexampleModels: (baseUrl: string, apiKey?: string | null) =>
     invoke<ProxyExampleModel[]>("proxyexample_models", {
       baseUrl,

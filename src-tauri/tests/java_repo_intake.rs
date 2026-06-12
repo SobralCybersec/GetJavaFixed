@@ -68,6 +68,54 @@ fn detects_rust_root_from_cargo_toml() {
 }
 
 #[test]
+fn detects_swift_root_from_package_swift() {
+    let fx = FsFixture::new();
+    fx.write("Package.swift", "// swift-tools-version: 5.10\n");
+
+    let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
+
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Swift));
+    assert!(readiness.reason.is_none());
+}
+
+#[test]
+fn detects_dart_root_from_pubspec_yaml() {
+    let fx = FsFixture::new();
+    fx.write("pubspec.yaml", "name: demo\n");
+
+    let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
+
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Dart));
+    assert!(readiness.reason.is_none());
+}
+
+#[test]
+fn detects_elixir_root_from_mix_exs() {
+    let fx = FsFixture::new();
+    fx.write("mix.exs", "defmodule Demo.MixProject do\nend\n");
+
+    let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
+
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Elixir));
+    assert!(readiness.reason.is_none());
+}
+
+#[test]
+fn detects_assembly_root_from_root_source_file() {
+    let fx = FsFixture::new();
+    fx.write("main.asm", "global _start\nsection .text\n_start:\n");
+
+    let readiness = inspect_repo_root(&fx.root).expect("inspect repo root");
+
+    assert!(readiness.supported);
+    assert_eq!(readiness.project_type, Some(JavaProjectType::Assembly));
+    assert!(readiness.reason.is_none());
+}
+
+#[test]
 fn supports_java_like_folder_without_root_build_file_as_generic_workspace() {
     let fx = FsFixture::new();
     fx.write("src/main/java/App.java", "class App {}\n");

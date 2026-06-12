@@ -76,7 +76,7 @@ export function AboutSection() {
       <SectionHeader title={t("about.title")} description="" />
 
       <div className="flex items-center gap-4 rounded-sm border border-border/60 bg-card/60 p-5">
-        <img src="/java.png" alt="" className="size-12 object-contain" draggable={false} />
+        <img src="/app.png" alt="" className="size-12 object-contain" draggable={false} />
         <div className="flex min-w-0 flex-col">
           <span className="text-[15px] font-semibold tracking-tight">{name}</span>
           <span className="text-[11px] text-muted-foreground">{t("about.tagline")}</span>

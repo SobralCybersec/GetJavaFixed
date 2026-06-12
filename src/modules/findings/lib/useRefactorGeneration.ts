@@ -332,6 +332,14 @@ const LANGUAGE_PROFILES: Record<string, LanguageProfile> = {
     performanceAdvice: "Preserve ownership/lifetime behavior; validate allocation, copies, iterator invalidation, and cache-sensitive loops.",
     macroAdvice: "Prefer functions/templates first. Use X-macros only when one source list must generate several synchronized declarations.",
   },
+  assembly: {
+    id: "assembly",
+    displayName: "Assembly",
+    tooling: ["nasm/as build step", "linker step", "objdump or disassembly diff", "focused binary smoke test"],
+    splitAdvice: "Split labels, includes, and macro blocks when one file mixes entrypoint, data layout, and syscall logic in one pass.",
+    performanceAdvice: "Preserve calling convention, register lifetimes, stack discipline, and memory layout before chasing micro-optimizations.",
+    macroAdvice: "Macros are valid here, but keep them small, local, and explicit about side effects and clobbered registers.",
+  },
   dotnet: {
     id: "dotnet",
     displayName: ".NET",
@@ -369,6 +377,7 @@ function detectLanguageProfile(filePath: string, content: string): LanguageProfi
   if (ext === "py") return LANGUAGE_PROFILES.python;
   if (ext === "rs") return LANGUAGE_PROFILES.rust;
   if (ext === "go") return LANGUAGE_PROFILES.go;
+  if (["asm", "s", "nasm", "inc"].includes(ext)) return LANGUAGE_PROFILES.assembly;
   if (["c", "cc", "cpp", "cxx", "h", "hpp", "m", "mm"].includes(ext)) {
     return LANGUAGE_PROFILES["c-family"];
   }
@@ -399,6 +408,13 @@ export function isLikelyCompleteSourceFile(original: string, proposed: string): 
 }
 
 export const isLikelyCompleteJavaFile = isLikelyCompleteSourceFile;
+
+export function detectRefactorLanguageProfileId(
+  filePath: string,
+  content: string,
+): string {
+  return detectLanguageProfile(filePath, content).id;
+}
 
 function buildRefactorReport({
   filePath,

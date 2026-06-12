@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { AgentRunBridgeProps } from "./AgentRunBridge";
+import type { AiMiniWindowProps } from "./AiMiniWindow";
 import type { SelectionAskAiProps } from "./SelectionAskAi";
 
 const AgentRunBridgeInner = lazy(() =>
@@ -32,10 +33,10 @@ export function AgentRunBridge(props: AgentRunBridgeProps) {
   );
 }
 
-export function AiMiniWindow() {
+export function AiMiniWindow(props: AiMiniWindowProps) {
   return (
     <Suspense fallback={null}>
-      <AiMiniWindowInner />
+      <AiMiniWindowInner {...props} />
     </Suspense>
   );
 }

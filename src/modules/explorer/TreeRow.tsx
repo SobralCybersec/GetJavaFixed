@@ -6,6 +6,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useState } from "react";
@@ -45,6 +46,7 @@ function isMarkdownPath(path: string): boolean {
 }
 
 function EntryRowImpl(props: EntryRowProps) {
+  const { t } = useI18n();
   const {
     path,
     name,
@@ -94,7 +96,7 @@ function EntryRowImpl(props: EntryRowProps) {
             )}
             <InlineInput
               initial={name}
-              placeholder={isDir ? "Folder name" : "File name"}
+              placeholder={isDir ? t("explorer.newFolder") : t("explorer.newFile")}
               onCommit={tree.commitRename}
               onCancel={tree.cancelRename}
             />
@@ -107,8 +109,8 @@ function EntryRowImpl(props: EntryRowProps) {
             onClick={handleClick}
             onDoubleClick={() => !isDir && tree.beginRename(path)}
             className={cn(
-              "javarf-explorer-row group flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden border-l border-transparent px-2 text-left font-mono text-[12px] text-white/72 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.03] hover:text-white",
-              isSelected && "border-l-primary bg-primary/10 text-white",
+              "javarf-explorer-row group relative isolate flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden border-l border-transparent px-1 text-left font-mono text-[12px] text-white/72 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.03] hover:text-white [contain:paint]",
+              isSelected && "border-l-primary text-white",
             )}
             style={{ paddingLeft }}
           >
@@ -150,7 +152,7 @@ function EntryRowImpl(props: EntryRowProps) {
             className={COMPACT_ITEM}
             onSelect={() => onOpenFile(path, true)}
           >
-            Open
+            {t("explorer.open")}
           </ContextMenuItem>
         )}
         {!isDir && isMarkdownPath(path) && onOpenMarkdownPreview && (
@@ -158,7 +160,7 @@ function EntryRowImpl(props: EntryRowProps) {
             className={COMPACT_ITEM}
             onSelect={() => onOpenMarkdownPreview(path)}
           >
-            Open Preview
+            {t("explorer.openPreview")}
           </ContextMenuItem>
         )}
         {isDir && onRevealInTerminal && (
@@ -166,7 +168,7 @@ function EntryRowImpl(props: EntryRowProps) {
             className={COMPACT_ITEM}
             onSelect={() => onRevealInTerminal(path)}
           >
-            Open in Terminal
+            {t("explorer.openTerminal")}
           </ContextMenuItem>
         )}
         {isDir && onAnalyzeFolder && (
@@ -174,47 +176,47 @@ function EntryRowImpl(props: EntryRowProps) {
             className={COMPACT_ITEM}
             onSelect={() => onAnalyzeFolder(path)}
           >
-            Analyze This Folder
+            {t("explorer.analyzeFolder")}
           </ContextMenuItem>
         )}
         <ContextMenuItem
           className={COMPACT_ITEM}
           onSelect={() => void revealInFinder(path)}
         >
-          Reveal in Finder
+          {t("explorer.reveal")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           className={COMPACT_ITEM}
           onSelect={() => tree.beginCreate(createTarget, "file")}
         >
-          New File
+          {t("explorer.newFile")}
         </ContextMenuItem>
         <ContextMenuItem
           className={COMPACT_ITEM}
           onSelect={() => tree.beginCreate(createTarget, "dir")}
         >
-          New Folder
+          {t("explorer.newFolder")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           className={COMPACT_ITEM}
           onSelect={() => void copyToClipboard(path)}
         >
-          Copy Path
+          {t("explorer.copyPath")}
         </ContextMenuItem>
         <ContextMenuItem
           className={COMPACT_ITEM}
           onSelect={() => void copyToClipboard(relativePath(rootPath, path))}
         >
-          Copy Relative Path
+          {t("explorer.copyRelativePath")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           className={COMPACT_ITEM}
           onSelect={() => onAttachToAgent?.(path)}
         >
-          Attach to Agent
+          {t("explorer.attachAgent")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -230,7 +232,7 @@ function EntryRowImpl(props: EntryRowProps) {
           }}
           onMouseLeave={() => setTimeout(() => setIsConfirming(false), 1500)}
         >
-          {isConfirming ? "Click again to confirm" : "Delete"}
+          {isConfirming ? t("explorer.deleteConfirm") : t("explorer.delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

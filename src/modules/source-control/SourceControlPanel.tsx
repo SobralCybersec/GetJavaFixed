@@ -21,6 +21,7 @@ import {
 import { IS_MAC } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { fileIconUrl } from "@/modules/explorer/lib/iconResolver";
+import { useI18n } from "@/modules/i18n";
 import {
   AiContentGenerator02Icon,
   Alert02Icon,
@@ -132,6 +133,7 @@ export const SourceControlPanel = memo(function SourceControlPanel({
   onOpenGitGraph,
   onOpenDiff,
 }: Props) {
+  const { t } = useI18n();
   const scm = useSourceControlPanel(open, sourceControl, onOpenDiff);
   const refreshAnimationRef = useRef<number | null>(null);
   const [refreshAnimating, setRefreshAnimating] = useState(false);
@@ -149,9 +151,9 @@ export const SourceControlPanel = memo(function SourceControlPanel({
 
   const isRefreshing = scm.panelState === "loading";
   const repoLabel = useMemo(() => {
-    if (!scm.status) return "Source Control";
-    return scm.status.isDetached ? "detached" : scm.status.branch;
-  }, [scm.status]);
+    if (!scm.status) return t("sourceControl.title");
+    return scm.status.isDetached ? t("sourceControl.detached") : scm.status.branch;
+  }, [scm.status, t]);
 
   const commitShortcut = IS_MAC ? "⌘↩" : "Ctrl+Enter";
   const generateShortcut = IS_MAC ? "⌘G" : "Ctrl+G";
@@ -160,18 +162,19 @@ export const SourceControlPanel = memo(function SourceControlPanel({
     scm.commitMessage.trim().length > 0 &&
     !scm.actionBusy;
   const commitDisabledReason = scm.actionBusy
-    ? "Wait for the current Git action to finish."
+    ? t("sourceControl.waitAction")
     : scm.stagedEntries.length === 0
-      ? "Stage changes to enable commit."
+      ? t("sourceControl.stageChanges")
       : scm.commitMessage.trim().length === 0
-        ? "Enter a commit message to enable commit."
+        ? t("sourceControl.enterCommitMessage")
         : null;
   const commitHint = canCommit
-    ? `Commit with ${commitShortcut}.`
-    : (commitDisabledReason ?? `Commit with ${commitShortcut}.`);
-  const pushHint = scm.pushHint ?? "Push is unavailable right now.";
+    ? t("sourceControl.commitShortcutHint", { shortcut: commitShortcut })
+    : (commitDisabledReason ??
+        t("sourceControl.commitShortcutHint", { shortcut: commitShortcut }));
+  const pushHint = scm.pushHint ?? t("sourceControl.pushUnavailable");
   const pushDisabledReason = scm.actionBusy
-    ? "Wait for the current Git action to finish."
+    ? t("sourceControl.waitAction")
     : pushHint;
   const stagedCount = scm.stagedEntries.length;
   const changedCount = scm.fileEntries.length;
@@ -436,13 +439,15 @@ export const SourceControlPanel = memo(function SourceControlPanel({
             ) : null}
             {scm.status?.isDetached ? (
               <span className="rounded bg-muted/55 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                detached
+                {t("sourceControl.detached")}
               </span>
             ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <IconActionButton
-              label={fetchBusy ? "Fetching…" : "Fetch from remote"}
+              label={
+                fetchBusy ? t("sourceControl.fetching") : t("sourceControl.fetchRemote")
+              }
               disabled={!canFetch}
               onClick={handleFetch}
               side="bottom"
@@ -460,13 +465,13 @@ export const SourceControlPanel = memo(function SourceControlPanel({
             <IconActionButton
               label={
                 pullBusy
-                  ? "Pulling…"
+                  ? t("sourceControl.pulling")
                   : isDiverged
                     ? "Branch diverged — resolve in terminal"
                     : !hasUpstream
-                      ? "No upstream configured"
+                      ? t("sourceControl.noUpstreamConfigured")
                       : (scm.status?.behind ?? 0) === 0
-                        ? "Already up to date"
+                        ? t("sourceControl.alreadyUpToDate")
                         : `Pull ${scm.status?.behind ?? 0} commits (fast-forward)`
               }
               disabled={!canPull}
@@ -484,7 +489,7 @@ export const SourceControlPanel = memo(function SourceControlPanel({
               )}
             </IconActionButton>
             <IconActionButton
-              label="Refresh source control"
+              label={t("sourceControl.refresh")}
               disabled={isRefreshing || !!scm.actionBusy}
               onClick={handleRefresh}
               side="bottom"
@@ -515,7 +520,9 @@ export const SourceControlPanel = memo(function SourceControlPanel({
               strokeWidth={1.85}
               className="shrink-0"
             />
-            <span className="flex-1 text-[12px] font-medium">Commit Graph</span>
+            <span className="flex-1 text-[12px] font-medium">
+              {t("sourceControl.commitGraph")}
+            </span>
             <HugeiconsIcon
               icon={ArrowRight01Icon}
               size={12}
@@ -567,7 +574,7 @@ export const SourceControlPanel = memo(function SourceControlPanel({
                   placeholder="Commit message"
                   rows={3}
                   className={cn(
-                    "min-h-[72px] border-  resize-none rounded-lg  bg-transparent px-3 pb-7 pt-2.5 text-[12.5px] leading-snug shadow-none placeholder:text-muted-foreground/65 focus-visible:ring-0 focus:border-0",
+                    "min-h-[72px] resize-none rounded-lg bg-transparent px-3 pb-7 pt-2.5 text-[12.5px] leading-snug shadow-none placeholder:text-muted-foreground/65 focus-visible:border-0 focus-visible:ring-0",
                   )}
                 />
                 <div className="pointer-events-none absolute inset-x-3 bottom-1.5 flex items-center justify-between p-1 gap-2 text-[10px] tabular-nums text-muted-foreground/55">
@@ -758,21 +765,25 @@ export const SourceControlPanel = memo(function SourceControlPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogTitle>{t("sourceControl.discardTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
               {scm.pendingDiscard?.scope === "all"
-                ? `This will discard ${scm.pendingDiscard.label} and cannot be undone.`
+                ? t("sourceControl.discardAllDescription", {
+                    label: scm.pendingDiscard.label,
+                  })
                 : scm.pendingDiscard
-                  ? `Discard changes in "${scm.pendingDiscard.label}"? This cannot be undone.`
+                  ? t("sourceControl.discardSingleDescription", {
+                      label: scm.pendingDiscard.label,
+                    })
                   : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => scm.cancelPendingDiscard()}>
-              Cancel
+              {t("sourceControl.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => void scm.confirmPendingDiscard()}>
-              Discard
+              {t("sourceControl.discard")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -849,6 +860,7 @@ const RowRenderer = memo(function RowRenderer(props: RowRendererProps) {
 });
 
 function DivergedBanner() {
+  const { t } = useI18n();
   return (
     <div className="mx-2 mt-1 flex h-7 items-center gap-1.5 rounded-md border border-border/60 bg-foreground/[0.04] px-2 text-[10.5px] leading-none text-muted-foreground">
       <HugeiconsIcon
@@ -859,9 +871,9 @@ function DivergedBanner() {
       />
       <span className="min-w-0 flex-1 truncate">
         <span className="font-medium text-foreground/85">
-          Diverged from upstream
+          {t("sourceControl.diverged")}
         </span>
-        <span className="ml-1 opacity-75">— resolve in terminal</span>
+        <span className="ml-1 opacity-75">— {t("sourceControl.resolveTerminal")}</span>
       </span>
     </div>
   );
@@ -875,18 +887,19 @@ function ListHeader({
 }: RowRendererProps & {
   row: Extract<RowDescriptor, { kind: "list-header" }>;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex h-7 items-center gap-2 px-3">
       <span className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/85">
-        Changes
+        {t("sourceControl.changes")}
       </span>
       <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-border/60 px-1 text-[9.5px] font-semibold tabular-nums text-muted-foreground">
         {row.count}
       </span>
       <label className="ml-auto flex shrink-0 cursor-pointer select-none items-center gap-1.5 text-[10.5px] font-medium text-muted-foreground hover:text-foreground">
-        <span>All</span>
+        <span>{t("sourceControl.all")}</span>
         <Checkbox
-          aria-label="Stage all changes"
+          aria-label={t("sourceControl.stageAll")}
           checked={checkboxValue(headerCheckState)}
           disabled={actionBusy !== null}
           onCheckedChange={() => void onToggleAll()}
@@ -909,6 +922,7 @@ const EntryRow = memo(function EntryRow({
 }: RowRendererProps & {
   row: Extract<RowDescriptor, { kind: "entry" }>;
 }) {
+  const { t } = useI18n();
   const entry = row.entry;
   const isSelected = selectedPath === entry.path;
   const fileName = basename(entry.path);
@@ -984,7 +998,7 @@ const EntryRow = memo(function EntryRow({
       {showDiscard ? (
         <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 data-[focused=true]:opacity-100 data-[selected=true]:opacity-100">
           <IconActionButton
-            label={`Discard ${entry.path}`}
+            label={t("sourceControl.discardPath", { path: entry.path })}
             disabled={disabled}
             side="top"
             onClick={() => onDiscardFile(entry)}
@@ -1007,7 +1021,7 @@ const EntryRow = memo(function EntryRow({
           <Spinner className="size-3" />
         ) : (
           <Checkbox
-            aria-label={`Stage ${entry.path}`}
+            aria-label={t("sourceControl.stagePath", { path: entry.path })}
             checked={checkboxValue(entry.checkState)}
             disabled={disabled}
             onCheckedChange={() => void onToggleStageFile(entry)}

@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/modules/i18n";
 
 import type {
   JavaRepoReadiness,
@@ -38,12 +39,13 @@ export function JavaRepoHome({
   onStartFullAnalysis,
   onClose,
 }: Props) {
+  const { t } = useI18n();
   return (
     <div className="flex h-full min-h-0 flex-col overflow-auto bg-background px-6 py-6 text-foreground">
       <div className="mx-auto flex w-full max-w-5xl justify-end pb-4">
         {onClose ? (
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Open workspace
+            {t("home.openWorkspace")}
           </Button>
         ) : null}
       </div>
@@ -52,18 +54,18 @@ export function JavaRepoHome({
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="max-w-2xl space-y-3">
               <Badge variant="secondary" className="w-fit bg-primary/10 text-primary">
-                Code repository intake
+                {t("repoIntake.badge")}
               </Badge>
               <CardTitle className="text-[34px] leading-[1.05] tracking-tight">
-                Review-first refactoring for polyglot codebases
+                {t("repoIntake.title")}
               </CardTitle>
               <CardDescription className="max-w-2xl text-[15px] leading-7 text-muted-foreground">
-                Open any code repository, inspect ranked findings, then move through research-backed diffs with backup and rollback still in your hands.
+                {t("repoIntake.description")}
               </CardDescription>
             </div>
-            <div className="java-panel bg-background/55 p-4">
+            <div className="java-panel  p-4">
               <img
-                src="/java.png"
+                src="/app.png"
                 alt=""
                 className="size-24 object-contain"
                 draggable={false}
@@ -71,30 +73,32 @@ export function JavaRepoHome({
             </div>
           </div>
           <div className="grid gap-3 text-left text-xs text-muted-foreground sm:grid-cols-3">
-            <div className="border border-border/60 bg-background/55 px-3 py-3">
-              Root manifest check
-              <div className="mt-1 text-sm text-foreground"><code>package.json</code>, <code>Cargo.toml</code>, <code>go.mod</code>, <code>pyproject.toml</code>, JVM, or generic code</div>
+            <div className="border border-border/60  px-3 py-3">
+              {t("repoIntake.rootManifest")}
+              <div className="mt-1 text-sm text-foreground">
+                {t("repoIntake.rootManifestValueFull")}
+              </div>
             </div>
-            <div className="border border-border/60 bg-background/55 px-3 py-3">
-              Analysis posture
-              <div className="mt-1 text-sm text-foreground">Watch-only before apply</div>
+            <div className="border border-border/60  px-3 py-3">
+              {t("repoIntake.analysisPosture")}
+              <div className="mt-1 text-sm text-foreground">{t("repoIntake.watchOnly")}</div>
             </div>
-            <div className="border border-border/60 bg-background/55 px-3 py-3">
-              Output
-              <div className="mt-1 text-sm text-foreground">Ranked findings and diff review</div>
+            <div className="border border-border/60  px-3 py-3">
+              {t("repoIntake.output")}
+              <div className="mt-1 text-sm text-foreground">{t("repoIntake.outputValue")}</div>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {state.kind === "idle" && (
             <div className="border border-dashed border-primary/35 bg-primary/5 px-4 py-6 text-sm text-muted-foreground">
-              We support selected-root repositories for JavaScript/TypeScript, Rust, Python, Go, JVM, .NET, PHP, Ruby, C/C++, and generic code folders.
+              {t("repoIntake.supported")}
             </div>
           )}
 
           {state.kind === "loading" && (
             <div className="border border-primary/25 bg-primary/6 px-4 py-6 text-sm text-muted-foreground">
-              Checking the selected repository root...
+              {t("repoIntake.checking")}
             </div>
           )}
 
@@ -107,11 +111,12 @@ export function JavaRepoHome({
                 <span className="text-sm font-medium">{state.readiness.repoName}</span>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
-                Repository ready for analysis
+                {t("repoIntake.ready")}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                We detected a {state.readiness.projectType} workspace. Start
-                full analysis to build the ranked polyglot refactor findings queue.
+                {t("repoIntake.detected", {
+                  projectType: state.readiness.projectType,
+                })}
               </p>
             </div>
           )}
@@ -119,7 +124,7 @@ export function JavaRepoHome({
           {state.kind === "unsupported" && (
             <div className="border border-destructive/30 bg-destructive/5 px-4 py-6">
               <p className="text-sm font-medium text-foreground">
-                This folder could not be prepared for analysis.
+                {t("repoIntake.unsupported")}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
                 {state.readiness.reason}
@@ -130,7 +135,7 @@ export function JavaRepoHome({
           {state.kind === "error" && (
             <div className="border border-destructive/30 bg-destructive/5 px-4 py-6">
               <p className="text-sm font-medium text-foreground">
-                We could not inspect that folder.
+                {t("repoIntake.inspectFailed")}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">{state.message}</p>
             </div>
@@ -143,17 +148,19 @@ export function JavaRepoHome({
                 variant="ghost"
                 size="sm"
                 onClick={onChooseFolder}
-                aria-label="Choose another folder"
+                aria-label={t("repoIntake.chooseAnother")}
               >
-                Choose another folder
+                {t("repoIntake.chooseAnother")}
               </Button>
               <Button size="sm" onClick={onStartFullAnalysis}>
-                Start full analysis
+                {t("repoIntake.startFullAnalysis")}
               </Button>
             </>
           ) : (
             <Button size="sm" onClick={onChooseFolder}>
-              {state.kind === "unsupported" ? "Choose another folder" : "Choose code repository"}
+              {state.kind === "unsupported"
+                ? t("repoIntake.chooseAnother")
+                : t("repoIntake.chooseRepo")}
             </Button>
           )}
         </CardFooter>

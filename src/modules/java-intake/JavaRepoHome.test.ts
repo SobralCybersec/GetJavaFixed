@@ -9,19 +9,17 @@ const appSrc = readFileSync(path.join(here, "../../app/App.tsx"), "utf8");
 
 describe("JavaRepoHome intake shell", () => {
   it("uses the Phase 1 primary analysis CTA", () => {
-    expect(homeSrc).toContain("Start full analysis");
+    expect(homeSrc).toContain('t("repoIntake.startFullAnalysis")');
   });
 
   it("keeps a recovery action for inspection failures", () => {
-    expect(homeSrc).toContain("Choose another folder");
-    expect(homeSrc).toContain("This folder could not be prepared for analysis.");
+    expect(homeSrc).toContain('t("repoIntake.chooseAnother")');
+    expect(homeSrc).toContain('t("repoIntake.unsupported")');
   });
 
   it("keeps the readiness copy minimal and polyglot focused", () => {
-    expect(homeSrc).toContain("Repository ready for analysis");
-    expect(homeSrc).toContain("package.json");
-    expect(homeSrc).toContain("Cargo.toml");
-    expect(homeSrc).toContain("generic code");
+    expect(homeSrc).toContain('t("repoIntake.ready")');
+    expect(homeSrc).toContain('t("repoIntake.rootManifestValueFull")');
   });
 
   it("exposes an explicit start callback for dashboard entry", () => {

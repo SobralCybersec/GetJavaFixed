@@ -1,7 +1,7 @@
 import { ensureMonoFontsLoaded } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { SearchAddon } from "@xterm/addon-search";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DormantRing } from "./dormantRing";
 import {
   createShellIntegrationState,
@@ -51,6 +51,11 @@ type Session = {
   dormantRing: DormantRing;
   hasSlot: boolean;
   altScreenAtRelease: boolean;
+};
+
+export type TerminalBootState = {
+  status: "loading" | "ready" | "error";
+  message: string | null;
 };
 
 const sessions = new Map<number, Session>();
@@ -180,8 +185,8 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
   sessions.set(leafId, session);
 
   session.ready = (async () => {
-    await ensureMonoFontsLoaded();
-    await document.fonts.ready;
+    await settleWithin(ensureMonoFontsLoaded(), 1500);
+    await settleWithin(document.fonts.ready, 1500);
   })();
 
   return session;
@@ -190,6 +195,7 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
   const s = sessions.get(leafId);
   if (!s) return;
+  markSessionReady(leafId);
   const slot = getSlotForLeaf(leafId);
   if (slot) slot.term.write(bytes);
   else s.dormantRing.push(bytes);
@@ -277,6 +283,7 @@ function attachSession(
   leafId: number,
   container: HTMLDivElement,
   callbacks: Callbacks,
+  onBootState?: (state: TerminalBootState) => void,
 ): void {
   const s = sessions.get(leafId);
   if (!s || s.disposed) return;
@@ -284,9 +291,11 @@ function attachSession(
   s.container = container;
 
   if (s.visibleNow) bindLeafToSlot(leafId, s);
+  if (s.pty) onBootState?.({ status: "ready", message: null });
 
   if (!s.pty && !s.ptyOpening && !s.shellExited) {
     s.ptyOpening = true;
+    onBootState?.({ status: "loading", message: null });
     openPtyForSession(leafId, s, s.initialCwd)
       .then((pty) => {
         s.ptyOpening = false;
@@ -296,10 +305,14 @@ function attachSession(
         }
         s.pty = pty;
         if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
+        onBootState?.({ status: "ready", message: null });
       })
       .catch((e) => {
         s.ptyOpening = false;
         console.error("[javarf] openPty failed:", e);
+        const message = e instanceof Error ? e.message : String(e);
+        writeSystemLine(leafId, `Terminal failed to start: ${message}`);
+        onBootState?.({ status: "error", message });
       });
   }
 }
@@ -394,6 +407,10 @@ export function useTerminalSession({
 }: Options) {
   const cbRef = useRef({ onSearchReady, onExit, onCwd });
   cbRef.current = { onSearchReady, onExit, onCwd };
+  const [bootState, setBootState] = useState<TerminalBootState>({
+    status: "loading",
+    message: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -406,7 +423,7 @@ export function useTerminalSession({
         onSearchReady: (a) => cbRef.current.onSearchReady?.(a),
         onExit: (c) => cbRef.current.onExit?.(c),
         onCwd: (c) => cbRef.current.onCwd?.(c),
-      });
+      }, setBootState);
       if (s.visibleNow && s.focusedNow) focusSlot(leafId);
     });
     return () => {
@@ -508,8 +525,8 @@ export function useTerminalSession({
   }, []);
 
   return useMemo(
-    () => ({ write, focus, getBuffer, getSelection, applyTheme }),
-    [write, focus, getBuffer, getSelection, applyTheme],
+    () => ({ write, focus, getBuffer, getSelection, applyTheme, bootState }),
+    [write, focus, getBuffer, getSelection, applyTheme, bootState],
   );
 }
 
@@ -518,4 +535,26 @@ const ANSI_RE =
 
 function stripAnsi(s: string): string {
   return s.replace(ANSI_RE, "");
+}
+
+function settleWithin(promise: Promise<unknown>, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    const timer = window.setTimeout(finish, timeoutMs);
+    promise
+      .catch(() => undefined)
+      .then(() => {
+        window.clearTimeout(timer);
+        finish();
+      });
+  });
+}
+
+function writeSystemLine(leafId: number, message: string): void {
+  deliverPtyBytes(leafId, new TextEncoder().encode(`\r\n${message}\r\n`));
 }

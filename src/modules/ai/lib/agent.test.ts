@@ -11,6 +11,7 @@ import {
   extractLikelyLiveRequestText,
   isDegradedLocalToolTurn,
   messageLikelyNeedsMcpTools,
+  messageLikelyNeedsResearchMcpTools,
   normalizeAgentRunError,
   planAgentTurnCapabilities,
   selectActiveTools,
@@ -355,6 +356,65 @@ Check in Internet/Search websearch and find the best configs setup for this.`,
       ]),
     );
     expect(plan.shouldRequireFirstToolCall).toBe(true);
+  });
+
+  it("preserves dork queries from pasted deep-search transcripts", () => {
+    const prompt = `Use google dork queries and search about with "Matheus Sobral da Silva" filetype: things like
+
+
+Reasoned
+
+Busca profunda
+"Matheus Sobral da Silva" filetype:pdf
+
+Busca profunda
+"Matheus Sobral" OR "Mateus Sobral" filetype:doc OR filetype:docx curriculum OR curriculo OR resume OR CV
+
+Busca profunda
+"Matheus Sobral da Silva" site:github.com OR site:linkedin.com OR site:curseforge.com OR site:medium.com OR site:dev.to
+
+Busca profunda
+"SobralCybersec" OR "matheussobralda" OR "matheusrps" OR "matheusalume" filetype:pdf OR filetype:txt OR filetype:md
+
+Reasoned
+
+Busca profunda
+inurl:"matheus sobral" OR inurl:"mateus sobral" filetype:pdf OR filetype:doc
+
+Busca profunda
+intitle:"Matheus Sobral" OR intitle:"Mateus Sobral" curriculum OR curriculo OR resume OR lattes
+
+Busca profunda
+"Matheus Sobral da Silva" site:jusbrasil.com.br OR site:esaj.tjsp.jus.br OR site:tjmg.jus.br OR site:diarioficial.com.br
+And you find who is it?`;
+    const messages = [userMessage(prompt)];
+    const extracted = extractLikelyLiveRequestText(messages);
+
+    expect(extracted).toContain('"Matheus Sobral da Silva" filetype:pdf');
+    expect(extracted).toContain("And you find who is it?");
+    expect(messageLikelyNeedsMcpTools(messages)).toBe(true);
+    expect(messageLikelyNeedsResearchMcpTools(messages)).toBe(true);
+
+    const plan = planAgentTurnCapabilities({
+      modelId: "openai-compatible-custom",
+      messages,
+      availableTools: makeAvailableTools(),
+      mcpToolNames: [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ],
+    });
+
+    expect(plan.shouldLoadMcp).toBe(true);
+    expect(plan.shouldRequireFirstToolCall).toBe(true);
+    expect(plan.activeTools).toEqual(
+      expect.arrayContaining([
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "web_fetch_exa",
+      ]),
+    );
   });
 
   it("does not let pasted transcript tool traces force tools for a trailing plain question", () => {

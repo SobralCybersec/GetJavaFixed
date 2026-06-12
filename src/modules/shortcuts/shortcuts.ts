@@ -1,4 +1,5 @@
 import { IS_MAC, MOD_PROP } from "@/lib/platform";
+import type { MessageKey } from "@/modules/i18n/messages";
 
 /**
  * Single source of truth for keyboard shortcuts.
@@ -86,7 +87,7 @@ export const SHORTCUTS: Shortcut[] = [
   },
   {
     id: "tab.newPreview",
-    label: "New preview tab",
+    label: "New browser tab",
     group: "Tabs",
     defaultBindings: [{ [MOD_PROP]: true, key: "p" }],
   },
@@ -242,6 +243,86 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   "AI",
   "Editor",
 ];
+
+export function shortcutGroupKey(group: ShortcutGroup): MessageKey {
+  switch (group) {
+    case "General":
+      return "shortcuts.group.general";
+    case "Tabs":
+      return "shortcuts.group.tabs";
+    case "Panes":
+      return "shortcuts.group.panes";
+    case "Terminal":
+      return "shortcuts.group.terminal";
+    case "Search":
+      return "shortcuts.group.search";
+    case "AI":
+      return "shortcuts.group.ai";
+    case "View":
+      return "shortcuts.group.view";
+    case "Editor":
+      return "shortcuts.group.editor";
+  }
+}
+
+export function shortcutLabelKey(id: ShortcutId): MessageKey {
+  switch (id) {
+    case "settings.open":
+      return "shortcuts.command.settings.open";
+    case "shortcuts.open":
+      return "shortcuts.command.shortcuts.open";
+    case "tab.new":
+      return "shortcuts.command.tab.new";
+    case "tab.newPrivate":
+      return "shortcuts.command.tab.newPrivate";
+    case "tab.newPreview":
+      return "shortcuts.command.tab.newPreview";
+    case "tab.newEditor":
+      return "shortcuts.command.tab.newEditor";
+    case "tab.close":
+      return "shortcuts.command.tab.close";
+    case "pane.splitRight":
+      return "shortcuts.command.pane.splitRight";
+    case "pane.splitDown":
+      return "shortcuts.command.pane.splitDown";
+    case "pane.focusNext":
+      return "shortcuts.command.pane.focusNext";
+    case "pane.focusPrev":
+      return "shortcuts.command.pane.focusPrev";
+    case "pane.source":
+      return "shortcuts.command.pane.source";
+    case "terminal.clear":
+      return "shortcuts.command.terminal.clear";
+    case "tab.next":
+      return "shortcuts.command.tab.next";
+    case "tab.prev":
+      return "shortcuts.command.tab.prev";
+    case "tab.selectByIndex":
+      return "shortcuts.command.tab.selectByIndex";
+    case "explorer.search":
+      return "shortcuts.command.explorer.search";
+    case "search.focus":
+      return "shortcuts.command.search.focus";
+    case "ai.toggle":
+      return "shortcuts.command.ai.toggle";
+    case "ai.askSelection":
+      return "shortcuts.command.ai.askSelection";
+    case "sidebar.toggle":
+      return "shortcuts.command.sidebar.toggle";
+    case "explorer.focus":
+      return "shortcuts.command.explorer.focus";
+    case "view.zoomIn":
+      return "shortcuts.command.view.zoomIn";
+    case "view.zoomOut":
+      return "shortcuts.command.view.zoomOut";
+    case "view.zoomReset":
+      return "shortcuts.command.view.zoomReset";
+    case "editor.undo":
+      return "shortcuts.command.editor.undo";
+    case "editor.redo":
+      return "shortcuts.command.editor.redo";
+  }
+}
 
 /**
  * Matching logic: checks if a KeyboardEvent matches a KeyBinding.

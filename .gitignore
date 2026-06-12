@@ -16,6 +16,7 @@ dist-ssr
 src-tauri/target-test
 testcommit
 src2/src
+src-tauri/resources/extensions
 
 # Editor directories and files
 .vscode/*

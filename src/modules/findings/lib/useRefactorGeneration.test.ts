@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isLikelyCompleteJavaFile } from "./useRefactorGeneration";
+import {
+  detectRefactorLanguageProfileId,
+  isLikelyCompleteJavaFile,
+} from "./useRefactorGeneration";
 
 describe("useRefactorGeneration output validation", () => {
   it("rejects truncated java output", () => {
@@ -46,5 +49,18 @@ describe("useRefactorGeneration output validation", () => {
     ].join("\n");
 
     expect(isLikelyCompleteJavaFile(original, proposed)).toBe(true);
+  });
+
+  it("detects assembly language profiles from asm files", () => {
+    const asm = [
+      "global _start",
+      "section .text",
+      "_start:",
+      "    mov rax, 60",
+      "    xor rdi, rdi",
+      "    syscall",
+    ].join("\n");
+
+    expect(detectRefactorLanguageProfileId("src/main.asm", asm)).toBe("assembly");
   });
 });

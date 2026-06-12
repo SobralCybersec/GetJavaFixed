@@ -13,6 +13,11 @@ import { describe, expect, it } from "vitest";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(here, "PreviewPane.tsx"), "utf8");
+const stackSrc = readFileSync(path.join(here, "PreviewStack.tsx"), "utf8");
+const nativeSrc = readFileSync(
+  path.join(here, "NativeWebviewSurface.tsx"),
+  "utf8",
+);
 const iframeMatch = src.match(/<iframe[\s\S]*?\/>/);
 const iframeJsx = (iframeMatch?.[0] ?? "")
   .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -44,5 +49,18 @@ describe("PreviewPane iframe sandbox", () => {
 
   it("sets referrerPolicy to no-referrer", () => {
     expect(iframeJsx).toMatch(/referrerPolicy="no-referrer"/);
+  });
+
+  it("keeps preview containers clamped to their pane", () => {
+    expect(src).toContain("min-h-0 w-full min-w-0");
+    expect(src).toContain("min-w-0 flex-1 overflow-hidden");
+    expect(stackSrc).toContain("min-h-0 w-full min-w-0 overflow-hidden");
+    expect(stackSrc).toContain("absolute inset-0 min-h-0 min-w-0 overflow-hidden");
+  });
+
+  it("resyncs native webview bounds when layout moves", () => {
+    expect(nativeSrc).toContain("requestSyncBounds");
+    expect(nativeSrc).toContain('window.addEventListener("scroll", onScroll, true)');
+    expect(nativeSrc).toContain("min-h-0 w-full min-w-0 overflow-hidden");
   });
 });

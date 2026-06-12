@@ -235,7 +235,7 @@ export function ModelsSection() {
   };
 
   if (!keys) {
-    return <div className="text-[12px] text-muted-foreground">Loading…</div>;
+    return <div className="text-[12px] text-muted-foreground">{t("models.loading")}</div>;
   }
 
   const configuredIds = new Set(
@@ -312,7 +312,7 @@ export function ModelsSection() {
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <Label>Providers</Label>
+          <Label>{t("models.providers")}</Label>
           <AddProviderMenu
             providers={addableProviders}
             onAdd={addProvider}
@@ -322,10 +322,10 @@ export function ModelsSection() {
         {visibleProviders.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/60 bg-card/40 px-4 py-8 text-center">
             <p className="text-[12px] text-muted-foreground">
-              No providers connected yet.
+              {t("models.noProviders")}
             </p>
             <p className="mt-0.5 text-[10.5px] text-muted-foreground/70">
-              Click “Add provider” to connect a cloud or local model source.
+              {t("models.noProvidersHint")}
             </p>
           </div>
         ) : (
@@ -382,6 +382,7 @@ function AddProviderMenu({
   providers: readonly ProviderInfo[];
   onAdd: (id: ProviderId) => void;
 }) {
+  const { t } = useI18n();
   const cloud = providers.filter((p) => !isLocalProvider(p.id));
   const local = providers.filter((p) => isLocalProvider(p.id));
   const disabled = providers.length === 0;
@@ -396,14 +397,14 @@ function AddProviderMenu({
           className="h-7 gap-1.5 px-2.5 text-[11px]"
         >
           <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={2} />
-          Add provider
+          {t("models.addProvider")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-55 p-1">
         {cloud.length > 0 ? (
           <>
             <DropdownMenuLabel className="px-2 text-[10px] tracking-wide text-muted-foreground uppercase">
-              Cloud
+              {t("models.providerGroup.cloud")}
             </DropdownMenuLabel>
             {cloud.map((p) => (
               <ProviderMenuItem key={p.id} provider={p} onAdd={onAdd} />
@@ -413,7 +414,7 @@ function AddProviderMenu({
         {local.length > 0 ? (
           <>
             <DropdownMenuLabel className="px-2 text-[10px] tracking-wide text-muted-foreground uppercase">
-              Local & custom
+              {t("models.providerGroup.local")}
             </DropdownMenuLabel>
             {local.map((p) => (
               <ProviderMenuItem key={p.id} provider={p} onAdd={onAdd} />
@@ -452,11 +453,12 @@ function DefaultsBlock({
   configuredIds: Set<ProviderId>;
   keys: KeysMap;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col gap-3">
-      <Label>Defaults</Label>
+      <Label>{t("models.defaults")}</Label>
       <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
-        <FieldRow label="Chat model">
+        <FieldRow label={t("models.defaults.chatModel")}>
           <DefaultModelPicker
             defaultModel={defaultModel}
             configuredIds={configuredIds}
@@ -469,6 +471,7 @@ function DefaultsBlock({
 }
 
 function RefactorPromptControlBlock({ value }: { value: string }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {
@@ -489,21 +492,18 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Label>Refactor prompt control</Label>
+      <Label>{t("models.refactorPromptControl")}</Label>
       <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          This applies only to AI refactor previews. Precedence: built-in
-          refactor system prompt, matched rule docs, your refactor instructions,
-          then the finding or file context.
+          {t("models.refactorPromptControlHelp")}
         </p>
         <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-          Normal chat keeps using Custom instructions in Agents. This setting does not change the
-          main chat agent.
+          {t("models.refactorPromptControlHelpSecondary")}
         </p>
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="e.g. Prefer guard clauses over nested branches. Favor tiny helper extraction over new abstractions. Keep changes under 30 lines when possible."
+          placeholder={t("models.refactorPromptPlaceholder")}
           className="min-h-[120px] resize-y border border-border bg-card/50 font-sans text-[12px] leading-relaxed"
         />
         <div className="flex flex-wrap items-center gap-2">
@@ -512,7 +512,7 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
             onClick={() => void setRefactorCustomInstructions(draft)}
             className="h-8 px-3 text-[11px]"
           >
-            Save refactor instructions
+            {t("models.saveRefactorInstructions")}
           </Button>
           <Button
             size="sm"
@@ -520,7 +520,7 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
             onClick={() => void openRefactorPromptFolder()}
             className="h-8 px-3 text-[11px]"
           >
-            Open rule folder
+            {t("models.openRulesFolder")}
           </Button>
           <Button
             size="sm"
@@ -528,7 +528,7 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
             onClick={() => void openRefactorPromptBuilder()}
             className="h-8 px-3 text-[11px]"
           >
-            Open prompt builder
+            {t("models.openBuilderFile")}
           </Button>
         </div>
       </div>
@@ -537,6 +537,7 @@ function RefactorPromptControlBlock({ value }: { value: string }) {
 }
 
 function RefactorRulesExplorerBlock() {
+  const { t } = useI18n();
   const [root, setRoot] = useState<string | null>(null);
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -583,7 +584,7 @@ function RefactorRulesExplorerBlock() {
       .readFile(`${root}/${selectedFile}`)
       .then((result) => {
         if (result.kind !== "text") {
-          throw new Error("Rule file is not readable text.");
+          throw new Error(t("models.ruleFileNotReadable"));
         }
         setContent(result.content);
         setSavedContent(result.content);
@@ -599,19 +600,18 @@ function RefactorRulesExplorerBlock() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Label>Refactor rules</Label>
+      <Label>{t("models.refactorRules")}</Label>
       <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Browse and edit the markdown rules that feed AI refactor previews. Changes save directly
-          into the app-local refactor rules folder.
+          {t("models.refactorRulesDescription")}
         </p>
         <p className="text-[10.5px] leading-relaxed text-muted-foreground/80">
-          {root ? `Rules folder: ${root}` : "Loading rules folder…"}
+          {root ? t("models.rulesFolderValue", { path: root }) : t("models.loadingRulesFolder")}
         </p>
         <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
           <div className="rounded-lg border border-border/60 bg-card/50 p-2">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-muted-foreground">Rule files</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t("models.ruleFiles")}</span>
               <Button
                 size="sm"
                 variant="ghost"
@@ -642,9 +642,9 @@ function RefactorRulesExplorerBlock() {
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">
-                {selectedFile ?? "No rule selected"}
+                {selectedFile ?? t("models.noRuleSelected")}
               </Badge>
-              {dirty ? <Badge variant="secondary">Unsaved</Badge> : null}
+              {dirty ? <Badge variant="secondary">{t("models.unsaved")}</Badge> : null}
               {status === "error" && error ? (
                 <span className="text-[11px] text-destructive/80">{error}</span>
               ) : null}
@@ -652,7 +652,7 @@ function RefactorRulesExplorerBlock() {
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Select a markdown rule to edit it here."
+              placeholder={t("models.selectRulePlaceholder")}
               className="min-h-[320px] resize-y border border-border bg-card/50 font-mono text-[11.5px] leading-relaxed"
             />
             <div className="flex flex-wrap items-center gap-2">
@@ -677,7 +677,7 @@ function RefactorRulesExplorerBlock() {
                 }}
                 className="h-8 px-3 text-[11px]"
               >
-                Save selected rule
+                {t("models.saveSelectedRule")}
               </Button>
               <Button
                 size="sm"
@@ -689,7 +689,7 @@ function RefactorRulesExplorerBlock() {
                 }}
                 className="h-8 px-3 text-[11px]"
               >
-                Reveal rules folder
+                {t("models.revealRulesFolder")}
               </Button>
               <Button
                 size="sm"
@@ -701,7 +701,7 @@ function RefactorRulesExplorerBlock() {
                 }}
                 className="h-8 px-3 text-[11px]"
               >
-                Reveal manifest
+                {t("models.revealManifest")}
               </Button>
             </div>
           </div>
@@ -728,6 +728,7 @@ export function KeyRow({
   onSave: () => Promise<void>;
   onClear: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   return (
     <FieldRow label={label}>
       {currentKey ? (
@@ -739,7 +740,7 @@ export function KeyRow({
             size="icon"
             variant="ghost"
             onClick={() => void onClear()}
-            title="Remove key"
+            title={t("models.removeKey")}
             className="size-7 text-muted-foreground hover:text-destructive"
           >
             <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
@@ -850,6 +851,7 @@ function AutocompleteRow({
   keys: KeysMap;
   configuredIds: Set<ProviderId>;
 }) {
+  const { t } = useI18n();
   const enabled = usePreferencesStore((s) => s.autocompleteEnabled);
   const provider = usePreferencesStore((s) => s.autocompleteProvider);
   const modelId = usePreferencesStore((s) => s.autocompleteModelId);
@@ -895,7 +897,7 @@ function AutocompleteRow({
 
   return (
     <>
-      <FieldRow label="Autocomplete">
+      <FieldRow label={t("models.autocomplete")}>
         <div className="flex flex-1 items-center gap-2">
           <Switch
             checked={enabled}
@@ -939,7 +941,7 @@ function AutocompleteRow({
                       <span>{p.label}</span>
                       {!pConfigured ? (
                         <span className="ml-auto text-[9.5px] normal-case tracking-normal text-muted-foreground/70">
-                          not connected
+                          {t("models.notConnected")}
                         </span>
                       ) : null}
                     </div>
@@ -970,7 +972,7 @@ function AutocompleteRow({
       </FieldRow>
       {enabled && !hasKey ? (
         <p className="pl-19 text-[10.5px] text-muted-foreground">
-          {getProvider(provider).label} isn't connected — add it below.
+          {t("models.providerNotConnected", { provider: getProvider(provider).label })}
         </p>
       ) : null}
     </>
@@ -996,6 +998,7 @@ function LocalProviderCard({
   onClearKey: () => Promise<void>;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const {
     baseURL,
     modelId,
@@ -1027,6 +1030,38 @@ function LocalProviderCard({
     provider.id === "lmstudio" ||
     provider.id === "mlx" ||
     provider.id === "ollama";
+
+  const localizedDescription =
+    provider.id === "lmstudio"
+      ? t("models.local.lmstudio.description")
+      : provider.id === "mlx"
+        ? t("models.local.mlx.description")
+        : provider.id === "ollama"
+          ? t("models.local.ollama.description")
+          : provider.id === "openai-compatible"
+            ? t("models.local.compat.description")
+            : provider.id === "openrouter"
+              ? t("models.local.openrouter.description")
+              : meta.description;
+
+  const localizedModelHint =
+    provider.id === "lmstudio" ? (
+      <>
+        {t("models.local.lmstudio.modelHintPrefix")}{" "}
+        <span className="font-mono">/v1/models</span> {t("models.local.lmstudio.modelHintSuffix")}
+      </>
+    ) : provider.id === "mlx" ? (
+      <>{t("models.local.mlx.modelHint")}</>
+    ) : provider.id === "ollama" ? (
+      <>{t("models.local.ollama.modelHint")}</>
+    ) : provider.id === "openrouter" ? (
+      <>
+        {t("models.local.openrouter.modelHintPrefix")}{" "}
+        <span className="font-mono">openrouter.ai/models</span>.
+      </>
+    ) : (
+      meta.modelHint
+    );
 
   const activateProviderModel = async () => {
     const selectedByProvider: Partial<Record<ProviderId, ModelId>> = {
@@ -1107,7 +1142,7 @@ function LocalProviderCard({
             className="ml-1 h-4 gap-1 border-border/60 bg-muted/40 px-1.5 text-[10px] font-normal text-muted-foreground"
           >
             <HugeiconsIcon icon={CheckmarkCircle02Icon} size={9} strokeWidth={2} />
-            Connected
+            {t("models.connected")}
           </Badge>
         ) : null}
         <button
@@ -1115,14 +1150,14 @@ function LocalProviderCard({
           onClick={() => void openUrl(provider.consoleUrl)}
           className="ml-auto inline-flex items-center gap-0.5 text-[10.5px] text-muted-foreground transition-colors hover:text-foreground"
         >
-          Docs
+          {t("mcp.docs")}
           <HugeiconsIcon icon={ArrowUpRight01Icon} size={11} strokeWidth={1.75} />
         </button>
         <Button
           size="icon"
           variant="ghost"
           onClick={onRemove}
-          title="Remove provider"
+          title={t("models.removeProvider")}
           className="size-7 text-muted-foreground hover:text-destructive"
         >
           <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
@@ -1130,12 +1165,12 @@ function LocalProviderCard({
       </div>
 
       <span className="text-[10.5px] leading-relaxed text-muted-foreground">
-        {meta.description}
+        {localizedDescription}
       </span>
 
       <div className="mt-0.5 flex flex-col gap-2.5">
         {noBaseURL ? null : (
-          <FieldRow label="Base URL">
+          <FieldRow label={t("models.baseUrl")}>
             <div className="flex flex-1 gap-1.5">
               <Input
                 value={urlDraft}
@@ -1155,7 +1190,7 @@ function LocalProviderCard({
                 disabled={!urlDraft.trim()}
                 className="h-8 px-3 text-[11px]"
               >
-                Test
+                {t("models.test")}
               </Button>
               {supportsModelDiscovery ? (
                 <Button
@@ -1165,14 +1200,14 @@ function LocalProviderCard({
                   disabled={!urlDraft.trim() || modelsBusy}
                   className="h-8 px-3 text-[11px]"
                 >
-                  {modelsBusy ? "Loading…" : "Load models"}
+                  {modelsBusy ? t("models.loading") : t("models.loadModels")}
                 </Button>
               ) : null}
             </div>
           </FieldRow>
         )}
 
-        <FieldRow label="Model ID">
+        <FieldRow label={t("models.modelId")}>
           <Input
             value={modelDraft}
             onChange={(e) => setModelDraft(e.target.value)}
@@ -1187,7 +1222,7 @@ function LocalProviderCard({
         </FieldRow>
 
         {setContextLimit ? (
-          <FieldRow label="Context">
+          <FieldRow label={t("models.context")}>
             <div className="flex flex-1 items-center gap-1.5">
               <Input
                 value={contextDraft}
@@ -1201,13 +1236,13 @@ function LocalProviderCard({
                 spellCheck={false}
                 className="h-8 w-28 font-mono text-[11.5px]"
               />
-              <span className="text-[10.5px] text-muted-foreground">tokens</span>
+              <span className="text-[10.5px] text-muted-foreground">{t("models.tokens")}</span>
             </div>
           </FieldRow>
         ) : null}
 
         {supportsKey ? (
-          <FieldRow label="API key">
+          <FieldRow label={t("models.apiKey")}>
             {compatKey ? (
               <div className="flex flex-1 items-center gap-1.5">
                 <code className="flex-1 truncate rounded bg-muted/40 px-2 py-1 font-mono text-[11px] text-muted-foreground">
@@ -1217,7 +1252,7 @@ function LocalProviderCard({
                   size="icon"
                   variant="ghost"
                   onClick={() => void onClearKey()}
-                  title="Remove key"
+                  title={t("models.removeKey")}
                   className="size-7 text-muted-foreground hover:text-destructive"
                 >
                   <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={1.75} />
@@ -1229,7 +1264,7 @@ function LocalProviderCard({
                   type="password"
                   value={keyDraft}
                   onChange={(e) => setKeyDraft(e.target.value)}
-                  placeholder="Optional — leave empty for unauthenticated endpoints"
+                  placeholder={t("models.optionalApiKey")}
                   spellCheck={false}
                   className="h-8 flex-1 font-mono text-[11.5px]"
                 />
@@ -1244,7 +1279,7 @@ function LocalProviderCard({
                   disabled={!keyDraft.trim()}
                   className="h-8 px-3 text-[11px]"
                 >
-                  Save
+                  {t("agents.save")}
                 </Button>
               </div>
             )}
@@ -1275,17 +1310,17 @@ function LocalProviderCard({
               ) : (
                 <span className="text-[10.5px] text-muted-foreground">
                   {modelsError
-                    ? `Model discovery failed: ${modelsError}`
-                    : "Load models from this endpoint to pick one directly."}
+                    ? t("models.modelDiscoveryFailed", { error: modelsError })
+                    : t("models.loadModelsHint")}
                 </span>
               )}
             </div>
           </div>
         ) : null}
 
-        {!modelId.trim() && meta.modelHint ? (
+        {!modelId.trim() && localizedModelHint ? (
           <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-            {meta.modelHint}
+            {localizedModelHint}
           </p>
         ) : null}
       </div>
@@ -1315,23 +1350,24 @@ function StatusLine({
 }: {
   status: "idle" | "testing" | "ok" | "fail";
 }) {
+  const { t } = useI18n();
   if (status === "idle") return null;
   if (status === "testing") {
     return (
-      <span className="text-[10.5px] text-muted-foreground">Testing…</span>
+      <span className="text-[10.5px] text-muted-foreground">{t("models.testing")}</span>
     );
   }
   if (status === "ok") {
     return (
       <span className="flex items-center gap-1 text-[10.5px] text-muted-foreground">
         <HugeiconsIcon icon={CheckmarkCircle02Icon} size={11} strokeWidth={2} />
-        Reachable — server responded.
+        {t("models.reachable")}
       </span>
     );
   }
   return (
     <span className="text-[10.5px] text-destructive/80">
-      Could not reach the server.
+      {t("models.unreachable")}
     </span>
   );
 }

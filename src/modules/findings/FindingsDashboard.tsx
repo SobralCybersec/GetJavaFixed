@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ChartData, ChartOptions } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
@@ -71,7 +72,7 @@ type Props = {
 };
 
 const CARD_HEADER_CLASS =
-  "gap-2 border-b border-border/60 bg-background/55 !px-4 !py-3";
+  "gap-2 border-b border-border/60  !px-4 !py-3";
 
 const CARD_CONTENT_CLASS = "!px-4 !py-4";
 
@@ -81,6 +82,7 @@ export function FindingsDashboard({
   autoStartScanPath,
   onClose,
 }: Props) {
+  const { t } = useI18n();
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [exaApiKey, setExaApiKey] = useState<string | null>(null);
@@ -184,11 +186,11 @@ export function FindingsDashboard({
 
       <div className="sticky top-0 z-10 border-b border-border/60 bg-card/92 px-4 py-3 backdrop-blur xl:sticky xl:px-6">
         <div className="flex min-h-8 flex-wrap items-center gap-3">
-          <img src="/java.png" alt="" className="size-7 object-contain" />
+          <img src="/app.png" alt="" className="size-13 object-contain" />
 
           <div className="min-w-0 flex-1">
             <div className="font-project-title text-xl font-semibold uppercase leading-none text-foreground">
-              Diagnose Code
+              {t("findings.title")}
             </div>
             <div className="break-words text-xs leading-snug text-muted-foreground">
               {repo.readiness.repoName}
@@ -206,7 +208,7 @@ export function FindingsDashboard({
               onClick={onClose}
               className="ml-auto sm:ml-0"
             >
-              Open workspace
+              {t("home.openWorkspace")}
             </Button>
           ) : null}
         </div>
@@ -217,18 +219,21 @@ export function FindingsDashboard({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 gap-4">
             <TabsList className="javarf-terminal-tabs h-auto w-full justify-start overflow-x-auto border border-border/80 bg-card/95 p-1">
               <TabsTrigger className="javarf-terminal-tab" value="overview">
-                Overview
+                {t("findings.tabs.overview")}
               </TabsTrigger>
               <TabsTrigger className="javarf-terminal-tab" value="intelligence">
-                Refactor Intelligence
+                {t("findings.tabs.intelligence")}
               </TabsTrigger>
               <TabsTrigger className="javarf-terminal-tab" value="findings">
-                Findings Queue
+                {t("findings.tabs.findings")}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
-              <DashboardWidget title="Command center" reduceMotion={reduceMotion}>
+              <DashboardWidget
+                title={t("findings.widget.commandCenter")}
+                reduceMotion={reduceMotion}
+              >
                 <DashboardHeroSummary
                   repoName={repo.readiness.repoName}
                   projectType={repo.readiness.projectType}
@@ -244,7 +249,7 @@ export function FindingsDashboard({
 
             <TabsContent value="intelligence" className="space-y-4">
               <DashboardWidget
-                title="Refactor intelligence"
+                title={t("findings.widget.refactorIntelligence")}
                 reduceMotion={reduceMotion}
               >
                 <DashboardAnalyticsOverview
@@ -257,7 +262,10 @@ export function FindingsDashboard({
 
             <TabsContent value="findings" className="space-y-4">
               <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(420px,0.85fr)]">
-                <DashboardWidget title="Findings queue" reduceMotion={reduceMotion}>
+                <DashboardWidget
+                  title={t("findings.widget.findingsQueue")}
+                  reduceMotion={reduceMotion}
+                >
                   <Card
                     size="sm"
                     className="javarf-terminal-frame java-panel ops-card border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]"
@@ -266,10 +274,10 @@ export function FindingsDashboard({
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="min-w-0">
                           <CardTitle className="whitespace-normal leading-tight">
-                            Refactor findings queue
+                            {t("findings.queue.title")}
                           </CardTitle>
                           <CardDescription>
-                            Ranked code hotspots first, plus direct file previews before any write path.
+                            {t("findings.queue.description")}
                           </CardDescription>
 
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -277,7 +285,7 @@ export function FindingsDashboard({
                               variant="outline"
                               className="border-border/70 bg-background/60 uppercase tracking-[0.14em]"
                             >
-                              {scopeLabel ?? "Whole repository"}
+                              {scopeLabel ?? t("findings.wholeRepository")}
                             </Badge>
 
                             {activeScanPath ? (
@@ -287,11 +295,19 @@ export function FindingsDashboard({
                             ) : null}
 
                             {filesScanned > 0 ? (
-                              <span>{filesScanned} source files scanned</span>
+                              <span>
+                                {t("findings.filesScanned", {
+                                  count: String(filesScanned),
+                                })}
+                              </span>
                             ) : null}
 
                             {entriesVisited > 0 ? (
-                              <span>{entriesVisited} entries visited</span>
+                              <span>
+                                {t("findings.entriesVisited", {
+                                  count: String(entriesVisited),
+                                })}
+                              </span>
                             ) : null}
                           </div>
                         </div>
@@ -305,7 +321,7 @@ export function FindingsDashboard({
                               onClick={() => void startAnalysis(selectedScanPath)}
                               disabled={panelState === "analyzing"}
                             >
-                              Analyze selected folder
+                              {t("findings.analyzeSelected")}
                             </Button>
                           ) : null}
 
@@ -315,7 +331,7 @@ export function FindingsDashboard({
                             onClick={() => void startAnalysis()}
                             disabled={panelState === "analyzing"}
                           >
-                            Start full analysis
+                            {t("findings.startFull")}
                           </Button>
                         </div>
                       </div>
@@ -327,7 +343,7 @@ export function FindingsDashboard({
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-medium">{message}</p>
                             <span className="text-xs text-muted-foreground">
-                              watch-only
+                              {t("findings.watchOnly")}
                             </span>
                           </div>
                           <Progress value={progress} className="mt-3" />
@@ -342,14 +358,13 @@ export function FindingsDashboard({
 
                       {partial ? (
                         <div className="javarf-terminal-panel ops-inset-panel border border-amber-500/30 bg-amber-500/8 px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
-                          {partialReason ??
-                            "This scan hit a safety limit and may be incomplete."}
+                          {partialReason ?? t("findings.partialLimit")}
                         </div>
                       ) : null}
 
                       {panelState === "empty" ? (
                         <div className="javarf-terminal-panel ops-inset-panel border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
-                          Start full analysis to build the ranked refactor findings queue.
+                          {t("findings.emptyQueue")}
                         </div>
                       ) : null}
 
@@ -403,10 +418,11 @@ export function FindingsDashboard({
                                     </p>
 
                                     <p className="mt-2 text-xs text-muted-foreground">
-                                      {finding.affectedFiles.length} affected
                                       {finding.affectedFiles.length === 1
-                                        ? " file"
-                                        : " files"}
+                                        ? t("findings.affected.one")
+                                        : t("findings.affected.many", {
+                                            count: String(finding.affectedFiles.length),
+                                          })}
                                     </p>
                                   </div>
                                 </motion.button>
@@ -420,7 +436,7 @@ export function FindingsDashboard({
                 </DashboardWidget>
 
                 <DashboardWidget
-                  title="Finding details"
+                  title={t("findings.widget.findingDetails")}
                   reduceMotion={reduceMotion}
                   className="hidden min-w-0 lg:block"
                 >
@@ -430,11 +446,10 @@ export function FindingsDashboard({
                   >
                     <CardHeader className={CARD_HEADER_CLASS}>
                       <CardTitle>
-                        {selectedFinding?.title ?? "Finding details"}
+                        {selectedFinding?.title ?? t("findings.widget.findingDetails")}
                       </CardTitle>
                       <CardDescription>
-                        {selectedFinding?.rationale ??
-                          "The top finding opens automatically here after analysis completes."}
+                        {selectedFinding?.rationale ?? t("findings.detailFallback")}
                       </CardDescription>
                     </CardHeader>
 
@@ -458,8 +473,8 @@ export function FindingsDashboard({
                         >
                           <span className="font-semibold">
                             {safety.kind === "gitFirst"
-                              ? "Git-first safety"
-                              : "Backup-copy safety"}
+                              ? t("findings.safety.gitFirst")
+                              : t("findings.safety.backupCopy")}
                           </span>
                           {" - "}
                           {safety.message}
@@ -488,7 +503,7 @@ export function FindingsDashboard({
                               ))
                             ) : (
                               <p className="text-sm text-muted-foreground">
-                                No individual files were highlighted for this finding.
+                                {t("findings.noFindingFiles")}
                               </p>
                             )}
                           </div>
@@ -496,7 +511,7 @@ export function FindingsDashboard({
                           <div className="space-y-3" data-testid="diff-preview">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                AI Refactor preview
+                                {t("findings.refactorPreview")}
                               </span>
 
                               {canGenerateSelectedFinding ? (
@@ -509,7 +524,7 @@ export function FindingsDashboard({
                                     void refactor.generate(selectedFinding, repo.path)
                                   }
                                 >
-                                  Generate refactor
+                                  {t("findings.generateRefactor")}
                                 </Button>
                               ) : refactor.status === "ready" ? (
                                 <Button
@@ -525,9 +540,7 @@ export function FindingsDashboard({
 
                             {refactor.status === "idle" ? (
                               <p className="text-sm text-muted-foreground">
-                                Click "Generate refactor" to get an AI-powered
-                                before/after preview. No files are changed until you
-                                accept and apply.
+                                {t("findings.refactorIdle")}
                               </p>
                             ) : (
                               <div className="flex min-h-[320px] min-w-0 flex-col overflow-hidden">
@@ -543,7 +556,7 @@ export function FindingsDashboard({
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Run analysis or click a source file to populate the right-side detail surface.
+                          {t("findings.noSelection")}
                         </p>
                       )}
                     </CardContent>
@@ -582,6 +595,7 @@ function DashboardWidget({
   className?: string;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
   const controls = useDragControls();
 
@@ -591,7 +605,7 @@ function DashboardWidget({
         <button
           type="button"
           className="flex min-w-0 items-center gap-1.5 px-1.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
-          aria-label={`${title} section`}
+          aria-label={t("findings.sectionAria", { title })}
           onPointerDown={(event) => {
             if (reduceMotion || event.pointerType === "touch") return;
             controls.start(event);
@@ -604,8 +618,12 @@ function DashboardWidget({
         <button
           type="button"
           className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-          title={collapsed ? "Expand" : "Collapse"}
+          aria-label={
+            collapsed
+              ? t("findings.expandSection", { title })
+              : t("findings.collapseSection", { title })
+          }
+          title={collapsed ? t("findings.expand") : t("findings.collapse")}
           onClick={() => setCollapsed((value) => !value)}
         >
           <HugeiconsIcon
@@ -634,6 +652,7 @@ function DashboardAnalyticsOverview({
   progress: number;
   impactSummary: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
       <Card
@@ -641,37 +660,37 @@ function DashboardAnalyticsOverview({
         className="javarf-terminal-frame java-panel overflow-hidden border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]"
       >
         <CardHeader className={CARD_HEADER_CLASS}>
-          <CardTitle>Refactor intelligence</CardTitle>
-          <CardDescription>
-            What the scan found, where it repeats, and which fixes should move first.
-          </CardDescription>
+          <CardTitle>{t("findings.widget.refactorIntelligence")}</CardTitle>
+          <CardDescription>{t("findings.analytics.description")}</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4 !px-4 !py-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
-              label="Total findings"
+              label={t("findings.kpi.total")}
               value={analytics.totalFindings}
-              hint="Ranked hotspots ready for review"
+              hint={t("findings.kpi.totalHint")}
             />
             <KpiCard
-              label="Affected files"
+              label={t("findings.kpi.affected")}
               value={analytics.affectedFiles}
-              hint="Unique files touched by findings"
+              hint={t("findings.kpi.affectedHint")}
             />
             <KpiCard
-              label="Top issue mix"
-              value={analytics.topCategory?.label ?? "None"}
+              label={t("findings.kpi.topIssueMix")}
+              value={analytics.topCategory?.label ?? t("findings.none")}
               hint={
                 analytics.topCategory
-                  ? `${analytics.topCategory.count} findings in the largest category`
-                  : "No findings yet"
+                  ? t("findings.findingsLargestCategory", {
+                      count: String(analytics.topCategory.count),
+                    })
+                  : t("findings.noFindingsYet")
               }
             />
             <KpiCard
-              label="Estimated impact"
+              label={t("findings.kpi.estimatedImpact")}
               value={`${analytics.impactLabel} / ${analytics.impactScore}`}
-              hint="Heuristic estimate, not profiler output"
+              hint={t("findings.heuristicHint")}
             />
           </div>
 
@@ -679,13 +698,15 @@ function DashboardAnalyticsOverview({
             <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">Issue mix</p>
+                  <p className="text-sm font-semibold">{t("findings.issueMix")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Category spread for the current findings queue.
+                    {t("findings.issueMixDescription")}
                   </p>
                 </div>
                 <Badge variant="outline" data-testid="issue-mix-chart">
-                  {analytics.categories.length} categories
+                  {t("findings.categories", {
+                    count: String(analytics.categories.length),
+                  })}
                 </Badge>
               </div>
 
@@ -704,7 +725,7 @@ function DashboardAnalyticsOverview({
                     ))
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Run analysis to populate the issue-mix chart.
+                      {t("findings.issueMixEmpty")}
                     </p>
                   )}
                 </div>
@@ -715,12 +736,12 @@ function DashboardAnalyticsOverview({
               <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">Estimated gains</p>
+                    <p className="text-sm font-semibold">{t("findings.estimatedGains")}</p>
                     <p className="text-xs text-muted-foreground">
                       {impactSummary}
                     </p>
                   </div>
-                  <Badge variant="secondary">Heuristic</Badge>
+                  <Badge variant="secondary">{t("findings.heuristic")}</Badge>
                 </div>
 
                 <ImpactStrip
@@ -732,7 +753,7 @@ function DashboardAnalyticsOverview({
                   {analytics.solutionMessages.map((entry) => (
                     <div
                       key={entry.category}
-                      className="javarf-terminal-panel border border-border/60 bg-background/55 px-3 py-2"
+                      className="javarf-terminal-panel border border-border/60  px-3 py-2"
                     >
                       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {entry.label}
@@ -748,9 +769,9 @@ function DashboardAnalyticsOverview({
               <div className="javarf-terminal-panel ops-inset-panel border border-border/70 bg-card/70 p-4 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">Performance outlook</p>
+                    <p className="text-sm font-semibold">{t("findings.performanceOutlook")}</p>
                     <p className="text-xs text-muted-foreground">
-                      Likely runtime improvements from deterministic heuristics.
+                      {t("findings.performanceDescription")}
                     </p>
                   </div>
                   <Badge variant="outline">
@@ -760,15 +781,15 @@ function DashboardAnalyticsOverview({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <KpiCard
-                    label="Runtime hotspots"
+                    label={t("findings.runtimeHotspots")}
                     value={analytics.performanceSummary.hotspots}
-                    hint="Findings tied to allocation or repeated work"
+                    hint={t("findings.runtimeHotspotsHint")}
                     compact
                   />
                   <KpiCard
-                    label="Scan progress"
+                    label={t("findings.scanProgress")}
                     value={`${progress}%`}
-                    hint="Latest analysis progress snapshot"
+                    hint={t("findings.scanProgressHint")}
                     compact
                   />
                 </div>
@@ -782,7 +803,7 @@ function DashboardAnalyticsOverview({
                     ))
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      No clear performance-specific hotspots detected yet.
+                      {t("findings.noPerformance")}
                     </p>
                   )}
                 </div>
@@ -797,9 +818,9 @@ function DashboardAnalyticsOverview({
         className="javarf-terminal-frame java-panel border border-border/70 shadow-[0_16px_40px_color-mix(in_oklab,var(--background)_85%,transparent)]"
       >
         <CardHeader className={CARD_HEADER_CLASS}>
-          <CardTitle>Hotspot map</CardTitle>
+          <CardTitle>{t("findings.hotspotMap")}</CardTitle>
           <CardDescription>
-            Most repeated categories, triggered principles, and affected files.
+            {t("findings.hotspotMapDescription")}
           </CardDescription>
         </CardHeader>
 
@@ -808,19 +829,19 @@ function DashboardAnalyticsOverview({
           data-testid="hotspot-map"
         >
           <MetricBars
-            title="Category pressure"
+            title={t("findings.metric.categoryPressure")}
             buckets={analytics.categories}
-            empty="No category mix yet."
+            empty={t("findings.metric.emptyCategories")}
           />
           <MetricBars
-            title="Principles triggered most"
+            title={t("findings.metric.principles")}
             buckets={analytics.principles}
-            empty="No principle hints yet."
+            empty={t("findings.metric.emptyPrinciples")}
           />
           <MetricBars
-            title="Top affected files"
+            title={t("findings.metric.files")}
             buckets={analytics.hotspots}
-            empty="No file hotspots yet."
+            empty={t("findings.metric.emptyFiles")}
             monospaceLabels
           />
         </CardContent>
@@ -848,6 +869,7 @@ function DashboardHeroSummary({
   entriesVisited: number;
   partial: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Card
       size="sm"
@@ -857,7 +879,7 @@ function DashboardHeroSummary({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary" className="bg-primary/10 text-primary">
-              Command center
+              {t("findings.widget.commandCenter")}
             </Badge>
             <Badge variant="outline">{projectType}</Badge>
           </div>
@@ -867,37 +889,37 @@ function DashboardHeroSummary({
               {repoName}
             </div>
             <p className="mt-1 text-pretty text-sm leading-6 text-muted-foreground">
-              Current scan scope: {scopeLabel ?? "Whole repository"}. The
-              findings engine scans source sources only, while the queue,
-              hotspot map, and AI refactor preview stay in one review surface.
+              {t("findings.hero.scope", {
+                scope: scopeLabel ?? t("findings.wholeRepository"),
+              })}
             </p>
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <KpiCard
-            label="Scan state"
+            label={t("findings.scanState")}
             value={
               {
-                analyzing: "Running",
-                ready: "Ready",
-                error: "Error",
-                empty: "Idle",
+                analyzing: t("findings.state.running"),
+                ready: t("findings.state.ready"),
+                error: t("findings.state.error"),
+                empty: t("findings.state.idle"),
               }[panelState]
             }
-            hint={partial ? "Partial limits reached" : "Within safety limits"}
+            hint={partial ? t("findings.partialReached") : t("findings.withinSafety")}
             compact
           />
           <KpiCard
-            label="Progress"
+            label={t("findings.progress")}
             value={`${progress}%`}
-            hint={`${filesScanned} files scanned`}
+            hint={t("findings.filesScanned", { count: String(filesScanned) })}
             compact
           />
           <KpiCard
-            label="Entries"
+            label={t("findings.entries")}
             value={entriesVisited}
-            hint="Filesystem entries visited"
+            hint={t("findings.entriesHint")}
             compact
           />
         </div>

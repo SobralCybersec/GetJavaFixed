@@ -2,6 +2,7 @@ import { Chat, type UIMessage } from "@ai-sdk/react";
 import {
   type ChatTransport,
   lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { create } from "zustand";
 import {
@@ -315,7 +316,7 @@ function makeChat(sessionId: string): Chat<UIMessage> {
     id: sessionId,
     transport,
     messages: initialMessages,
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    sendAutomaticallyWhen: shouldAutoContinueAgentTurn,
     onError: (e) => {
       useChatStore.getState().patchAgentMeta({
         status: "error",
@@ -323,6 +324,15 @@ function makeChat(sessionId: string): Chat<UIMessage> {
       });
     },
   });
+}
+
+export function shouldAutoContinueAgentTurn(options: {
+  messages: UIMessage[];
+}): boolean {
+  return (
+    lastAssistantMessageIsCompleteWithApprovalResponses(options) ||
+    lastAssistantMessageIsCompleteWithToolCalls(options)
+  );
 }
 
 export const useChatStore = create<StoreState>((set, get) => ({

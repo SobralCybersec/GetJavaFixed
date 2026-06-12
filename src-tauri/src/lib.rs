@@ -1,8 +1,8 @@
 pub mod modules;
 
 use modules::{
-    agent, analysis, ani_cli, fs, git, java_repo, net, proxyexamples, pty, refactoring_db, secrets,
-    shell, workspace,
+    agent, analysis, ani_cli, browser, fs, git, java_repo, net, proxyexamples, pty, refactoring_db,
+    secrets, shell, workspace,
 };
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
@@ -222,6 +222,17 @@ pub fn run() {
             workspace::wsl_home,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
+            browser::browser_list,
+            browser::browser_open,
+            browser::preview_webview_create,
+            browser::preview_webview_navigate,
+            browser::preview_webview_reload,
+            browser::preview_webview_go_back,
+            browser::preview_webview_go_forward,
+            browser::preview_webview_set_bounds,
+            browser::preview_webview_show,
+            browser::preview_webview_hide,
+            browser::preview_webview_close,
             java_repo::java_repo_readiness,
             analysis::phase1_analysis_start,
             analysis::phase1_analysis_status,

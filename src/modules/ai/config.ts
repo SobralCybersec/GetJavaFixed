@@ -205,524 +205,1330 @@ export type ModelInfo = {
 };
 
 export const MODELS = [
-  // ── OpenAI ────────────────────────────────────────────────────────────────
   {
-    id: "gpt-5.5",
-    provider: "openai",
-    label: "GPT-5.5",
-    hint: "Flagship",
-    description: "Frontier reasoning and code.",
-    capabilities: { intelligence: 5, speed: 3, cost: 1 },
-    tags: ["vision", "reasoning", "tools", "coding"],
+    "id": "gpt-5.5",
+    "provider": "openai",
+    "label": "GPT-5.5",
+    "hint": "Flagship",
+    "description": "Frontier model for complex reasoning, coding, and agentic work.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 1
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gpt-5.4-mini",
-    provider: "openai",
-    label: "GPT-5.4 mini",
-    hint: "Fast",
-    description: "Snappy default at low cost.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["vision", "tools"],
+    "id": "gpt-5.4",
+    "provider": "openai",
+    "label": "GPT-5.4",
+    "hint": "Balanced",
+    "description": "High-capability model with lower cost than GPT-5.5.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 2
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gpt-5.4-nano",
-    provider: "openai",
-    label: "GPT-5.4 nano",
-    hint: "Fastest",
-    description: "Tiny and instant — great for autocomplete.",
-    capabilities: { intelligence: 3, speed: 5, cost: 5 },
-    tags: ["tools"],
+    "id": "gpt-5.4-mini",
+    "provider": "openai",
+    "label": "GPT-5.4 mini",
+    "hint": "Fast",
+    "description": "Fast, lower-cost GPT-5 tier for everyday coding and tool use.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "contextLimit": 400000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gpt-5.3-codex",
-    provider: "openai",
-    label: "GPT-5.3 Codex",
-    hint: "Coding",
-    description: "Tuned for code and tool use.",
-    capabilities: { intelligence: 4, speed: 4, cost: 3 },
-    tags: ["tools", "coding"],
+    "id": "gpt-5.4-nano",
+    "provider": "openai",
+    "label": "GPT-5.4 nano",
+    "hint": "Fastest",
+    "description": "Tiny low-latency model for autocomplete, routing, and lightweight tasks.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 5
+    },
+    "contextLimit": 400000,
+    "tags": [
+      "tools"
+    ]
   },
   {
-    id: "gpt-4.1-mini",
-    provider: "openai",
-    label: "GPT-4.1 mini",
-    hint: "Cheap",
-    description: "Ultra-cheap workhorse for bulk tasks.",
-    capabilities: { intelligence: 3, speed: 4, cost: 5 },
-    tags: ["vision", "tools"],
-  },
-
-  // ── Anthropic ─────────────────────────────────────────────────────────────
-  {
-    id: "claude-opus-4-7",
-    provider: "anthropic",
-    label: "Claude Opus 4.7",
-    hint: "Best",
-    description: "Anthropic's flagship for long reasoning.",
-    capabilities: { intelligence: 5, speed: 2, cost: 1 },
-    tags: ["vision", "reasoning", "tools", "coding"],
-  },
-  {
-    id: "claude-sonnet-4-6",
-    provider: "anthropic",
-    label: "Claude Sonnet 4.6",
-    hint: "Balanced",
-    description: "Sweet spot of quality and speed.",
-    capabilities: { intelligence: 4, speed: 4, cost: 3 },
-    tags: ["vision", "tools", "coding"],
+    "id": "claude-fable-5",
+    "provider": "anthropic",
+    "label": "Claude Fable 5",
+    "hint": "Frontier",
+    "description": "Anthropic frontier model with a 1M-token context window.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 2,
+      "cost": 1
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "claude-haiku-4-5",
-    provider: "anthropic",
-    label: "Claude Haiku 4.5",
-    hint: "Fast",
-    description: "Quick, cheap, multimodal.",
-    capabilities: { intelligence: 3, speed: 5, cost: 4 },
-    tags: ["vision", "tools"],
+    "id": "claude-opus-4-8",
+    "provider": "anthropic",
+    "label": "Claude Opus 4.8",
+    "hint": "Best",
+    "description": "Opus-tier model for deep reasoning and complex agentic coding.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 2,
+      "cost": 1
+    },
+    "aliases": [
+      "claude-opus-4-7"
+    ],
+    "contextLimit": 200000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "claude-opus-4-6",
-    provider: "anthropic",
-    label: "Claude Opus 4.6",
-    hint: "Legacy",
-    description: "Previous-gen Opus.",
-    capabilities: { intelligence: 5, speed: 2, cost: 1 },
-    tags: ["vision", "reasoning", "tools", "coding"],
-  },
-
-  // ── Google ────────────────────────────────────────────────────────────────
-  {
-    id: "gemini-3.5-flash",
-    provider: "google",
-    label: "Gemini 3.5 Flash",
-    hint: "Fast",
-    description: "High-intelligence, extremely fast multimodal model.",
-    capabilities: { intelligence: 4, speed: 5, cost: 4 },
-    tags: ["vision", "tools", "coding"],
-  },
-  {
-    id: "gemini-3.1-flash-lite",
-    provider: "google",
-    label: "Gemini 3.1 Flash-Lite",
-    hint: "Lite",
-    description: "Extremely fast, cheap, and lightweight multimodal model.",
-    capabilities: { intelligence: 3, speed: 5, cost: 5 },
-    tags: ["vision", "tools"],
+    "id": "claude-sonnet-4-6",
+    "provider": "anthropic",
+    "label": "Claude Sonnet 4.6",
+    "hint": "Balanced",
+    "description": "Strong balance of quality, speed, tool use, and coding ability.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 3
+    },
+    "contextLimit": 200000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gemini-3.1-pro-preview",
-    provider: "google",
-    label: "Gemini 3.1 Pro",
-    hint: "Flagship",
-    description: "Strong reasoning, 1M context.",
-    capabilities: { intelligence: 5, speed: 3, cost: 2 },
-    tags: ["vision", "reasoning", "tools", "coding"],
+    "id": "claude-haiku-4-5",
+    "provider": "anthropic",
+    "label": "Claude Haiku 4.5",
+    "hint": "Fast",
+    "description": "Fast multimodal Claude model for latency-sensitive workflows.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 4
+    },
+    "aliases": [
+      "claude-haiku-4-5-20251001"
+    ],
+    "contextLimit": 200000,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gemini-3-flash-preview",
-    provider: "google",
-    label: "Gemini 3 Flash",
-    hint: "Fast",
-    description: "Fast multimodal, 1M context.",
-    capabilities: { intelligence: 4, speed: 5, cost: 4 },
-    tags: ["vision", "tools"],
+    "id": "gemini-3.5-flash",
+    "provider": "google",
+    "label": "Gemini 3.5 Flash",
+    "hint": "Fast",
+    "description": "Stable Gemini 3 fast model for multimodal and high-throughput tasks.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 4
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gemini-2.5-pro",
-    provider: "google",
-    label: "Gemini 2.5 Pro",
-    hint: "Stable",
-    description: "Production-stable Gemini.",
-    capabilities: { intelligence: 4, speed: 3, cost: 3 },
-    tags: ["vision", "tools", "coding"],
+    "id": "gemini-3.1-pro-preview",
+    "provider": "google",
+    "label": "Gemini 3.1 Pro",
+    "hint": "Flagship",
+    "description": "Preview Gemini Pro model for complex multimodal reasoning.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 2
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "gemini-2.5-flash",
-    provider: "google",
-    label: "Gemini 2.5 Flash",
-    hint: "Cheap",
-    description: "Bulk throughput at low cost.",
-    capabilities: { intelligence: 3, speed: 5, cost: 5 },
-    tags: ["vision", "tools"],
-  },
-
-  // ── xAI ───────────────────────────────────────────────────────────────────
-  {
-    id: "grok-4.20-reasoning",
-    provider: "xai",
-    label: "Grok 4.20 Reasoning",
-    hint: "Reasoning",
-    description: "Frontier reasoning with extended thinking.",
-    capabilities: { intelligence: 5, speed: 2, cost: 2 },
-    tags: ["reasoning", "tools", "coding"],
+    "id": "gemini-3-flash-preview",
+    "provider": "google",
+    "label": "Gemini 3 Flash",
+    "hint": "Preview",
+    "description": "Preview Flash model with fast multimodal capability.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 4
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "grok-4.20-non-reasoning",
-    provider: "xai",
-    label: "Grok 4.20",
-    hint: "Fast",
-    description: "Fast tier for chat and tools.",
-    capabilities: { intelligence: 4, speed: 4, cost: 3 },
-    tags: ["tools"],
+    "id": "gemini-3.1-flash-lite",
+    "provider": "google",
+    "label": "Gemini 3.1 Flash-Lite",
+    "hint": "Lite",
+    "description": "Lowest-latency Gemini 3 tier for cheap, lightweight tasks.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 5
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "tools"
+    ]
   },
   {
-    id: "grok-4-fast-reasoning",
-    provider: "xai",
-    label: "Grok 4 Fast",
-    hint: "Reasoning",
-    description: "Cheaper Grok 4 with vision and reasoning.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["vision", "reasoning", "tools"],
-  },
-
-  // ── DeepSeek ──────────────────────────────────────────────────────────────
-  {
-    id: "deepseek-v4-pro",
-    provider: "deepseek",
-    aliases: ["deepseek-v4-pro-non-thinking", "deepseek-v4-pro-nonthinking"],
-    contextLimit: 1_000_000,
-    label: "DeepSeek V4 Pro",
-    hint: "Best",
-    description: "Strong open-weight code model.",
-    capabilities: { intelligence: 5, speed: 3, cost: 4 },
-    tags: ["reasoning", "tools", "coding"],
+    "id": "gemini-2.5-pro",
+    "provider": "google",
+    "label": "Gemini 2.5 Pro",
+    "hint": "Stable",
+    "description": "Stable Gemini Pro fallback for production workloads.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 3
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "deepseek-v4-pro-thinking",
-    provider: "deepseek",
-    runtimeModelId: "deepseek-v4-pro",
-    aliases: ["deepseek-v4-pro-reasoning", "deepseek-v4-pro-think"],
-    contextLimit: 1_000_000,
-    providerOptions: { deepseek: { thinking: { type: "enabled" } } },
-    label: "DeepSeek V4 Pro Thinking",
-    hint: "Thinking",
-    description: "DeepSeek V4 Pro with reasoning enabled.",
-    capabilities: { intelligence: 5, speed: 2, cost: 3 },
-    tags: ["reasoning", "tools", "coding"],
+    "id": "gemini-2.5-flash",
+    "provider": "google",
+    "label": "Gemini 2.5 Flash",
+    "hint": "Cheap",
+    "description": "Stable low-cost Gemini Flash model for bulk throughput.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 5
+    },
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "tools"
+    ]
   },
   {
-    id: "deepseek-v4-flash",
-    provider: "deepseek",
-    aliases: ["deepseek-v4-flash-non-thinking", "deepseek-v4-flash-nonthinking"],
-    contextLimit: 1_000_000,
-    label: "DeepSeek V4 Flash",
-    hint: "Fast",
-    description: "Cheap and fast everyday tier.",
-    capabilities: { intelligence: 4, speed: 5, cost: 5 },
-    tags: ["tools"],
+    "id": "grok-4.3",
+    "provider": "xai",
+    "label": "Grok 4.3",
+    "hint": "Current",
+    "description": "xAI current chat model for tool-calling and agentic workflows.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "grok-4",
+      "grok-4-latest"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "deepseek-v4-flash-thinking",
-    provider: "deepseek",
-    runtimeModelId: "deepseek-v4-flash",
-    aliases: ["deepseek-v4-flash-reasoning", "deepseek-v4-flash-think"],
-    contextLimit: 1_000_000,
-    providerOptions: { deepseek: { thinking: { type: "enabled" } } },
-    label: "DeepSeek V4 Flash Thinking",
-    hint: "Thinking",
-    description: "DeepSeek V4 Flash with reasoning enabled.",
-    capabilities: { intelligence: 4, speed: 4, cost: 5 },
-    tags: ["reasoning", "tools"],
+    "id": "grok-build-0.1",
+    "provider": "xai",
+    "label": "Grok Build 0.1",
+    "hint": "Coding",
+    "description": "Fast xAI coding model for agentic software work.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "contextLimit": 256000,
+    "tags": [
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "deepseek-reasoner",
-    provider: "deepseek",
-    label: "DeepSeek Reasoner",
-    hint: "Thinking",
-    description: "Chain-of-thought at open-weight prices.",
-    capabilities: { intelligence: 5, speed: 2, cost: 4 },
-    tags: ["reasoning", "coding"],
-  },
-
-  {
-    id: "qwen3.7-max",
-    provider: "qwen",
-    aliases: ["qwen-3.7-max", "qwen37max"],
-    contextLimit: 1_000_000,
-    label: "Qwen3.7 Max",
-    hint: "Best",
-    description: "Qwen flagship model with 1M context.",
-    capabilities: { intelligence: 5, speed: 3, cost: 3 },
-    tags: ["reasoning", "tools", "coding"],
-  },
-  {
-    id: "qwen3.7-max-thinking",
-    provider: "qwen",
-    runtimeModelId: "qwen3.7-max",
-    aliases: ["qwen-3.7-max-thinking", "qwen37max-thinking"],
-    contextLimit: 1_000_000,
-    providerOptions: { qwen: { enable_thinking: true } },
-    label: "Qwen3.7 Max Thinking",
-    hint: "Thinking",
-    description: "Qwen3.7 Max with thinking mode enabled.",
-    capabilities: { intelligence: 5, speed: 2, cost: 3 },
-    tags: ["reasoning", "tools", "coding"],
+    "id": "deepseek-v4-pro",
+    "provider": "deepseek",
+    "label": "DeepSeek V4 Pro",
+    "hint": "Best",
+    "description": "High-capability DeepSeek V4 model in non-thinking mode.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 4
+    },
+    "aliases": [
+      "deepseek-v4-pro-non-thinking",
+      "deepseek-v4-pro-nonthinking"
+    ],
+    "contextLimit": 1000000,
+    "providerOptions": {
+      "deepseek": {
+        "thinking": {
+          "type": "disabled"
+        }
+      }
+    },
+    "tags": [
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "qwen3.7-plus",
-    provider: "qwen",
-    aliases: ["qwen-3.7-plus", "qwen37plus"],
-    contextLimit: 1_000_000,
-    label: "Qwen3.7 Plus",
-    hint: "Balanced",
-    description: "Balanced Qwen model with 1M context.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["tools", "coding"],
+    "id": "deepseek-v4-pro-thinking",
+    "provider": "deepseek",
+    "label": "DeepSeek V4 Pro Thinking",
+    "hint": "Thinking",
+    "description": "DeepSeek V4 Pro with reasoning enabled.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 2,
+      "cost": 3
+    },
+    "runtimeModelId": "deepseek-v4-pro",
+    "aliases": [
+      "deepseek-v4-pro-reasoning",
+      "deepseek-v4-pro-think"
+    ],
+    "contextLimit": 1000000,
+    "providerOptions": {
+      "deepseek": {
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "max"
+      }
+    },
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "qwen3.6-plus",
-    provider: "qwen",
-    aliases: ["qwen-3.6-plus", "qwen36plus"],
-    contextLimit: 1_000_000,
-    label: "Qwen3.6 Plus",
-    hint: "Stable",
-    description: "Stable Qwen Plus model with long context.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["tools", "coding"],
+    "id": "deepseek-v4-flash",
+    "provider": "deepseek",
+    "label": "DeepSeek V4 Flash",
+    "hint": "Fast",
+    "description": "Fast and economical DeepSeek V4 model in non-thinking mode.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 5
+    },
+    "aliases": [
+      "deepseek-chat",
+      "deepseek-v4-flash-non-thinking",
+      "deepseek-v4-flash-nonthinking"
+    ],
+    "contextLimit": 1000000,
+    "providerOptions": {
+      "deepseek": {
+        "thinking": {
+          "type": "disabled"
+        }
+      }
+    },
+    "tags": [
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "qwen3.6-plus-thinking",
-    provider: "qwen",
-    runtimeModelId: "qwen3.6-plus",
-    aliases: ["qwen-3.6-plus-thinking", "qwen36plus-thinking"],
-    contextLimit: 1_000_000,
-    providerOptions: { qwen: { enable_thinking: true } },
-    label: "Qwen3.6 Plus Thinking",
-    hint: "Thinking",
-    description: "Qwen3.6 Plus with thinking mode enabled.",
-    capabilities: { intelligence: 4, speed: 3, cost: 4 },
-    tags: ["reasoning", "tools", "coding"],
-  },
-
-  {
-    id: "kimi-k2.6",
-    provider: "kimi",
-    aliases: ["k2-d6", "k2d6", "kimi-k2-d6"],
-    contextLimit: 256_000,
-    providerOptions: { kimi: { thinking: { type: "disabled" } } },
-    label: "Kimi K2.6",
-    hint: "Balanced",
-    description: "Kimi K2.6 in non-thinking mode.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["tools", "coding"],
-  },
-  {
-    id: "kimi-k2.6-thinking",
-    provider: "kimi",
-    runtimeModelId: "kimi-k2.6",
-    aliases: ["k2-d6-thinking", "k2d6-thinking", "kimi-k2-d6-thinking"],
-    contextLimit: 256_000,
-    providerOptions: { kimi: { thinking: { type: "enabled" } } },
-    label: "Kimi K2.6 Thinking",
-    hint: "Thinking",
-    description: "Kimi K2.6 with thinking mode enabled.",
-    capabilities: { intelligence: 5, speed: 3, cost: 3 },
-    tags: ["reasoning", "tools", "coding"],
+    "id": "deepseek-v4-flash-thinking",
+    "provider": "deepseek",
+    "label": "DeepSeek V4 Flash Thinking",
+    "hint": "Thinking",
+    "description": "DeepSeek V4 Flash with reasoning enabled.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 5
+    },
+    "runtimeModelId": "deepseek-v4-flash",
+    "aliases": [
+      "deepseek-reasoner",
+      "deepseek-v4-flash-reasoning",
+      "deepseek-v4-flash-think"
+    ],
+    "contextLimit": 1000000,
+    "providerOptions": {
+      "deepseek": {
+        "thinking": {
+          "type": "enabled"
+        },
+        "reasoning_effort": "high"
+      }
+    },
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "kimi-k2.5",
-    provider: "kimi",
-    aliases: ["k2-d5", "k2d5", "kimi-k2-d5"],
-    contextLimit: 256_000,
-    label: "Kimi K2.5",
-    hint: "Stable",
-    description: "Previous Kimi K2 stable model.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["tools", "coding"],
-  },
-
-  {
-    id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-    provider: "together",
-    aliases: ["together-llama-3.3-70b"],
-    contextLimit: 128_000,
-    label: "Together Llama 3.3 70B",
-    hint: "Open",
-    description: "Open model served by Together.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["tools"],
-  },
-  {
-    id: "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
-    provider: "together",
-    aliases: ["together-qwen3-coder"],
-    contextLimit: 256_000,
-    label: "Together Qwen3 Coder",
-    hint: "Coding",
-    description: "Large Qwen coding model on Together.",
-    capabilities: { intelligence: 4, speed: 3, cost: 3 },
-    tags: ["tools", "coding"],
+    "id": "qwen3.7-max",
+    "provider": "qwen",
+    "label": "Qwen3.7 Max",
+    "hint": "Best",
+    "description": "Current Qwen flagship text model for complex tasks.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "qwen-max",
+      "qwen3.7-max-latest"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "accounts/fireworks/models/llama-v3p3-70b-instruct",
-    provider: "fireworks",
-    aliases: ["fireworks-llama-3.3-70b"],
-    contextLimit: 128_000,
-    label: "Fireworks Llama 3.3 70B",
-    hint: "Open",
-    description: "Fast open-model inference on Fireworks.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["tools"],
+    "id": "qwen3.7-max-thinking",
+    "provider": "qwen",
+    "label": "Qwen3.7 Max Thinking",
+    "hint": "Thinking",
+    "description": "Qwen3.7 Max with thinking mode enabled.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 2,
+      "cost": 3
+    },
+    "runtimeModelId": "qwen3.7-max",
+    "aliases": [
+      "qwen3.7-max-reasoning"
+    ],
+    "contextLimit": 1000000,
+    "providerOptions": {
+      "qwen": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      }
+    },
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "sonar-pro",
-    provider: "perplexity",
-    aliases: ["perplexity-sonar-pro"],
-    contextLimit: 200_000,
-    label: "Perplexity Sonar Pro",
-    hint: "Search",
-    description: "Perplexity Sonar model for answer synthesis.",
-    capabilities: { intelligence: 4, speed: 4, cost: 3 },
-    tags: ["tools"],
+    "id": "qwen3.7-plus",
+    "provider": "qwen",
+    "label": "Qwen3.7 Plus",
+    "hint": "Balanced",
+    "description": "Balanced Qwen model with strong tool use and multimodal support.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "qwen-plus",
+      "qwen3.7-plus-latest"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "deepseek/deepseek-r1",
-    provider: "novita",
-    aliases: ["novita-deepseek-r1"],
-    contextLimit: 128_000,
-    label: "Novita DeepSeek R1",
-    hint: "Thinking",
-    description: "DeepSeek R1 served by Novita.",
-    capabilities: { intelligence: 4, speed: 3, cost: 4 },
-    tags: ["reasoning", "tools", "coding"],
-  },
-
-  // ── Mistral ────────────────────────────────────────────────────────────────
-  {
-    id: "mistral-large-latest",
-    provider: "mistral",
-    label: "Mistral Large 3",
-    hint: "Best",
-    description: "Flagship Mistral model with 128K context.",
-    capabilities: { intelligence: 5, speed: 3, cost: 3 },
-    tags: ["vision", "tools", "coding"],
-  },
-  {
-    id: "mistral-medium-latest",
-    provider: "mistral",
-    label: "Mistral Medium 3.5",
-    hint: "Balanced",
-    description: "Good balance of speed and intelligence.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["vision", "tools"],
+    "id": "qwen3.7-plus-thinking",
+    "provider": "qwen",
+    "label": "Qwen3.7 Plus Thinking",
+    "hint": "Thinking",
+    "description": "Qwen3.7 Plus with thinking mode enabled.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 4
+    },
+    "runtimeModelId": "qwen3.7-plus",
+    "aliases": [
+      "qwen3.7-plus-reasoning"
+    ],
+    "contextLimit": 1000000,
+    "providerOptions": {
+      "qwen": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      }
+    },
+    "tags": [
+      "reasoning",
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "codestral-latest",
-    provider: "mistral",
-    label: "Codestral",
-    hint: "Code",
-    description: "Purpose-built coding model from Mistral.",
-    capabilities: { intelligence: 4, speed: 4, cost: 4 },
-    tags: ["coding"],
-  },
-
-  // ── Cerebras (autocomplete-tier) ──────────────────────────────────────────
-  {
-    id: "gpt-oss-120b",
-    provider: "cerebras",
-    label: "GPT-OSS 120B",
-    hint: "Ultra-fast",
-    description: "Fastest inference on Cerebras silicon.",
-    capabilities: { intelligence: 4, speed: 5, cost: 4 },
-    tags: ["tools", "coding"],
-  },
-  {
-    id: "llama3.3-70b",
-    provider: "cerebras",
-    label: "Llama 3.3 70B",
-    hint: "Fast",
-    description: "Meta's open model on wafer-scale silicon.",
-    capabilities: { intelligence: 3, speed: 5, cost: 5 },
-    tags: ["tools"],
+    "id": "qwen3.6-flash",
+    "provider": "qwen",
+    "label": "Qwen3.6 Flash",
+    "hint": "Fast",
+    "description": "Fast and low-cost Qwen Flash tier.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 5
+    },
+    "aliases": [
+      "qwen-flash",
+      "qwen3.6-flash-latest"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "vision",
+      "tools"
+    ]
   },
   {
-    id: "qwen-3-32b",
-    provider: "cerebras",
-    label: "Qwen 3 32B",
-    hint: "Fast",
-    description: "Multilingual model at extreme speed.",
-    capabilities: { intelligence: 3, speed: 5, cost: 5 },
-    tags: ["tools", "coding"],
-  },
-
-  // ── Groq (autocomplete-tier) ──────────────────────────────────────────────
-  {
-    id: "openai/gpt-oss-20b",
-    provider: "groq",
-    label: "GPT-OSS 20B",
-    hint: "Ultra-fast",
-    description: "Sub-second responses on Groq LPU.",
-    capabilities: { intelligence: 3, speed: 5, cost: 5 },
-    tags: ["tools", "coding"],
-  },
-  {
-    id: "llama-3.3-70b-versatile",
-    provider: "groq",
-    label: "Llama 3.3 70B",
-    hint: "Versatile",
-    description: "Fast and broadly capable.",
-    capabilities: { intelligence: 4, speed: 5, cost: 5 },
-    tags: ["tools"],
+    "id": "qwen3-coder-plus",
+    "provider": "qwen",
+    "label": "Qwen3 Coder Plus",
+    "hint": "Coding",
+    "description": "Qwen coding model for CLI and IDE agent workflows.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "qwen3-coder-next"
+    ],
+    "contextLimit": 256000,
+    "tags": [
+      "tools",
+      "coding"
+    ]
   },
   {
-    id: "deepseek-r1-distill-llama-70b",
-    provider: "groq",
-    label: "DeepSeek R1 Distill 70B",
-    hint: "Thinking",
-    description: "Reasoning-distilled Llama on Groq.",
-    capabilities: { intelligence: 4, speed: 5, cost: 5 },
-    tags: ["reasoning", "tools"],
+    "id": "kimi-k2.7-code",
+    "provider": "kimi",
+    "label": "Kimi K2.7 Code",
+    "hint": "Coding",
+    "description": "Kimi’s strongest coding model with multimodal support.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "kimi-k2.7",
+      "k2.7-code",
+      "k2-d7-code"
+    ],
+    "contextLimit": 256000,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
-
-  // ── OpenRouter (gateway; model id is user-supplied at runtime) ────────────
   {
-    id: "openrouter-custom",
-    provider: "openrouter",
-    label: "OpenRouter",
-    hint: "Configurable",
-    description: "Any model on OpenRouter by id.",
-    capabilities: { intelligence: 3, speed: 3, cost: 3 },
+    "id": "kimi-k2.6",
+    "provider": "kimi",
+    "label": "Kimi K2.6",
+    "hint": "Balanced",
+    "description": "Kimi K2.6 multimodal model in non-thinking mode.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "k2-d6",
+      "k2d6",
+      "kimi-k2-d6"
+    ],
+    "contextLimit": 256000,
+    "providerOptions": {
+      "kimi": {
+        "thinking": {
+          "type": "disabled"
+        }
+      }
+    },
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
-
-  // ── Generic OpenAI-compatible (user-defined endpoint) ─────────────────────
   {
-    id: "openai-compatible-custom",
-    provider: "openai-compatible",
-    label: "Custom endpoint",
-    hint: "Configurable",
-    description: "Any OpenAI-compatible endpoint.",
-    capabilities: { intelligence: 3, speed: 3, cost: 3 },
+    "id": "kimi-k2.6-thinking",
+    "provider": "kimi",
+    "label": "Kimi K2.6 Thinking",
+    "hint": "Thinking",
+    "description": "Kimi K2.6 with thinking mode enabled.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "runtimeModelId": "kimi-k2.6",
+    "aliases": [
+      "k2-d6-thinking",
+      "k2d6-thinking",
+      "kimi-k2-d6-thinking"
+    ],
+    "contextLimit": 256000,
+    "providerOptions": {
+      "kimi": {
+        "thinking": {
+          "type": "enabled"
+        }
+      }
+    },
+    "tags": [
+      "reasoning",
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
-
-  // ── LM Studio (local; model id is user-supplied at runtime) ───────────────
   {
-    id: "lmstudio-local",
-    provider: "lmstudio",
-    label: "LM Studio",
-    hint: "Local",
-    description: "Local GGUF models via LM Studio.",
-    capabilities: { intelligence: 3, speed: 3, cost: 5 },
+    "id": "kimi-k2.5",
+    "provider": "kimi",
+    "label": "Kimi K2.5",
+    "hint": "Stable",
+    "description": "Previous stable Kimi K2 model.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "k2-d5",
+      "k2d5",
+      "kimi-k2-d5"
+    ],
+    "contextLimit": 256000,
+    "tags": [
+      "tools",
+      "coding"
+    ]
   },
-
-  // ── MLX (local; Apple-silicon; model id is user-supplied at runtime) ──────
   {
-    id: "mlx-local",
-    provider: "mlx",
-    label: "MLX",
-    hint: "Local",
-    description: "Apple-silicon models via mlx_lm.server.",
-    capabilities: { intelligence: 3, speed: 3, cost: 5 },
+    "id": "moonshotai/Kimi-K2.6",
+    "provider": "together",
+    "label": "Together Kimi K2.6",
+    "hint": "Agentic",
+    "description": "Kimi K2.6 served by Together.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "together-kimi-k2.6",
+      "together-kimi-k2-d6"
+    ],
+    "contextLimit": 262144,
+    "tags": [
+      "reasoning",
+      "vision",
+      "tools",
+      "coding"
+    ]
   },
-
-  // ── Ollama (local; model id is user-supplied at runtime) ──────────────────
   {
-    id: "ollama-local",
-    provider: "ollama",
-    label: "Ollama",
-    hint: "Local",
-    description: "Local models via Ollama.",
-    capabilities: { intelligence: 3, speed: 3, cost: 5 },
+    "id": "deepseek-ai/DeepSeek-V4-Pro",
+    "provider": "together",
+    "label": "Together DeepSeek V4 Pro",
+    "hint": "Best",
+    "description": "DeepSeek V4 Pro served by Together.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "together-deepseek-v4-pro"
+    ],
+    "contextLimit": 512000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
   },
+  {
+    "id": "deepseek-ai/DeepSeek-V4-Flash",
+    "provider": "together",
+    "label": "Together DeepSeek V4 Flash",
+    "hint": "Fast",
+    "description": "DeepSeek V4 Flash served by Together.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 5
+    },
+    "aliases": [
+      "together-deepseek-v4-flash"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "Qwen/Qwen3.7-Max",
+    "provider": "together",
+    "label": "Together Qwen3.7 Max",
+    "hint": "Best",
+    "description": "Qwen3.7 Max served by Together.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "together-qwen3.7-max"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "Qwen/Qwen3.6-Plus",
+    "provider": "together",
+    "label": "Together Qwen3.6 Plus",
+    "hint": "Balanced",
+    "description": "Qwen3.6 Plus served by Together.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "together-qwen3.6-plus"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+    "provider": "together",
+    "label": "Together Qwen3 Coder",
+    "hint": "Coding",
+    "description": "Large Qwen coding model on Together.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "together-qwen3-coder"
+    ],
+    "contextLimit": 256000,
+    "tags": [
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "openai/gpt-oss-120b",
+    "provider": "together",
+    "label": "Together GPT-OSS 120B",
+    "hint": "Open",
+    "description": "Open-weight GPT-OSS 120B on Together.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "together-gpt-oss-120b"
+    ],
+    "contextLimit": 128000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "provider": "together",
+    "label": "Together Llama 3.3 70B",
+    "hint": "Open",
+    "description": "Open Llama 3.3 70B served by Together.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "together-llama-3.3-70b"
+    ],
+    "contextLimit": 128000,
+    "tags": [
+      "tools"
+    ]
+  },
+  {
+    "id": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+    "provider": "fireworks",
+    "label": "Fireworks Llama 3.3 70B",
+    "hint": "Open",
+    "description": "Fast Llama 3.3 inference on Fireworks.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "aliases": [
+      "fireworks-llama-3.3-70b"
+    ],
+    "contextLimit": 128000,
+    "tags": [
+      "tools"
+    ]
+  },
+  {
+    "id": "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct",
+    "provider": "fireworks",
+    "label": "Fireworks Qwen3 Coder",
+    "hint": "Coding",
+    "description": "Qwen3 Coder served through Fireworks.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "fireworks-qwen3-coder"
+    ],
+    "contextLimit": 256000,
+    "tags": [
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "sonar",
+    "provider": "perplexity",
+    "label": "Perplexity Sonar",
+    "hint": "Search",
+    "description": "Fast grounded answers with real-time web search.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 4
+    },
+    "aliases": [
+      "perplexity-sonar"
+    ],
+    "contextLimit": 128000,
+    "tags": [
+      "tools"
+    ]
+  },
+  {
+    "id": "sonar-pro",
+    "provider": "perplexity",
+    "label": "Perplexity Sonar Pro",
+    "hint": "Search",
+    "description": "Higher-quality Sonar model for answer synthesis.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 3
+    },
+    "aliases": [
+      "perplexity-sonar-pro"
+    ],
+    "contextLimit": 200000,
+    "tags": [
+      "tools"
+    ]
+  },
+  {
+    "id": "sonar-reasoning-pro",
+    "provider": "perplexity",
+    "label": "Perplexity Sonar Reasoning Pro",
+    "hint": "Thinking",
+    "description": "Reasoning search model for complex grounded answers.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "perplexity-sonar-reasoning-pro"
+    ],
+    "contextLimit": 128000,
+    "tags": [
+      "reasoning",
+      "tools"
+    ]
+  },
+  {
+    "id": "sonar-deep-research",
+    "provider": "perplexity",
+    "label": "Perplexity Sonar Deep Research",
+    "hint": "Research",
+    "description": "Deep research model for multi-source analysis.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 2,
+      "cost": 2
+    },
+    "aliases": [
+      "perplexity-sonar-deep-research"
+    ],
+    "contextLimit": 128000,
+    "tags": [
+      "reasoning",
+      "tools"
+    ]
+  },
+  {
+    "id": "deepseek/deepseek-v4-pro",
+    "provider": "novita",
+    "label": "Novita DeepSeek V4 Pro",
+    "hint": "Best",
+    "description": "DeepSeek V4 Pro served by Novita.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "novita-deepseek-v4-pro"
+    ],
+    "contextLimit": 1048576,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "deepseek/deepseek-v4-flash",
+    "provider": "novita",
+    "label": "Novita DeepSeek V4 Flash",
+    "hint": "Fast",
+    "description": "DeepSeek V4 Flash served by Novita.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 5
+    },
+    "aliases": [
+      "novita-deepseek-v4-flash"
+    ],
+    "contextLimit": 1048576,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "moonshotai/kimi-k2.7-code",
+    "provider": "novita",
+    "label": "Novita Kimi K2.7 Code",
+    "hint": "Coding",
+    "description": "Kimi K2.7 Code served by Novita.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "novita-kimi-k2.7-code"
+    ],
+    "contextLimit": 262144,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "moonshotai/kimi-k2.6",
+    "provider": "novita",
+    "label": "Novita Kimi K2.6",
+    "hint": "Agentic",
+    "description": "Kimi K2.6 served by Novita.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "novita-kimi-k2.6"
+    ],
+    "contextLimit": 262144,
+    "tags": [
+      "reasoning",
+      "vision",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "qwen/qwen3.7-max",
+    "provider": "novita",
+    "label": "Novita Qwen3.7 Max",
+    "hint": "Best",
+    "description": "Qwen3.7 Max served by Novita.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "novita-qwen3.7-max"
+    ],
+    "contextLimit": 1000000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "qwen/qwen3-coder-480b-a35b-instruct",
+    "provider": "novita",
+    "label": "Novita Qwen3 Coder",
+    "hint": "Coding",
+    "description": "Qwen3 Coder 480B served by Novita.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 3
+    },
+    "aliases": [
+      "novita-qwen3-coder"
+    ],
+    "contextLimit": 262144,
+    "tags": [
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "mistral-large-latest",
+    "provider": "mistral",
+    "label": "Mistral Large 3",
+    "hint": "Best",
+    "description": "Flagship Mistral model for complex reasoning and coding.",
+    "capabilities": {
+      "intelligence": 5,
+      "speed": 3,
+      "cost": 3
+    },
+    "contextLimit": 131072,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "mistral-medium-latest",
+    "provider": "mistral",
+    "label": "Mistral Medium 3.5",
+    "hint": "Balanced",
+    "description": "Balanced Mistral model for production chat and coding.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "contextLimit": 131072,
+    "tags": [
+      "vision",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "mistral-small-latest",
+    "provider": "mistral",
+    "label": "Mistral Small 4",
+    "hint": "Fast",
+    "description": "Fast hybrid instruct, reasoning, and coding model.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 5
+    },
+    "aliases": [
+      "mistral-small-2603"
+    ],
+    "contextLimit": 131072,
+    "tags": [
+      "vision",
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "devstral-2512",
+    "provider": "mistral",
+    "label": "Devstral 2",
+    "hint": "Coding",
+    "description": "Software-engineering model for agentic code workflows.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 3,
+      "cost": 4
+    },
+    "aliases": [
+      "devstral-latest"
+    ],
+    "contextLimit": 131072,
+    "tags": [
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "codestral-latest",
+    "provider": "mistral",
+    "label": "Codestral",
+    "hint": "Code",
+    "description": "Purpose-built coding model from Mistral.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 4,
+      "cost": 4
+    },
+    "contextLimit": 256000,
+    "tags": [
+      "coding"
+    ]
+  },
+  {
+    "id": "gpt-oss-120b",
+    "provider": "cerebras",
+    "label": "GPT-OSS 120B",
+    "hint": "Ultra-fast",
+    "description": "Production GPT-OSS 120B on Cerebras silicon.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 4
+    },
+    "contextLimit": 128000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "zai-glm-4.7",
+    "provider": "cerebras",
+    "label": "Z.ai GLM 4.7",
+    "hint": "Preview",
+    "description": "Preview GLM 4.7 model on Cerebras.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 4
+    },
+    "contextLimit": 128000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ]
+  },
+  {
+    "id": "groq/openai/gpt-oss-120b",
+    "provider": "groq",
+    "label": "GPT-OSS 120B",
+    "hint": "Ultra-fast",
+    "description": "GPT-OSS 120B on Groq LPU.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 5
+    },
+    "contextLimit": 128000,
+    "tags": [
+      "reasoning",
+      "tools",
+      "coding"
+    ],
+    "runtimeModelId": "openai/gpt-oss-120b"
+  },
+  {
+    "id": "groq/openai/gpt-oss-20b",
+    "provider": "groq",
+    "label": "GPT-OSS 20B",
+    "hint": "Fastest",
+    "description": "Small GPT-OSS model for low-latency Groq workflows.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 5,
+      "cost": 5
+    },
+    "contextLimit": 128000,
+    "tags": [
+      "tools",
+      "coding"
+    ],
+    "runtimeModelId": "openai/gpt-oss-20b"
+  },
+  {
+    "id": "llama-3.3-70b-versatile",
+    "provider": "groq",
+    "label": "Llama 3.3 70B",
+    "hint": "Versatile",
+    "description": "Fast, broadly capable Llama model on Groq.",
+    "capabilities": {
+      "intelligence": 4,
+      "speed": 5,
+      "cost": 5
+    },
+    "contextLimit": 128000,
+    "tags": [
+      "tools"
+    ]
+  },
+  {
+    "id": "openrouter-custom",
+    "provider": "openrouter",
+    "label": "OpenRouter",
+    "hint": "Configurable",
+    "description": "Any model on OpenRouter by id.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 3,
+      "cost": 3
+    }
+  },
+  {
+    "id": "openai-compatible-custom",
+    "provider": "openai-compatible",
+    "label": "Custom endpoint",
+    "hint": "Configurable",
+    "description": "Any OpenAI-compatible endpoint.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 3,
+      "cost": 3
+    }
+  },
+  {
+    "id": "lmstudio-local",
+    "provider": "lmstudio",
+    "label": "LM Studio",
+    "hint": "Local",
+    "description": "Local GGUF models via LM Studio.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 3,
+      "cost": 5
+    }
+  },
+  {
+    "id": "mlx-local",
+    "provider": "mlx",
+    "label": "MLX",
+    "hint": "Local",
+    "description": "Apple-silicon models via mlx_lm.server.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 3,
+      "cost": 5
+    }
+  },
+  {
+    "id": "ollama-local",
+    "provider": "ollama",
+    "label": "Ollama",
+    "hint": "Local",
+    "description": "Local models via Ollama.",
+    "capabilities": {
+      "intelligence": 3,
+      "speed": 3,
+      "cost": 5
+    }
+  }
 ] as const satisfies readonly ModelInfo[];
 
 export type ModelId = (typeof MODELS)[number]["id"];
@@ -757,41 +1563,71 @@ export const DEFAULT_MODEL_ID: ModelId = "gpt-5.4-mini";
  *  context-usage indicator in the AI mini-window header. Conservative
  *  estimates — actual provider limits may shift. */
 export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
-  "gpt-5.5": 1_050_000,
-  "gpt-5.4-mini": 400_000,
-  "gpt-5.4-nano": 400_000,
-  "gpt-5.3-codex": 400_000,
-  "gpt-4.1-mini": 128_000,
-  "claude-opus-4-7": 200_000,
-  "claude-sonnet-4-6": 200_000,
-  "claude-haiku-4-5": 200_000,
-  "claude-opus-4-6": 200_000,
-  "gemini-3.5-flash": 1_000_000,
-  "gemini-3.1-flash-lite": 1_000_000,
-  "gemini-3.1-pro-preview": 1_000_000,
-  "gemini-3-flash-preview": 1_000_000,
-  "gemini-2.5-pro": 1_000_000,
-  "gemini-2.5-flash": 1_000_000,
-  "grok-4.20-reasoning": 2_000_000,
-  "grok-4.20-non-reasoning": 2_000_000,
-  "grok-4-fast-reasoning": 2_000_000,
-  "deepseek-v4-pro": 1_000_000,
-  "deepseek-v4-flash": 1_000_000,
-  "deepseek-reasoner": 128_000,
-  "gpt-oss-120b": 128_000,
-  "llama3.3-70b": 128_000,
-  "qwen-3-32b": 32_000,
-  "openai/gpt-oss-20b": 128_000,
-  "llama-3.3-70b-versatile": 128_000,
-  "deepseek-r1-distill-llama-70b": 128_000,
-  "openrouter-custom": 256_000,
-  "openai-compatible-custom": 128_000,
-  "lmstudio-local": 32_000,
-  "mlx-local": 32_000,
-  "ollama-local": 32_000,
-  "mistral-large-latest": 131_072,
-  "mistral-medium-latest": 32_768,
-  "codestral-latest": 256_000,
+  "gpt-5.5": 1000000,
+  "gpt-5.4": 1000000,
+  "gpt-5.4-mini": 400000,
+  "gpt-5.4-nano": 400000,
+  "claude-fable-5": 1000000,
+  "claude-opus-4-8": 200000,
+  "claude-sonnet-4-6": 200000,
+  "claude-haiku-4-5": 200000,
+  "gemini-3.5-flash": 1000000,
+  "gemini-3.1-pro-preview": 1000000,
+  "gemini-3-flash-preview": 1000000,
+  "gemini-3.1-flash-lite": 1000000,
+  "gemini-2.5-pro": 1000000,
+  "gemini-2.5-flash": 1000000,
+  "grok-4.3": 1000000,
+  "grok-build-0.1": 256000,
+  "deepseek-v4-pro": 1000000,
+  "deepseek-v4-pro-thinking": 1000000,
+  "deepseek-v4-flash": 1000000,
+  "deepseek-v4-flash-thinking": 1000000,
+  "qwen3.7-max": 1000000,
+  "qwen3.7-max-thinking": 1000000,
+  "qwen3.7-plus": 1000000,
+  "qwen3.7-plus-thinking": 1000000,
+  "qwen3.6-flash": 1000000,
+  "qwen3-coder-plus": 256000,
+  "kimi-k2.7-code": 256000,
+  "kimi-k2.6": 256000,
+  "kimi-k2.6-thinking": 256000,
+  "kimi-k2.5": 256000,
+  "moonshotai/Kimi-K2.6": 262144,
+  "deepseek-ai/DeepSeek-V4-Pro": 512000,
+  "deepseek-ai/DeepSeek-V4-Flash": 1000000,
+  "Qwen/Qwen3.7-Max": 1000000,
+  "Qwen/Qwen3.6-Plus": 1000000,
+  "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8": 256000,
+  "openai/gpt-oss-120b": 128000,
+  "meta-llama/Llama-3.3-70B-Instruct-Turbo": 128000,
+  "accounts/fireworks/models/llama-v3p3-70b-instruct": 128000,
+  "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct": 256000,
+  "sonar": 128000,
+  "sonar-pro": 200000,
+  "sonar-reasoning-pro": 128000,
+  "sonar-deep-research": 128000,
+  "deepseek/deepseek-v4-pro": 1048576,
+  "deepseek/deepseek-v4-flash": 1048576,
+  "moonshotai/kimi-k2.7-code": 262144,
+  "moonshotai/kimi-k2.6": 262144,
+  "qwen/qwen3.7-max": 1000000,
+  "qwen/qwen3-coder-480b-a35b-instruct": 262144,
+  "mistral-large-latest": 131072,
+  "mistral-medium-latest": 131072,
+  "mistral-small-latest": 131072,
+  "devstral-2512": 131072,
+  "codestral-latest": 256000,
+  "gpt-oss-120b": 128000,
+  "zai-glm-4.7": 128000,
+  "groq/openai/gpt-oss-120b": 128000,
+  "groq/openai/gpt-oss-20b": 128000,
+  "llama-3.3-70b-versatile": 128000,
+  "openrouter-custom": 256000,
+  "openai-compatible-custom": 128000,
+  "lmstudio-local": 32000,
+  "mlx-local": 32000,
+  "ollama-local": 32000
 };
 
 export function getModelContextLimit(
@@ -815,27 +1651,77 @@ export type ModelPricing = {
 };
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
-  "gpt-5.5": { input: 5, output: 15, cacheRead: 0.5 },
-  "gpt-5.4-mini": { input: 0.4, output: 1.6, cacheRead: 0.04 },
-  "gpt-5.4-nano": { input: 0.1, output: 0.4, cacheRead: 0.01 },
-  "gpt-5.3-codex": { input: 1.5, output: 6, cacheRead: 0.15 },
-  "gpt-4.1-mini": { input: 0.4, output: 1.6, cacheRead: 0.1 },
-  "claude-opus-4-7": { input: 15, output: 75, cacheRead: 1.5 },
-  "claude-opus-4-6": { input: 15, output: 75, cacheRead: 1.5 },
-  "claude-sonnet-4-6": { input: 3, output: 15, cacheRead: 0.3 },
-  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1 },
-  "gemini-3.5-flash": { input: 0.3, output: 2.5, cacheRead: 0.075 },
-  "gemini-3.1-flash-lite": { input: 0.075, output: 0.3, cacheRead: 0.015 },
-  "gemini-3.1-pro-preview": { input: 1.25, output: 10, cacheRead: 0.31 },
-  "gemini-3-flash-preview": { input: 0.3, output: 2.5, cacheRead: 0.075 },
-  "gemini-2.5-pro": { input: 1.25, output: 10, cacheRead: 0.31 },
-  "gemini-2.5-flash": { input: 0.3, output: 2.5, cacheRead: 0.075 },
-  "grok-4.20-reasoning": { input: 3, output: 15 },
-  "grok-4.20-non-reasoning": { input: 1, output: 5 },
-  "grok-4-fast-reasoning": { input: 0.2, output: 0.5 },
-  "deepseek-v4-pro": { input: 0.28, output: 1.1, cacheRead: 0.028 },
-  "deepseek-v4-flash": { input: 0.07, output: 0.27, cacheRead: 0.007 },
-  "deepseek-reasoner": { input: 0.55, output: 2.19, cacheRead: 0.14 },
+  "gpt-5.5": {
+    "input": 5,
+    "output": 30,
+    "cacheRead": 0.5
+  },
+  "gpt-5.4": {
+    "input": 2.5,
+    "output": 15,
+    "cacheRead": 0.25
+  },
+  "gpt-5.4-mini": {
+    "input": 0.75,
+    "output": 4.5,
+    "cacheRead": 0.075
+  },
+  "grok-4.3": {
+    "input": 1.25,
+    "output": 2.5
+  },
+  "grok-build-0.1": {
+    "input": 1,
+    "output": 2
+  },
+  "moonshotai/Kimi-K2.6": {
+    "input": 1.2,
+    "output": 4.5,
+    "cacheRead": 0.2
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+    "input": 2.1,
+    "output": 4.4,
+    "cacheRead": 0.2
+  },
+  "Qwen/Qwen3.7-Max": {
+    "input": 1.25,
+    "output": 3.75,
+    "cacheRead": 0.13
+  },
+  "Qwen/Qwen3.6-Plus": {
+    "input": 0.5,
+    "output": 3
+  },
+  "openai/gpt-oss-120b": {
+    "input": 0.15,
+    "output": 0.6
+  },
+  "deepseek/deepseek-v4-pro": {
+    "input": 1.6,
+    "output": 3.2,
+    "cacheRead": 0.135
+  },
+  "deepseek/deepseek-v4-flash": {
+    "input": 0.14,
+    "output": 0.28,
+    "cacheRead": 0.028
+  },
+  "moonshotai/kimi-k2.7-code": {
+    "input": 0.95,
+    "output": 4,
+    "cacheRead": 0.19
+  },
+  "moonshotai/kimi-k2.6": {
+    "input": 0.8,
+    "output": 3.4,
+    "cacheRead": 0.16
+  },
+  "qwen/qwen3.7-max": {
+    "input": 1.25,
+    "output": 3.75,
+    "cacheRead": 0.25
+  }
 };
 
 export function estimateCost(
@@ -879,22 +1765,23 @@ export type AutocompleteProviderId = ProviderId;
 
 /** Sensible default model id per provider for inline autocomplete. */
 export const DEFAULT_AUTOCOMPLETE_MODEL: Partial<Record<ProviderId, string>> = {
-  cerebras: "gpt-oss-120b",
-  groq: "openai/gpt-oss-20b",
-  lmstudio: "qwen2.5-coder-7b-instruct",
-  openai: "gpt-5.4-nano",
-  anthropic: "claude-haiku-4-5",
-  google: "gemini-2.5-flash",
-  xai: "grok-4-fast-reasoning",
-  deepseek: "deepseek-v4-flash",
-  qwen: "qwen3.6-plus",
-  kimi: "kimi-k2.6",
-  together: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-  fireworks: "accounts/fireworks/models/llama-v3p3-70b-instruct",
-  perplexity: "sonar-pro",
-  novita: "deepseek/deepseek-r1",
-  openrouter: "openai/gpt-5.4-mini",
-  "openai-compatible": "",
+  "cerebras": "gpt-oss-120b",
+  "groq": "groq/openai/gpt-oss-20b",
+  "lmstudio": "qwen3-coder-30b-a3b-instruct-mlx",
+  "openai": "gpt-5.4-nano",
+  "anthropic": "claude-haiku-4-5",
+  "google": "gemini-3.1-flash-lite",
+  "xai": "grok-build-0.1",
+  "deepseek": "deepseek-v4-flash",
+  "qwen": "qwen3.6-flash",
+  "kimi": "kimi-k2.6",
+  "together": "openai/gpt-oss-120b",
+  "fireworks": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+  "perplexity": "sonar",
+  "novita": "deepseek/deepseek-v4-flash",
+  "mistral": "mistral-small-latest",
+  "openrouter": "openai/gpt-5.4-mini",
+  "openai-compatible": ""
 };
 
 /** Curated list of fast models suitable for inline completion (speed ≥ 4). */
@@ -993,16 +1880,15 @@ const LITE_SYSTEM_PROMPT_MODEL_IDS = new Set<string>([
   "mlx-local",
   "ollama-local",
   "gpt-5.4-nano",
-  "gpt-4.1-mini",
   "claude-haiku-4-5",
-  "gemini-2.5-flash",
-  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite",
   "deepseek-v4-flash",
+  "qwen3.6-flash",
+  "grok-build-0.1",
   "gpt-oss-120b",
-  "openai/gpt-oss-20b",
-  "llama3.3-70b",
+  "groq/openai/gpt-oss-20b",
   "llama-3.3-70b-versatile",
-  "qwen-3-32b",
+  "mistral-small-latest"
 ]);
 
 export function selectSystemPrompt(modelId: string | undefined): string {

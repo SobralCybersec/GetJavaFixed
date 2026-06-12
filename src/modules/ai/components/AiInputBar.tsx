@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/modules/i18n";
 import {
   Cancel01Icon,
   CodeIcon,
@@ -69,6 +70,7 @@ function detectFileTrigger(value: string, caret: number): FileTrigger | null {
 }
 
 export function AiInputBar() {
+  const { t } = useI18n();
   const c = useComposer();
   const snippets = useSnippetsStore((s) => s.snippets);
   const workspaceRoot = useChatStore((s) => s.live.getWorkspaceRoot());
@@ -207,9 +209,9 @@ export function AiInputBar() {
   };
 
   const voiceLabel = c.voice.recording
-    ? "Listening…"
+    ? t("ai.input.listening")
     : c.voice.transcribing
-      ? "Transcribing…"
+      ? t("ai.input.transcribing")
       : null;
 
   return (
@@ -285,7 +287,7 @@ export function AiInputBar() {
                     c.submit();
                   }
                 }}
-                placeholder="Ask Anything   -   # for snippets and commands, @ for files"
+                placeholder={t("ai.input.placeholder")}
                 rows={1}
                 className={cn(
                   "max-h-40 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none",
@@ -354,6 +356,7 @@ function ChipsRow({
   commands: { name: string; label: string; icon: typeof HashtagIcon }[];
   onRemoveCommand: (name: string) => void;
 }) {
+  const { t } = useI18n();
   if (files.length === 0 && snippets.length === 0 && commands.length === 0)
     return null;
   return (
@@ -381,7 +384,7 @@ function ChipsRow({
               type="button"
               onClick={() => onRemoveCommand(cmd.name)}
               className="ml-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label="Remove command"
+              aria-label={t("ai.input.removeCommand")}
             >
               <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2} />
             </button>
@@ -409,7 +412,7 @@ function ChipsRow({
               type="button"
               onClick={() => onRemoveSnippet(s.id)}
               className="ml-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label="Remove snippet"
+              aria-label={t("ai.input.removeSnippet")}
             >
               <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2} />
             </button>
@@ -451,7 +454,7 @@ function ChipsRow({
               type="button"
               onClick={() => onRemoveFile(f.id)}
               className="ml-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label="Remove"
+              aria-label={t("ai.input.removeAttachment")}
             >
               <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2} />
             </button>

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WindowControls } from "@/components/WindowControls";
 import { IS_MAC, KEY_SEP, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import type { LayoutMode } from "@/modules/settings/store";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useI18n } from "@/modules/i18n";
 import { BUILTIN_AGENTS, selectAgentForContext } from "@/modules/ai/lib/agents";
@@ -33,6 +34,7 @@ import {
   HelpCircleIcon,
   LayoutTwoColumnIcon,
   LayoutTwoRowIcon,
+  RobotIcon,
   Settings01Icon,
   SidebarLeftIcon,
 } from "@hugeicons/core-free-icons";
@@ -52,6 +54,8 @@ type Props = {
   onNew: () => void;
   onNewPrivate: () => void;
   onNewPreview: () => void;
+  onNewDashboard: () => void;
+  onNewAgentDashboard: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
   onClose: (id: number) => void;
@@ -69,6 +73,7 @@ type Props = {
   onOpenSettings: () => void;
   searchTarget: SearchTarget;
   searchRef: RefObject<SearchInlineHandle | null>;
+  layoutMode: LayoutMode;
   zenMode: boolean;
   hiddenInZen?: boolean;
   onToggleZenMode: () => void;
@@ -85,6 +90,8 @@ export function Header({
   onNew,
   onNewPrivate,
   onNewPreview,
+  onNewDashboard,
+  onNewAgentDashboard,
   onNewEditor,
   onNewGitGraph,
   onClose,
@@ -100,6 +107,7 @@ export function Header({
   onOpenSettings,
   searchTarget,
   searchRef,
+  layoutMode,
   zenMode,
   hiddenInZen = false,
   onToggleZenMode,
@@ -109,6 +117,7 @@ export function Header({
   const rootRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
   const [gifFailedFor, setGifFailedFor] = useState<string | null>(null);
+  const compactOps = layoutMode === "compact-ops";
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
   const familyMode = usePreferencesStore((s) => s.agentFamilyMode);
   const activeAgentId = useAgentsStore((s) => s.activeId);
@@ -203,6 +212,14 @@ export function Header({
           <HugeiconsIcon icon={FileAddIcon} size={14} strokeWidth={1.75} />
           <span>{t("header.newEditor")}</span>
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onNewDashboard}>
+          <HugeiconsIcon icon={GridViewIcon} size={14} strokeWidth={1.75} />
+          <span>{t("header.newDashboard")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onNewAgentDashboard}>
+          <HugeiconsIcon icon={RobotIcon} size={14} strokeWidth={1.75} />
+          <span>{t("header.newAgentDashboard")}</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onNewPreview}>
           <HugeiconsIcon icon={Add01Icon} size={14} strokeWidth={1.75} />
           <span>{t("header.newPreview")}</span>
@@ -212,9 +229,21 @@ export function Header({
           <span>{t("header.gitGraph")}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onOpenWorkspace}>
+          <HugeiconsIcon icon={FolderOpenIcon} size={14} strokeWidth={1.75} />
+          <span>{t("header.openWorkspace")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onOpenTutorial}>
+          <HugeiconsIcon icon={HelpCircleIcon} size={14} strokeWidth={1.75} />
+          <span>{t("header.openTutorial")}</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onToggleSidebar}>
           <HugeiconsIcon icon={SidebarLeftIcon} size={14} strokeWidth={1.75} />
           <span>{t("header.toggleSidebar")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onToggleZenMode}>
+          <HugeiconsIcon icon={GridViewIcon} size={14} strokeWidth={1.75} />
+          <span>{zenMode ? t("header.disableZen") : t("header.enableZen")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onSplit("row")} disabled={!canSplit}>
           <HugeiconsIcon icon={LayoutTwoColumnIcon} size={14} strokeWidth={1.75} />
@@ -324,7 +353,7 @@ export function Header({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       className={cn(
-        "javarf-terminal-shell flex h-12 shrink-0 items-center gap-2 border-[color:var(--border)] bg-[#050506]/96 select-none transition-[transform,opacity,background-color] duration-150",
+        "javarf-terminal-shell flex h-12 min-w-0 shrink-0 items-center gap-2 overflow-hidden border-[color:var(--border)] bg-[#050506]/96 select-none transition-[transform,opacity,background-color] duration-150",
         placement === "bottom" ? "border-t" : "border-b",
         zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
         hiddenInZenClass,
@@ -332,7 +361,7 @@ export function Header({
       )}
     >
       <div className="flex shrink-0 items-center gap-1.5">
-        {!compact ? (
+        {!compact && !compactOps ? (
           <div className="hidden h-9 shrink-0 items-center gap-3 border border-[color:var(--border)] bg-black/45 px-3 sm:flex">
             <span className="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden border border-primary/55 bg-primary/8 text-primary">
               {showAgentGif ? (
@@ -353,7 +382,7 @@ export function Header({
                 {activeAgent.name}
               </span>
               <span className="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-primary/72">
-                {activeAgent.subtitle ?? activeAgent.role ?? "Anime Terminal"}
+                {activeAgent.subtitle ?? activeAgent.role ?? activeAgent.name}
               </span>
             </div>
           </div>
@@ -378,6 +407,8 @@ export function Header({
           onNew={onNew}
           onNewPrivate={onNewPrivate}
           onNewPreview={onNewPreview}
+          onNewDashboard={onNewDashboard}
+          onNewAgentDashboard={onNewAgentDashboard}
           onNewEditor={onNewEditor}
           onNewGitGraph={onNewGitGraph}
           onClose={onClose}
@@ -390,18 +421,26 @@ export function Header({
       <SearchInline ref={searchRef} target={searchTarget} compact={compact} />
 
       <div className="flex shrink-0 items-center gap-1">
-        {workspaceButton}
-        {tutorialButton}
-        <span className="mx-1 h-5 w-px shrink-0 bg-white/8" />
-        {sidebarButton}
-        {zenButton}
-        {splitMenu}
-        {compactMenu}
+        {compactOps ? (
+          <>
+            {compactMenu}
+          </>
+        ) : (
+          <>
+            {workspaceButton}
+            {tutorialButton}
+            <span className="mx-1 h-5 w-px shrink-0 bg-white/8" />
+            {sidebarButton}
+            {zenButton}
+            {splitMenu}
+            {compactMenu}
+          </>
+        )}
         <NotificationBell
           onActivate={onActivateAgent}
           onActivateLocal={onActivateLocalAgent}
         />
-        {settingsButton}
+        {!compactOps ? settingsButton : null}
       </div>
 
       {USE_CUSTOM_WINDOW_CONTROLS && (

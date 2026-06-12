@@ -61,20 +61,21 @@ export function PreviewStack({
 
   if (previews.length === 0) return null;
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full min-h-0 w-full min-w-0 overflow-hidden">
       {previews.map((t) => {
         const visible = t.id === activeId;
         return (
           <div
             key={t.id}
             className={cn(
-              "absolute inset-0",
+              "absolute inset-0 min-h-0 min-w-0 overflow-hidden",
               !visible && "invisible pointer-events-none",
             )}
             aria-hidden={!visible}
           >
             <PreviewPane
               ref={getRefCallback(t.id)}
+              id={t.id}
               url={t.url}
               visible={visible}
               onUrlChange={getUrlCallback(t.id)}

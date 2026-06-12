@@ -493,6 +493,18 @@ fn scan_findings_in_scope(
             });
         }
 
+        if has_control_flow_flattening_signal(&content) {
+            findings.push(Phase1Finding {
+                id: format!("control-flow-flattening:{rel}"),
+                title: "Control-flow flattening pattern suggests obfuscation".to_string(),
+                category: "cybersecurity".to_string(),
+                priority: 94,
+                rationale: "A dispatcher loop with many switch cases and repeated state transitions is a common obfuscation shape. Review it as potentially flattened control flow before refactoring or trusting behavior.".to_string(),
+                principles: vec!["KISS".to_string(), "CleanCode".to_string()],
+                affected_files: vec![rel.clone()],
+            });
+        }
+
         if has_duplicate_logic(&content) {
             findings.push(Phase1Finding {
                 id: format!("duplicate-code:{rel}"),
@@ -684,6 +696,10 @@ fn is_supported_code_extension(ext: &str) -> bool {
             | "scss"
             | "vue"
             | "svelte"
+            | "asm"
+            | "s"
+            | "nasm"
+            | "inc"
     )
 }
 
@@ -773,6 +789,30 @@ fn repo_tooling_findings(repo_root: &Path) -> Vec<Phase1Finding> {
             &["gofmt", "go vet ./...", "staticcheck ./...", "go test ./..."],
         );
     }
+    if repo_root.join("Package.swift").is_file() {
+        push_tooling(
+            "swift",
+            "Run Swift build and test gates before accepting generated refactors",
+            "SwiftPM catches API drift, actor isolation issues, and compile-time regressions before a refactor lands",
+            &["swift format", "swift build", "swift test"],
+        );
+    }
+    if repo_root.join("pubspec.yaml").is_file() {
+        push_tooling(
+            "dart",
+            "Run Dart analysis and tests before accepting generated refactors",
+            "Dart and Flutter analyzers catch import cleanup, null-safety drift, and widget or package breakage early",
+            &["dart format", "dart analyze", "dart test or flutter test"],
+        );
+    }
+    if repo_root.join("mix.exs").is_file() {
+        push_tooling(
+            "elixir",
+            "Run Elixir format, compile, and test gates before accepting generated refactors",
+            "Mix catches formatting, compile-time, and behavior regressions in functional code paths quickly",
+            &["mix format --check-formatted", "mix compile --warnings-as-errors", "mix test"],
+        );
+    }
     if repo_root.join("pom.xml").is_file()
         || repo_root.join("build.gradle").is_file()
         || repo_root.join("build.gradle.kts").is_file()
@@ -819,7 +859,10 @@ fn has_debug_output(content: &str) -> bool {
         || content.contains("println!(")
         || content.lines().any(|line| {
             let trimmed = line.trim_start();
-            trimmed.starts_with("print(") || trimmed.starts_with("puts ")
+            trimmed.starts_with("print(")
+                || trimmed.starts_with("printf(")
+                || trimmed.starts_with("puts ")
+                || trimmed.contains("call printf")
         })
 }
 
@@ -855,6 +898,36 @@ fn has_deep_nesting(content: &str) -> bool {
         control_depth = (control_depth - closing).max(0);
     }
     max_depth >= 3
+}
+
+fn has_control_flow_flattening_signal(content: &str) -> bool {
+    let lower = content.to_ascii_lowercase();
+    let has_dispatch_loop = lower.contains("while (true)")
+        || lower.contains("while(true)")
+        || lower.contains("for (;;)")
+        || lower.contains("for(;;)");
+    if !has_dispatch_loop || !lower.contains("switch") {
+        return false;
+    }
+
+    let case_count = lower.matches("case ").count();
+    if case_count < 4 {
+        return false;
+    }
+
+    let state_writes = lower
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            (trimmed.contains("state =")
+                || trimmed.contains("next =")
+                || trimmed.contains("dispatch =")
+                || trimmed.contains("pc ="))
+                && trimmed.ends_with(';')
+        })
+        .count();
+
+    state_writes >= 3
 }
 
 fn has_duplicate_logic(content: &str) -> bool {

@@ -17,10 +17,14 @@ pub enum JavaProjectType {
     Rust,
     Python,
     Go,
+    Swift,
+    Dart,
+    Elixir,
     Dotnet,
     Php,
     Ruby,
     Cpp,
+    Assembly,
     Generic,
 }
 
@@ -63,6 +67,15 @@ pub fn inspect_repo_root(root: &Path) -> Result<JavaRepoReadiness, String> {
     if root.join("go.mod").is_file() {
         return Ok(supported_repo(repo_name, JavaProjectType::Go));
     }
+    if root.join("Package.swift").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Swift));
+    }
+    if root.join("pubspec.yaml").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Dart));
+    }
+    if root.join("mix.exs").is_file() {
+        return Ok(supported_repo(repo_name, JavaProjectType::Elixir));
+    }
     if root.join("composer.json").is_file() {
         return Ok(supported_repo(repo_name, JavaProjectType::Php));
     }
@@ -75,6 +88,10 @@ pub fn inspect_repo_root(root: &Path) -> Result<JavaRepoReadiness, String> {
     }
     if root.join("CMakeLists.txt").is_file() {
         return Ok(supported_repo(repo_name, JavaProjectType::Cpp));
+    }
+    let has_assembly_sources = has_direct_extension(root, &["asm", "s", "nasm", "inc"])?;
+    if has_assembly_sources {
+        return Ok(supported_repo(repo_name, JavaProjectType::Assembly));
     }
 
     Ok(JavaRepoReadiness {

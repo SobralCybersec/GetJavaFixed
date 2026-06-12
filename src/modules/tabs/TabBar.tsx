@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { fileIconUrl } from "@/modules/explorer/lib/iconResolver";
+import { useI18n } from "@/modules/i18n";
 import {
   Cancel01Icon,
   Clock01Icon,
@@ -16,9 +17,11 @@ import {
   GitBranchIcon,
   GitCompareIcon,
   Globe02Icon,
+  GridViewIcon,
   IncognitoIcon,
   PencilEdit02Icon,
   PlusSignIcon,
+  RobotIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef } from "react";
@@ -31,6 +34,8 @@ type Props = {
   onNew: () => void;
   onNewPrivate: () => void;
   onNewPreview: () => void;
+  onNewDashboard: () => void;
+  onNewAgentDashboard: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
   onClose: (id: number) => void;
@@ -46,12 +51,15 @@ export function TabBar({
   onNew,
   onNewPrivate,
   onNewPreview,
+  onNewDashboard,
+  onNewAgentDashboard,
   onNewEditor,
   onNewGitGraph,
   onClose,
   onPin,
   compact,
 }: Props) {
+  const { t: translate } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,11 +84,14 @@ export function TabBar({
 
   return (
     <div
-      ref={scrollRef}
       data-tauri-drag-region
-      className="min-w-0 shrink overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex min-w-0 shrink items-center gap-1"
     >
-      <div className="flex w-max items-center gap-1">
+      <div
+        ref={scrollRef}
+        data-tauri-drag-region
+        className="min-w-0 flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <Tabs
           value={String(activeId)}
           onValueChange={(v) => onSelect(Number(v))}
@@ -127,7 +138,7 @@ export function TabBar({
                     </span>
                     {t.kind === "editor" && t.dirty ? (
                       <span
-                        aria-label="Unsaved changes"
+                        aria-label={translate("tabs.unsavedChanges")}
                         className="size-1.5 shrink-0 rounded-full bg-primary/80"
                       />
                     ) : null}
@@ -135,7 +146,7 @@ export function TabBar({
                   {tabs.length > 1 && (
                     <span
                       role="button"
-                      aria-label="Close tab"
+                      aria-label={translate("tabs.closeTab")}
                       onClick={(e) => {
                         e.stopPropagation();
                         onClose(t.id);
@@ -154,65 +165,100 @@ export function TabBar({
             })}
           </TabsList>
         </Tabs>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 border border-[color:var(--border)] bg-black/28 text-white/56 hover:border-primary/35 hover:bg-primary/10 hover:text-white"
-              title="New tab"
-            >
-              <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-44">
-            <DropdownMenuItem onSelect={() => onNew()}>
-              <HugeiconsIcon
-                icon={ComputerTerminal02Icon}
-                size={14}
-                strokeWidth={1.75}
-              />
-              <span className="flex-1">Terminal</span>
-              <span className="text-xs text-muted-foreground">
-                {fmtShortcut(MOD_KEY, "T")}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onNewPrivate()}>
-              <HugeiconsIcon
-                icon={IncognitoIcon}
-                size={14}
-                strokeWidth={1.75}
-              />
-              <span className="flex-1">Privacy</span>
-              <span className="text-xs text-muted-foreground">
-                {fmtShortcut(MOD_KEY, "R")}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onNewEditor()}>
-              <HugeiconsIcon
-                icon={PencilEdit02Icon}
-                size={14}
-                strokeWidth={1.75}
-              />
-              <span className="flex-1">Editor</span>
-              <span className="text-xs text-muted-foreground">
-                {fmtShortcut(MOD_KEY, "E")}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onNewPreview()}>
-              <HugeiconsIcon icon={Globe02Icon} size={14} strokeWidth={1.75} />
-              <span className="flex-1">Preview</span>
-              <span className="text-xs text-muted-foreground">
-                {fmtShortcut(MOD_KEY, "P")}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onNewGitGraph()}>
-              <HugeiconsIcon icon={GitBranchIcon} size={14} strokeWidth={1.75} />
-              <span className="flex-1">Git Graph</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 border border-[color:var(--border)] bg-black/28 text-white/56 hover:border-primary/35 hover:bg-primary/10 hover:text-white"
+            title={translate("tabs.newTab")}
+          >
+            <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="max-w-[calc(100vw-0.75rem)]"
+          style={{ width: "min(16rem, calc(100vw - 0.75rem))" }}
+        >
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNew()}
+          >
+            <HugeiconsIcon
+              icon={ComputerTerminal02Icon}
+              size={14}
+              strokeWidth={1.75}
+            />
+            <span className="min-w-0 flex-1">{translate("tabs.terminal")}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {fmtShortcut(MOD_KEY, "T")}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewPrivate()}
+          >
+            <HugeiconsIcon
+              icon={IncognitoIcon}
+              size={14}
+              strokeWidth={1.75}
+            />
+            <span className="min-w-0 flex-1">{translate("tabs.privacy")}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {fmtShortcut(MOD_KEY, "R")}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewEditor()}
+          >
+            <HugeiconsIcon
+              icon={PencilEdit02Icon}
+              size={14}
+              strokeWidth={1.75}
+            />
+            <span className="min-w-0 flex-1">{translate("tabs.editor")}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {fmtShortcut(MOD_KEY, "E")}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewDashboard()}
+          >
+            <HugeiconsIcon icon={GridViewIcon} size={14} strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">{translate("tabs.dashboard")}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewAgentDashboard()}
+          >
+            <HugeiconsIcon icon={RobotIcon} size={14} strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">
+              {translate("tabs.agentDashboard")}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewPreview()}
+          >
+            <HugeiconsIcon icon={Globe02Icon} size={14} strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">{translate("tabs.preview")}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {fmtShortcut(MOD_KEY, "P")}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewGitGraph()}
+          >
+            <HugeiconsIcon icon={GitBranchIcon} size={14} strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">{translate("tabs.gitGraph")}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -226,6 +272,26 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={Globe02Icon}
+        size={14}
+        strokeWidth={2}
+        className="shrink-0"
+      />
+    );
+  }
+  if (tab.kind === "dashboard") {
+    return (
+      <HugeiconsIcon
+        icon={GridViewIcon}
+        size={14}
+        strokeWidth={2}
+        className="shrink-0"
+      />
+    );
+  }
+  if (tab.kind === "agent-dashboard") {
+    return (
+      <HugeiconsIcon
+        icon={RobotIcon}
         size={14}
         strokeWidth={2}
         className="shrink-0"
@@ -285,6 +351,8 @@ function TabIcon({ tab }: { tab: Tab }) {
 function labelFor(t: Tab): string {
   if (t.kind === "editor") return t.title;
   if (t.kind === "preview") return t.title;
+  if (t.kind === "dashboard") return t.title;
+  if (t.kind === "agent-dashboard") return t.title;
   if (t.kind === "markdown") return t.title;
   if (t.kind === "ai-diff") return t.title;
   if (t.kind === "git-diff") return t.title;

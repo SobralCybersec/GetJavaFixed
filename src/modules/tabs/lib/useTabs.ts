@@ -47,6 +47,18 @@ export type PreviewTab = {
   url: string;
 };
 
+export type DashboardTab = {
+  id: number;
+  kind: "dashboard";
+  title: string;
+};
+
+export type AgentDashboardTab = {
+  id: number;
+  kind: "agent-dashboard";
+  title: string;
+};
+
 export type MarkdownTab = {
   id: number;
   kind: "markdown";
@@ -103,6 +115,8 @@ export type Tab =
   | TerminalTab
   | EditorTab
   | PreviewTab
+  | DashboardTab
+  | AgentDashboardTab
   | MarkdownTab
   | AiDiffTab
   | GitDiffTab
@@ -127,7 +141,7 @@ function titleFromUrl(url: string): string {
     const u = new URL(url);
     return u.host || url;
   } catch {
-    return url || "preview";
+    return url || "Browser";
   }
 }
 
@@ -402,6 +416,38 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     return id;
   }, []);
 
+  const newDashboardTab = useCallback(() => {
+    let targetId: number | null = null;
+    setTabs((curr) => {
+      const existing = curr.find((tab) => tab.kind === "dashboard");
+      if (existing) {
+        targetId = existing.id;
+        return curr;
+      }
+      const id = nextIdRef.current++;
+      targetId = id;
+      return [...curr, { id, kind: "dashboard", title: "Dashboard" }];
+    });
+    if (targetId !== null) setActiveId(targetId);
+    return targetId;
+  }, []);
+
+  const newAgentDashboardTab = useCallback(() => {
+    let targetId: number | null = null;
+    setTabs((curr) => {
+      const existing = curr.find((tab) => tab.kind === "agent-dashboard");
+      if (existing) {
+        targetId = existing.id;
+        return curr;
+      }
+      const id = nextIdRef.current++;
+      targetId = id;
+      return [...curr, { id, kind: "agent-dashboard", title: "Agent dashboard" }];
+    });
+    if (targetId !== null) setActiveId(targetId);
+    return targetId;
+  }, []);
+
   const newMarkdownTab = useCallback((path: string) => {
     let targetId: number | null = null;
     setTabs((curr) => {
@@ -603,6 +649,18 @@ export function useTabs(initial?: Partial<TerminalTab>) {
               url: patch.url,
               title: patch.title ?? titleFromUrl(patch.url),
             }),
+          };
+        }
+        if (x.kind === "dashboard") {
+          return {
+            ...x,
+            ...(patch.title !== undefined && { title: patch.title }),
+          };
+        }
+        if (x.kind === "agent-dashboard") {
+          return {
+            ...x,
+            ...(patch.title !== undefined && { title: patch.title }),
           };
         }
         if (x.kind === "markdown") {
@@ -811,6 +869,8 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     openFileTab,
     pinTab,
     newPreviewTab,
+    newDashboardTab,
+    newAgentDashboardTab,
     newMarkdownTab,
     openAiDiffTab,
     openGitDiffTab,
