@@ -28,7 +28,7 @@ import {
 } from "@/modules/settings/store";
 import { ArrowUpRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@/lib/openUrl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

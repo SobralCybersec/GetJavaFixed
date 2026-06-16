@@ -22,6 +22,11 @@ import {
   type McpProviderConfig,
   type RemoteMcpProviderId,
 } from "@/modules/ai/lib/mcpRegistry";
+import {
+  readBrowserStoreEntries,
+  writeBrowserStoreValue,
+} from "@/lib/browserJsonStore";
+import { isTauriRuntime } from "@/lib/runtime";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
@@ -269,13 +274,24 @@ const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
 const PREFS_CHANGED_EVENT = "javarf://prefs-changed";
 
 async function writePref<T>(key: string, value: T): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, key, value);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(PREFS_CHANGED_EVENT, { detail: { key, value } }),
+      );
+    }
+    return;
+  }
   await store.set(key, value);
   await store.save();
   await emit(PREFS_CHANGED_EVENT, { key, value });
 }
 
 export async function loadPreferences(): Promise<Preferences> {
-  const entries = await store.entries();
+  const entries = isTauriRuntime
+    ? await store.entries()
+    : readBrowserStoreEntries(STORE_PATH);
   const map = new Map<string, unknown>(entries);
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
   return {
@@ -931,6 +947,18 @@ export async function onPreferencesChange(
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",
   };
 
+  if (!isTauriRuntime) {
+    if (typeof window === "undefined") return () => {};
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ key: string; value: unknown }>)
+        .detail;
+      const mapped = detail ? map[detail.key] : undefined;
+      if (mapped) cb(mapped, detail.value);
+    };
+    window.addEventListener(PREFS_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(PREFS_CHANGED_EVENT, handler);
+  }
+
   const unsubLocal = await store.onChange<unknown>((key, value) => {
     const mapped = map[key];
     if (mapped) cb(mapped, value);
@@ -951,9 +979,23 @@ export async function onPreferencesChange(
 const KEYS_CHANGED_EVENT = "javarf://ai-keys-changed";
 
 export async function emitKeysChanged(): Promise<void> {
+  if (!isTauriRuntime) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(KEYS_CHANGED_EVENT));
+    }
+    return;
+  }
   await emit(KEYS_CHANGED_EVENT);
 }
 
 export function onKeysChanged(cb: () => void): Promise<UnlistenFn> {
+  if (!isTauriRuntime) {
+    if (typeof window === "undefined") return Promise.resolve(() => {});
+    const handler = () => cb();
+    window.addEventListener(KEYS_CHANGED_EVENT, handler);
+    return Promise.resolve(() =>
+      window.removeEventListener(KEYS_CHANGED_EVENT, handler),
+    );
+  }
   return listen(KEYS_CHANGED_EVENT, () => cb());
 }

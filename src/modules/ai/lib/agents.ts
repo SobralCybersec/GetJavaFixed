@@ -1,3 +1,8 @@
+import {
+  readBrowserStoreEntries,
+  writeBrowserStoreValue,
+} from "@/lib/browserJsonStore";
+import { isTauriRuntime } from "@/lib/runtime";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import type { ManagedMcpPresetId } from "./mcpRegistry";
 
@@ -1456,7 +1461,9 @@ export type LoadedAgents = {
 };
 
 export async function loadAgents(): Promise<LoadedAgents> {
-  const entries = await store.entries();
+  const entries = isTauriRuntime
+    ? await store.entries()
+    : readBrowserStoreEntries(STORE_PATH);
   let custom: Agent[] | undefined;
   let activeId: string | undefined;
   for (const [key, value] of entries) {
@@ -1470,11 +1477,19 @@ export async function loadAgents(): Promise<LoadedAgents> {
 }
 
 export async function saveCustomAgents(custom: Agent[]): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, KEY_CUSTOM, custom);
+    return;
+  }
   await store.set(KEY_CUSTOM, custom);
   await store.save();
 }
 
 export async function saveActiveAgentId(id: string): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, KEY_ACTIVE, id);
+    return;
+  }
   await store.set(KEY_ACTIVE, id);
   await store.save();
 }

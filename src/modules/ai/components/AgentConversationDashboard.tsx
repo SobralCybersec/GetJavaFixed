@@ -14,8 +14,10 @@ import type { AiDiffTab } from "@/modules/tabs";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import {
   Alert02Icon,
+  ApiIcon,
   Globe02Icon,
   RobotIcon,
+  Settings02Icon,
   Tick02Icon,
   ToolsIcon,
 } from "@hugeicons/core-free-icons";
@@ -36,7 +38,7 @@ const STATUS_LABEL_KEY = {
   error: "agentDashboard.status.error",
 } as const;
 
-type DashboardSection = "overview" | "work" | "resources" | "sessions";
+type DashboardSection = "overview" | "work" | "resources" | "sessions" | "mcp" | "settings";
 
 type Props = {
   aiDiffTabs: ReadonlyArray<AiDiffTab>;
@@ -147,11 +149,13 @@ export function AgentConversationDashboard({
       }),
     [agentMeta.approvalsPending, summary, t],
   );
-  const sections: Array<{ id: DashboardSection; label: string }> = [
-    { id: "overview", label: t("agentDashboard.section.overview") },
-    { id: "work", label: t("agentDashboard.section.work") },
-    { id: "resources", label: t("agentDashboard.section.resources") },
-    { id: "sessions", label: t("agentDashboard.section.sessions") },
+  const sections: Array<{ id: DashboardSection; label: string; icon?: typeof RobotIcon }> = [
+    { id: "overview", label: t("agentDashboard.section.overview"), icon: RobotIcon },
+    { id: "work", label: t("agentDashboard.section.work"), icon: ToolsIcon },
+    { id: "resources", label: t("agentDashboard.section.resources"), icon: Globe02Icon },
+    { id: "sessions", label: t("agentDashboard.section.sessions"), icon: RobotIcon },
+    { id: "mcp", label: t("agentDashboard.section.mcp", { defaultValue: "MCP & Config" }), icon: ApiIcon },
+    { id: "settings", label: t("agentDashboard.section.settings", { defaultValue: "Settings" }), icon: Settings02Icon },
   ];
 
   return (
@@ -205,11 +209,12 @@ export function AgentConversationDashboard({
                 onClick={() => setActiveSection(section.id)}
                 className={
                   section.id === activeSection
-                    ? "shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-                    : "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "flex-1 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                    : "flex-1 flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
                 }
               >
-                {section.label}
+                {section.icon ? <HugeiconsIcon icon={section.icon} size={14} strokeWidth={1.8} /> : null}
+                <span>{section.label}</span>
               </button>
             ))}
           </div>
@@ -618,6 +623,129 @@ export function AgentConversationDashboard({
                     visible={true}
                     onUrlChange={setSelectedUrl}
                   />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div
+            className={
+              activeSection === "mcp"
+                ? "grid min-h-0 gap-4"
+                : "hidden"
+            }
+          >
+            <Card size="sm" className="border border-border/70 bg-card/80">
+              <CardHeader className="border-b border-border/60">
+                <CardTitle className="flex items-center gap-2">
+                  <HugeiconsIcon icon={ApiIcon} size={18} strokeWidth={1.8} />
+                  {t("agentDashboard.mcp", { defaultValue: "MCP & Agent Config" })}
+                </CardTitle>
+                <CardDescription>{t("agentDashboard.mcpDescription", { defaultValue: "Configure Model Context Protocol servers and agent-specific settings" })}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 py-4">
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">MCP Servers</div>
+                  <div className="space-y-2 rounded-lg bg-background/50 p-3">
+                    <p className="text-xs text-muted-foreground">Browse and edit the markdown rules that feed AI refactor previews. Changes save directly into the app-local refactor rules folder.</p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <Button variant="outline" size="sm" className="w-full justify-start">
+                        <span className="text-[11px]">+ Add MCP Server</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">Active Servers</div>
+                  <div className="rounded-lg bg-background/50 p-3">
+                    <div className="text-xs text-muted-foreground">No servers configured</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">Agent Behavior</div>
+                  <div className="space-y-2 rounded-lg bg-background/50 p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Enable tool calling</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Auto-execute approved tools</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Sandbox execution</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">Tool Timeout Configuration</div>
+                  <div className="space-y-2 rounded-lg bg-background/50 p-3">
+                    <div className="text-sm text-muted-foreground">Default timeout: <span className="font-mono text-foreground">30s</span></div>
+                    <div className="text-sm text-muted-foreground">Max retries: <span className="font-mono text-foreground">3</span></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div
+            className={
+              activeSection === "settings"
+                ? "grid min-h-0 gap-4"
+                : "hidden"
+            }
+          >
+            <Card size="sm" className="border border-border/70 bg-card/80">
+              <CardHeader className="border-b border-border/60">
+                <CardTitle className="flex items-center gap-2">
+                  <HugeiconsIcon icon={Settings02Icon} size={18} strokeWidth={1.8} />
+                  {t("agentDashboard.settings", { defaultValue: "Settings" })}
+                </CardTitle>
+                <CardDescription>{t("agentDashboard.settingsDescription", { defaultValue: "Configure agent behavior and dashboard preferences" })}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 py-4">
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">Agent Configuration</div>
+                  <div className="space-y-2 rounded-lg bg-background/50 p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Auto-approve tool calls</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Verbose output</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">Display Preferences</div>
+                  <div className="space-y-2 rounded-lg bg-background/50 p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Show token estimates</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Compact view</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Show timestamps</span>
+                      <input type="checkbox" className="h-4 w-4 rounded" defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-foreground">Resource Management</div>
+                  <div className="space-y-2 rounded-lg bg-background/50 p-3">
+                    <div className="text-sm text-muted-foreground">Max resources to display: <span className="font-mono text-foreground">50</span></div>
+                    <div className="text-sm text-muted-foreground">Cache preview data: <span className="font-mono text-foreground">24h</span></div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

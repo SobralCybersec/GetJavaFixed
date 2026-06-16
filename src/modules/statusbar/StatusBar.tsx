@@ -75,7 +75,7 @@ export function StatusBar({
         onHoverChange?.(false);
       }}
       className={cn(
-        "javarf-terminal-shell flex h-10 shrink-0 items-center justify-between gap-3 border-[color:var(--border)] bg-[#050506]/96 px-3 text-[11px]",
+        "javarf-terminal-shell flex h-9 shrink-0 items-center justify-between gap-2 border-[color:var(--border)] bg-[#040506]/92 px-3 text-[11px]",
         placement === "top" ? "border-b" : "border-t",
         zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
       )}
@@ -108,25 +108,7 @@ export function StatusBar({
           </Tooltip>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <div
-          aria-hidden="true"
-          className="flex items-center gap-2 border-l border-[color:var(--border)] pl-3"
-        >
-          <div className="javarf-cat">
-            <span className="javarf-cat__ear javarf-cat__ear--left" />
-            <span className="javarf-cat__ear javarf-cat__ear--right" />
-            <span className="javarf-cat__face">
-              <span className="javarf-cat__eye javarf-cat__eye--left">
-                <span className="javarf-cat__pupil" />
-              </span>
-              <span className="javarf-cat__eye javarf-cat__eye--right">
-                <span className="javarf-cat__pupil" />
-              </span>
-              <span className="javarf-cat__muzzle" />
-            </span>
-          </div>
-        </div>
+      <div className="flex shrink-0 items-center gap-2">
         <RefactorAutomationPopover />
         <AgentStatusPill onClick={onOpenMini} />
         {panelOpen && hasComposer ? (

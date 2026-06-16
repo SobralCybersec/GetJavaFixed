@@ -1,12 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { native } from "@/modules/ai/lib/native";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-
-type ReadResult =
-  | { kind: "text"; content: string; size: number }
-  | { kind: "binary"; size: number }
-  | { kind: "toolarge"; size: number; limit: number };
 
 export type DocumentState =
   | { status: "loading" }
@@ -49,12 +43,7 @@ export function useDocument({ path, onDirtyChange }: Options) {
 
   const saveNow = useCallback(async () => {
     const content = bufferRef.current;
-    await invoke("fs_write_file", {
-      path,
-      content,
-      workspace: currentWorkspaceEnv(),
-      source: "editor",
-    });
+    await native.writeFile(path, content);
     savedRef.current = content;
     setDirty(false);
   }, [path]);
@@ -74,7 +63,8 @@ export function useDocument({ path, onDirtyChange }: Options) {
     setDoc({ status: "loading" });
     setDirty(false);
 
-    invoke<ReadResult>("fs_read_file", { path, workspace: currentWorkspaceEnv() })
+    native
+      .readFile(path)
       .then((res) => {
         if (cancelled) return;
         if (res.kind === "text") {
@@ -108,10 +98,8 @@ export function useDocument({ path, onDirtyChange }: Options) {
   // matches the buffer (self-save / duplicate watcher event → no re-render).
   const reload = useCallback((): boolean => {
     if (dirtyRef.current) return false;
-    void invoke<ReadResult>("fs_read_file", {
-      path,
-      workspace: currentWorkspaceEnv(),
-    })
+    void native
+      .readFile(path)
       .then((res) => {
         if (res.kind === "text") {
           if (res.content === savedRef.current) return;

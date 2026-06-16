@@ -26,4 +26,10 @@ describe("JavaRepoHome intake shell", () => {
     expect(homeSrc).toContain("onStartFullAnalysis");
     expect(appSrc).toContain("onStartFullAnalysis={handleStartFullAnalysis}");
   });
+
+  it("exposes preview dashboard entry without requiring a workspace", () => {
+    expect(homeSrc).toContain("onPreviewDashboard");
+    expect(homeSrc).toContain('t("repoIntake.previewDashboard")');
+    expect(appSrc).toContain("onPreviewDashboard={handlePreviewJavaRefactor}");
+  });
 });

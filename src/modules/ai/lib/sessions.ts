@@ -1,4 +1,11 @@
 import type { UIMessage } from "@ai-sdk/react";
+import {
+  deleteBrowserStoreValue,
+  readBrowserStoreEntries,
+  readBrowserStoreValue,
+  writeBrowserStoreValue,
+} from "@/lib/browserJsonStore";
+import { isTauriRuntime } from "@/lib/runtime";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
 export type SessionMeta = {
@@ -21,7 +28,9 @@ export type LoadedSessions = {
 };
 
 export async function loadAll(): Promise<LoadedSessions> {
-  const entries = await store.entries();
+  const entries = isTauriRuntime
+    ? await store.entries()
+    : readBrowserStoreEntries(STORE_PATH);
   let sessions: SessionMeta[] | undefined;
   let activeId: string | null | undefined;
   for (const [k, v] of entries) {
@@ -32,14 +41,25 @@ export async function loadAll(): Promise<LoadedSessions> {
 }
 
 export async function loadMessages(id: string): Promise<UIMessage[] | null> {
+  if (!isTauriRuntime) {
+    return readBrowserStoreValue<UIMessage[]>(STORE_PATH, messagesKey(id)) ?? null;
+  }
   return (await store.get<UIMessage[]>(messagesKey(id))) ?? null;
 }
 
 export async function saveSessionsList(sessions: SessionMeta[]): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, KEY_SESSIONS, sessions);
+    return;
+  }
   await store.set(KEY_SESSIONS, sessions);
 }
 
 export async function saveActiveId(id: string | null): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, KEY_ACTIVE, id);
+    return;
+  }
   await store.set(KEY_ACTIVE, id);
 }
 
@@ -47,10 +67,18 @@ export async function saveMessages(
   id: string,
   messages: UIMessage[],
 ): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, messagesKey(id), messages);
+    return;
+  }
   await store.set(messagesKey(id), messages);
 }
 
 export async function deleteSessionData(id: string): Promise<void> {
+  if (!isTauriRuntime) {
+    deleteBrowserStoreValue(STORE_PATH, messagesKey(id));
+    return;
+  }
   await store.delete(messagesKey(id));
 }
 

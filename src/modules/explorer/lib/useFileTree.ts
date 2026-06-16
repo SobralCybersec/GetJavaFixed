@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { native } from "@/modules/ai/lib/native";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { listenFsChanged, watchAdd, watchRemove } from "./watch";
@@ -105,11 +106,7 @@ export function useFileTree(rootPath: string | null, options?: Options) {
   const fetchChildren = useCallback(async (path: string) => {
     setNodes((s) => ({ ...s, [path]: { status: "loading" } }));
     try {
-      const entries = await invoke<DirEntry[]>("fs_read_dir", {
-        path,
-        showHidden: showHiddenRef.current,
-        workspace: currentWorkspaceEnv(),
-      });
+      const entries = await native.readDir(path, showHiddenRef.current);
 
       const liveDirs = new Set(
         entries.filter((e) => e.kind === "dir").map((e) => joinPath(path, e.name)),

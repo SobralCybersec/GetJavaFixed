@@ -68,6 +68,7 @@ type Props = {
   repo: FindingsRepo;
   selectedScanPath?: string | null;
   autoStartScanPath?: string | null;
+  previewOnly?: boolean;
   onClose?: () => void;
 };
 
@@ -80,6 +81,7 @@ export function FindingsDashboard({
   repo,
   selectedScanPath,
   autoStartScanPath,
+  previewOnly = false,
   onClose,
 }: Props) {
   const { t } = useI18n();
@@ -157,9 +159,9 @@ export function FindingsDashboard({
   const { reset: resetRefactor } = refactor;
 
   useEffect(() => {
-    if (!autoStartScanPath) return;
+    if (previewOnly || !autoStartScanPath) return;
     void startAnalysis(autoStartScanPath);
-  }, [autoStartScanPath, startAnalysis]);
+  }, [autoStartScanPath, previewOnly, startAnalysis]);
 
   const handleSelectFinding = (id: string) => {
     if (selectedFinding?.id !== id) resetRefactor();
@@ -201,6 +203,12 @@ export function FindingsDashboard({
             {repo.readiness.projectType}
           </Badge>
 
+          {previewOnly ? (
+            <Badge variant="outline" className="border-primary/30 bg-primary/8 text-primary">
+              {t("findings.previewMode")}
+            </Badge>
+          ) : null}
+
           {onClose ? (
             <Button
               size="sm"
@@ -215,6 +223,13 @@ export function FindingsDashboard({
       </div>
 
       <div className="relative z-0 mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-5 px-4 py-5 sm:px-5 xl:gap-6 xl:py-6">
+        {previewOnly ? (
+          <div className="javarf-terminal-panel ops-inset-panel border border-primary/25 bg-primary/6 px-4 py-4 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{t("findings.previewMode")}</span>{" "}
+            {t("findings.previewDescription")}
+          </div>
+        ) : null}
+
         <div className="min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 gap-4">
             <TabsList className="javarf-terminal-tabs h-auto w-full justify-start overflow-x-auto border border-border/80 bg-card/95 p-1">
@@ -319,7 +334,7 @@ export function FindingsDashboard({
                               variant="outline"
                               className="border-border/80 bg-background/60 font-mono uppercase tracking-[0.14em] transition-colors duration-150"
                               onClick={() => void startAnalysis(selectedScanPath)}
-                              disabled={panelState === "analyzing"}
+                              disabled={previewOnly || panelState === "analyzing"}
                             >
                               {t("findings.analyzeSelected")}
                             </Button>
@@ -329,7 +344,7 @@ export function FindingsDashboard({
                             size="sm"
                             className="border-primary/40 bg-primary/10 font-mono uppercase tracking-[0.14em] transition-colors duration-150"
                             onClick={() => void startAnalysis()}
-                            disabled={panelState === "analyzing"}
+                            disabled={previewOnly || panelState === "analyzing"}
                           >
                             {t("findings.startFull")}
                           </Button>

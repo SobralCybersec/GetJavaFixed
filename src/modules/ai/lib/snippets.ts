@@ -1,3 +1,8 @@
+import {
+  readBrowserStoreValue,
+  writeBrowserStoreValue,
+} from "@/lib/browserJsonStore";
+import { isTauriRuntime } from "@/lib/runtime";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
 export type Snippet = {
@@ -15,10 +20,17 @@ const KEY_LIST = "snippets";
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
 
 export async function loadSnippets(): Promise<Snippet[]> {
+  if (!isTauriRuntime) {
+    return readBrowserStoreValue<Snippet[]>(STORE_PATH, KEY_LIST) ?? [];
+  }
   return (await store.get<Snippet[]>(KEY_LIST)) ?? [];
 }
 
 export async function saveSnippets(list: Snippet[]): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, KEY_LIST, list);
+    return;
+  }
   await store.set(KEY_LIST, list);
   await store.save();
 }

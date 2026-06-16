@@ -2199,6 +2199,23 @@ function buildResearchContinuationSystemOverride(args: {
 - Only fetch a URL when a prior search result is promising enough to inspect.${budget}`;
 }
 
+function buildResearchFinalAnswerSystemOverride(args: {
+  baseSystem: string;
+  completedResearchCalls: number;
+  requiredResearchCalls: number;
+  tokenBudget: TokenBudgetState;
+}): string {
+  const budget = args.tokenBudget.nearLimit
+    ? "\n- Context is near budget. Keep the final answer concise."
+    : "";
+  return `${args.baseSystem}
+
+## RESEARCH FINALIZATION CHECKPOINT
+- The required research tool calls are complete (${args.completedResearchCalls}/${args.requiredResearchCalls}).
+- Do not call tools now. Synthesize the final answer from gathered results.
+- If evidence is incomplete, say what was not found instead of searching again.${budget}`;
+}
+
 function buildReflectionSystemOverride(args: {
   baseSystem: string;
   stepNumber: number;
@@ -2237,7 +2254,7 @@ function buildAdaptiveStepSettings(args: {
   const activeTools = filterDisabledTools(args.turnPlan.activeTools, args.runState.disabledTools);
   const shouldReflect = args.stepNumber > 0 && (args.steps.length > 0 || args.runState.disabledTools.size > 0);
 
-  if (activeTools && args.researchPolicy.enabled && args.researchPolicy.minToolCalls > 1) {
+  if (activeTools && args.researchPolicy.enabled && args.researchPolicy.minToolCalls > 0) {
     const activeResearchTools = activeTools.filter((toolName) =>
       isResearchToolName(String(toolName)),
     );
@@ -2255,6 +2272,23 @@ function buildAdaptiveStepSettings(args: {
         toolChoice: chooseRequiredResearchTool(args.researchPolicy, activeResearchTools),
         activeTools: activeResearchTools,
         system: buildResearchContinuationSystemOverride({
+          baseSystem: args.stableSystem,
+          completedResearchCalls,
+          requiredResearchCalls: args.researchPolicy.minToolCalls,
+          tokenBudget: args.tokenBudget,
+        }),
+      };
+    }
+
+    if (
+      shouldReflect &&
+      activeResearchTools.length > 0 &&
+      completedResearchCalls >= args.researchPolicy.minToolCalls
+    ) {
+      return {
+        toolChoice: "none" as const,
+        activeTools: [],
+        system: buildResearchFinalAnswerSystemOverride({
           baseSystem: args.stableSystem,
           completedResearchCalls,
           requiredResearchCalls: args.researchPolicy.minToolCalls,

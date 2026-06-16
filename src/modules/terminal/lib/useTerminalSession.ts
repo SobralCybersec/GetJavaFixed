@@ -1,4 +1,5 @@
 import { ensureMonoFontsLoaded } from "@/lib/fonts";
+import { isBrowserPreview } from "@/lib/runtime";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { SearchAddon } from "@xterm/addon-search";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -408,11 +409,14 @@ export function useTerminalSession({
   const cbRef = useRef({ onSearchReady, onExit, onCwd });
   cbRef.current = { onSearchReady, onExit, onCwd };
   const [bootState, setBootState] = useState<TerminalBootState>({
-    status: "loading",
+    status: isBrowserPreview ? "ready" : "loading",
     message: null,
   });
 
   useEffect(() => {
+    if (isBrowserPreview) {
+      return;
+    }
     let cancelled = false;
     const s = ensureSession(leafId, initialCwd);
     s.ready.then(() => {

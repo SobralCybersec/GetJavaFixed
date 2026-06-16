@@ -1,3 +1,4 @@
+import { isTauriRuntime } from "@/lib/runtime";
 import { emit, listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import {
@@ -26,7 +27,13 @@ type AgentsState = {
 let initialized = false;
 
 function broadcast(): void {
-  void emit(CHANGED_EVENT);
+  if (isTauriRuntime) {
+    void emit(CHANGED_EVENT);
+    return;
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(CHANGED_EVENT));
+  }
 }
 
 export const useAgentsStore = create<AgentsState>((set, get) => ({
@@ -40,10 +47,15 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
     const { custom, activeId } = await loadAgents();
     set({ customAgents: custom, activeId, hydrated: true });
 
-    void listen(CHANGED_EVENT, async () => {
+    const onChange = async () => {
       const fresh = await loadAgents();
       set({ customAgents: fresh.custom, activeId: fresh.activeId });
-    });
+    };
+    if (isTauriRuntime) {
+      void listen(CHANGED_EVENT, onChange);
+    } else if (typeof window !== "undefined") {
+      window.addEventListener(CHANGED_EVENT, () => void onChange());
+    }
   },
   setActiveId: (id) => {
     set({ activeId: id });

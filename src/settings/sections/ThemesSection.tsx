@@ -22,6 +22,7 @@ import { deleteThemeFile, emitThemeEdit } from "@/modules/theme/themeFiles";
 import { DEFAULT_THEME_ID } from "@/modules/theme/types";
 import { Edit02Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { isTauriRuntime } from "@/lib/runtime";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useMemo, useRef, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";
@@ -46,12 +47,12 @@ export function ThemesSection() {
 
   const onCreateTheme = () => {
     void emitThemeEdit({ action: "create" });
-    void getCurrentWindow().hide();
+    if (isTauriRuntime) void getCurrentWindow().hide();
   };
 
   const onEditTheme = (id: string) => {
     void emitThemeEdit({ action: "edit", id });
-    void getCurrentWindow().hide();
+    if (isTauriRuntime) void getCurrentWindow().hide();
   };
 
   const backgroundKind = usePreferencesStore((s) => s.backgroundKind);

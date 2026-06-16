@@ -31,7 +31,7 @@ import {
   Link01Icon,
   TerminalIcon,
 } from "@hugeicons/core-free-icons";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@/lib/openUrl";
 import { JAVARF_CMD_RE, SLASH_COMMANDS } from "../lib/slashCommands";
 import { Spinner } from "@/components/ui/spinner";
 import { useI18n, type TranslateFn } from "@/modules/i18n";

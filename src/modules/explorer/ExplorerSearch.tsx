@@ -13,8 +13,7 @@ import {
   Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { invoke } from "@tauri-apps/api/core";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { native, type FsSearchResult } from "@/modules/ai/lib/native";
 import { useI18n } from "@/modules/i18n";
 import {
   forwardRef,
@@ -34,11 +33,6 @@ type SearchHit = {
   rel: string;
   name: string;
   is_dir: boolean;
-};
-
-type SearchResult = {
-  hits: SearchHit[];
-  truncated: boolean;
 };
 
 const MIN_QUERY_LEN = 2;
@@ -112,16 +106,16 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
     let alive = true;
     const handle = setTimeout(async () => {
       try {
-        const res = await invoke<SearchResult>("fs_search", {
+        const res = await native.searchFiles({
           root: rootPath,
           query: q,
           limit: 200,
           showHidden,
-          workspace: currentWorkspaceEnv(),
         });
+        const typed = res as FsSearchResult;
         if (alive) {
-          setResults(res.hits);
-          setTruncated(res.truncated);
+          setResults(typed.hits);
+          setTruncated(typed.truncated);
           setSelectedIndex(0);
         }
       } catch (e) {

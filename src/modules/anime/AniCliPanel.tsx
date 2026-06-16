@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { isBrowserPreview } from "@/lib/runtime";
 import { quoteShellArg } from "@/lib/shellQuote";
 import { native, type AniCliArgs } from "@/modules/ai/lib/native";
 import { useI18n } from "@/modules/i18n";
@@ -35,8 +36,14 @@ export function AniCliPanel({ onRunInTerminal }: Props) {
 
   const command = useMemo(() => buildAniCliCommand(args), [args]);
   const canLaunch = query.trim().length > 0;
+  const browserPreviewLimited = isBrowserPreview;
 
   const refresh = () => {
+    if (browserPreviewLimited) {
+      setCheck({ aniCli: false, mpv: false });
+      setMessage(null);
+      return;
+    }
     void native
       .checkAniCli()
       .then(setCheck)
@@ -46,7 +53,7 @@ export function AniCliPanel({ onRunInTerminal }: Props) {
   useEffect(refresh, []);
 
   const launchSeparate = async () => {
-    if (!canLaunch) return;
+    if (!canLaunch || browserPreviewLimited) return;
     setMessage(null);
     try {
       await native.launchAniCli(args);
@@ -125,7 +132,7 @@ export function AniCliPanel({ onRunInTerminal }: Props) {
         <Button
           size="sm"
           className="h-8 px-3 text-xs"
-          disabled={!canLaunch}
+          disabled={!canLaunch || browserPreviewLimited}
           onClick={() => onRunInTerminal?.(command)}
         >
           {t("anime.launchTerminal")}
@@ -134,7 +141,7 @@ export function AniCliPanel({ onRunInTerminal }: Props) {
           size="sm"
           variant="outline"
           className="h-8 px-3 text-xs"
-          disabled={!canLaunch}
+          disabled={!canLaunch || browserPreviewLimited}
           onClick={() => void launchSeparate()}
         >
           {t("anime.launchSeparate")}

@@ -43,8 +43,8 @@ export function SidebarRail({
       className={cn(
         "flex shrink-0 items-stretch gap-1",
         compact
-          ? "rounded-md border border-[color:var(--border)] bg-black/25 px-1 py-1"
-          : "border-t border-[color:var(--border)] bg-[#050506] px-1.5 py-1.5",
+          ? "rounded-md border border-[color:var(--border)] bg-black/18 px-1 py-1"
+          : "border-t border-[color:var(--border)] bg-[#050608] px-1.5 py-1.5",
       )}
     >
       {items.map((item) => {
@@ -62,15 +62,15 @@ export function SidebarRail({
               "focus-visible:ring-2 focus-visible:ring-primary/40",
               compact
                 ? "min-w-8 rounded-md px-2 text-[10px]"
-                : "flex-1 text-[10px] font-medium uppercase tracking-[0.18em]",
+                : "flex-1 rounded-md px-2 text-[11px] font-medium",
               isActive
-                ? "bg-primary/10 text-white"
-                : "bg-black/20 text-white/42 hover:bg-white/[0.03] hover:text-white/78",
+                ? "bg-[#0d1118] text-white"
+                : "bg-transparent text-white/42 hover:bg-white/[0.04] hover:text-white/78",
             )}
           >
             <HugeiconsIcon
               icon={item.icon}
-              size={14}
+              size={13}
               strokeWidth={isActive ? 2 : 1.75}
               className="shrink-0 transition-[stroke-width] duration-100"
             />

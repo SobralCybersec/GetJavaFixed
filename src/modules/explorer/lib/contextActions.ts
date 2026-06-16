@@ -1,3 +1,4 @@
+import { isTauriRuntime } from "@/lib/runtime";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 export async function copyToClipboard(text: string): Promise<void> {
@@ -15,6 +16,7 @@ export function relativePath(rootPath: string, path: string): string {
 }
 
 export async function revealInFinder(path: string): Promise<void> {
+  if (!isTauriRuntime) return;
   try {
     await revealItemInDir(path);
   } catch (e) {

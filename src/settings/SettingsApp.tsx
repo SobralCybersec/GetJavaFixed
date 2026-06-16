@@ -1,4 +1,5 @@
 import { WindowControls } from "@/components/WindowControls";
+import { isTauriRuntime } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { useI18n } from "@/modules/i18n";
@@ -11,6 +12,7 @@ import {
   Settings01Icon,
   UserMultiple02Icon,
   KeyboardIcon,
+  SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -21,6 +23,7 @@ import { GeneralSection } from "./sections/GeneralSection";
 import { ModelsSection } from "./sections/ModelsSection";
 import { ShortcutsSection } from "./sections/ShortcutsSection";
 import { ThemesSection } from "./sections/ThemesSection";
+import { RefactorSection } from "./sections/RefactorSection";
 
 const VALID_TABS: SettingsTab[] = [
   "general",
@@ -28,6 +31,7 @@ const VALID_TABS: SettingsTab[] = [
   "shortcuts",
   "models",
   "agents",
+  "refactor",
   "about",
 ];
 
@@ -81,6 +85,12 @@ export function SettingsApp() {
       component: AgentsSection,
     },
     {
+      id: "refactor",
+      label: t("settings.tabs.refactor", { defaultValue: "Refactor" }),
+      icon: SparklesIcon,
+      component: RefactorSection,
+    },
+    {
       id: "about",
       label: t("settings.tabs.about"),
       icon: InformationCircleIcon,
@@ -94,6 +104,7 @@ export function SettingsApp() {
   }, [init]);
 
   useEffect(() => {
+    if (!isTauriRuntime) return;
     const apply = (detail: string) => {
       if (detail === "ai" || detail === "connections") {
         setActive("models");

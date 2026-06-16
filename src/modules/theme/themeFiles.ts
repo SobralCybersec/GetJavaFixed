@@ -1,4 +1,5 @@
 import { currentWorkspaceEnv } from "@/modules/workspace";
+import { isTauriRuntime } from "@/lib/runtime";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { appConfigDir, join } from "@tauri-apps/api/path";
@@ -109,11 +110,19 @@ export function starterTheme(): Theme {
 }
 
 export function emitThemeEdit(req: ThemeEditRequest): Promise<void> {
+  if (!isTauriRuntime) {
+    void req;
+    return Promise.resolve();
+  }
   return emit(THEME_EDIT_EVENT, req);
 }
 
 export function onThemeEdit(
   cb: (req: ThemeEditRequest) => void,
 ): Promise<UnlistenFn> {
+  if (!isTauriRuntime) {
+    void cb;
+    return Promise.resolve(() => {});
+  }
   return listen<ThemeEditRequest>(THEME_EDIT_EVENT, (e) => cb(e.payload));
 }

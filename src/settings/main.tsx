@@ -9,6 +9,7 @@ import ReactDOM from "react-dom/client";
 import { AppProviders } from "@/app/AppProviders";
 import { initLaunchDir } from "@/lib/launchDir";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { isTauriRuntime } from "@/lib/runtime";
 import { SettingsApp } from "./SettingsApp";
 
 if (USE_CUSTOM_WINDOW_CONTROLS) {
@@ -26,6 +27,7 @@ ReactDOM.createRoot(
 );
 
 const showWindow = () => {
+  if (!isTauriRuntime) return;
   getCurrentWindow()
     .show()
     .catch((e) => console.error("settings show failed:", e));

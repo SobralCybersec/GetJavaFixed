@@ -24,6 +24,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import {
+  hasBrowserWorkspaceHandle,
+  restoreBrowserWorkspaceHandle,
+} from "@/lib/browserWorkspace";
 import { AgentNotificationsBridge } from "@/modules/agents";
 import { firePendingReviewForSession } from "@/modules/agents/lib/review";
 import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
@@ -68,6 +72,7 @@ import {
   type SupportedJavaRepoReadiness,
 } from "@/modules/java-intake";
 import { getLaunchDir } from "@/lib/launchDir";
+import { isBrowserPreview } from "@/lib/runtime";
 import { quoteShellArg } from "@/lib/shellQuote";
 import { useZoom } from "@/lib/useZoom";
 import { FileExplorer, type FileExplorerHandle } from "@/modules/explorer";
@@ -139,6 +144,7 @@ import {
   useWorkspaceEnvStore,
   type WorkspaceEnv,
 } from "@/modules/workspace";
+import { isTauriRuntime } from "@/lib/runtime";
 import { invoke } from "@tauri-apps/api/core";
 import { homeDir } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -561,6 +567,7 @@ function readSidebarView(): SidebarViewId {
 type Phase1DashboardRepo = {
   path: string;
   readiness: SupportedJavaRepoReadiness;
+  previewOnly?: boolean;
 };
 
 export default function App() {
@@ -726,6 +733,18 @@ function AppContent() {
       active instanceof HTMLElement && active !== document.body ? active : null;
     explorer.focus();
   }, [persistSidebarView, sidebarView]);
+  const openExplorerSearch = useCallback(() => {
+    if (!hasWorkspaceRef.current) return;
+    const panel = sidebarRef.current;
+    const collapsed = panel ? panel.getSize().asPercentage <= 0 : false;
+    if (collapsed && panel) {
+      panel.resize(`${sidebarWidthRef.current}px`);
+    }
+    if (sidebarView !== "explorer") {
+      persistSidebarView("explorer");
+    }
+    requestAnimationFrame(() => explorerRef.current?.openSearch());
+  }, [persistSidebarView, sidebarView]);
 
   const zenHoverActive = statusBarHover || headerHover;
   const hideHeaderInZen = zenMode && !headerHover;
@@ -884,10 +903,12 @@ function AppContent() {
       if (readiness.supported && readiness.projectType) {
         const supportedReadiness = readiness as SupportedJavaRepoReadiness;
         const normalizedPath = selected.replace(/\\/g, "/");
-        try {
-          await native.workspaceAuthorize(normalizedPath);
-        } catch {
+        if (!isBrowserPreview) {
+          try {
+            await native.workspaceAuthorize(normalizedPath);
+          } catch {
 
+          }
         }
         setJavaRepoHomeState({
           kind: "supported",
@@ -921,11 +942,13 @@ function AppContent() {
     if (javaRepoHomeState.kind !== "supported") return;
     void (async () => {
       const normalizedPath = javaRepoHomeState.path.replace(/\\/g, "/");
-      try {
-        await native.workspaceAuthorize(normalizedPath);
-      } catch (error) {
-        window.alert(error instanceof Error ? error.message : String(error));
-        return;
+      if (!isBrowserPreview) {
+        try {
+          await native.workspaceAuthorize(normalizedPath);
+        } catch (error) {
+          window.alert(error instanceof Error ? error.message : String(error));
+          return;
+        }
       }
       setPhase1Repo({
         path: javaRepoHomeState.path,
@@ -939,12 +962,30 @@ function AppContent() {
     })();
   }, [javaRepoHomeState]);
 
-  const handleOpenJavaRefactor = useCallback(() => {
-    setPhase1Mode((current) => {
-      if (current !== "hidden") return current;
-      return phase1Repo ? "dashboard" : "intake";
+  const handlePreviewJavaRefactor = useCallback(() => {
+    setJavaAnalysisFolderPath(null);
+    setJavaAutoScanPath(null);
+    setJavaPreviewOpen(false);
+    setPhase1Repo({
+      path: "__preview__/polyglot-refactor-dashboard",
+      previewOnly: true,
+      readiness: {
+        supported: true,
+        projectType: "generic",
+        repoName: t("repoIntake.previewRepoName"),
+        reason: null,
+      },
     });
-  }, [phase1Repo]);
+    setPhase1Mode("dashboard");
+  }, [t]);
+
+  const handleOpenJavaRefactor = useCallback(() => {
+    if (phase1Repo) {
+      setPhase1Mode("dashboard");
+      return;
+    }
+    handlePreviewJavaRefactor();
+  }, [handlePreviewJavaRefactor, phase1Repo]);
 
   const handleClosePhase1 = useCallback(() => {
     setPhase1Mode("hidden");
@@ -1038,9 +1079,11 @@ function AppContent() {
     (openaiCompatibleBaseURL.trim().length > 0 &&
       openaiCompatibleModelId.trim().length > 0);
   const hasComposer = hasAnyKey(apiKeys) || hasLocalModel;
+  const canContinueFirstRunSetup =
+    javaRepoHomeState.kind === "supported" && (hasComposer || isBrowserPreview);
 
   const handleCompleteFirstRunSetup = useCallback(() => {
-    if (javaRepoHomeState.kind !== "supported" || !hasComposer) return;
+    if (!canContinueFirstRunSetup) return;
     void (async () => {
       const normalizedPath = javaRepoHomeState.path.replace(/\\/g, "/");
       await setFirstRunRepoPath(normalizedPath);
@@ -1056,7 +1099,7 @@ function AppContent() {
     })().catch((error) => {
       window.alert(error instanceof Error ? error.message : String(error));
     });
-  }, [javaRepoHomeState, hasComposer]);
+  }, [canContinueFirstRunSetup, javaRepoHomeState]);
 
   const [keysLoaded, setKeysLoaded] = useState(false);
   useEffect(() => {
@@ -1100,17 +1143,46 @@ function AppContent() {
   }, [prefsHydrated, keysLoaded, firstRunSetupDone]);
 
   useEffect(() => {
-    if (!prefsHydrated || firstRunTutorialDone || tutorialAutoShownRef.current) {
+    if (
+      !prefsHydrated ||
+      firstRunTutorialDone ||
+      tutorialAutoShownRef.current ||
+      showFirstRunSetup ||
+      isBrowserPreview
+    ) {
       return;
     }
     tutorialAutoShownRef.current = true;
     setTutorialOpen(true);
-  }, [firstRunTutorialDone, prefsHydrated]);
+  }, [firstRunTutorialDone, prefsHydrated, showFirstRunSetup]);
 
   useEffect(() => {
     if (!prefsHydrated || !firstRunRepoPath) return;
+    let cancelled = false;
     void (async () => {
+      const normalizedPath = firstRunRepoPath.replace(/\\/g, "/");
+      if (
+        isBrowserPreview &&
+        !hasBrowserWorkspaceHandle(normalizedPath) &&
+        !(await restoreBrowserWorkspaceHandle(normalizedPath))
+      ) {
+        if (cancelled) return;
+        setPhase1Repo(null);
+        setJavaWorkspaceRoot(null);
+        setLaunchCwd(null);
+        setJavaAnalysisFolderPath(null);
+        setJavaAutoScanPath(null);
+        setJavaRepoHomeState({
+          kind: "error",
+          message:
+            "Browser preview needs repository access again after reload. Choose the repository to continue.",
+        });
+        setPhase1Mode("intake");
+        return;
+      }
+
       const readiness = await getJavaRepoReadiness(firstRunRepoPath);
+      if (cancelled) return;
       if (!(readiness.supported && readiness.projectType)) return;
       const supportedReadiness = readiness as SupportedJavaRepoReadiness;
       setJavaRepoHomeState({
@@ -1122,10 +1194,15 @@ function AppContent() {
         path: firstRunRepoPath,
         readiness: supportedReadiness,
       });
-      const normalizedPath = firstRunRepoPath.replace(/\\/g, "/");
+      if (isBrowserPreview) {
+        setPhase1Mode("dashboard");
+      }
       setJavaWorkspaceRoot(normalizedPath);
       setLaunchCwd(normalizedPath);
     })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [prefsHydrated, firstRunRepoPath, firstRunSetupDone]);
 
   const hydrateSessions = useChatStore((s) => s.hydrateSessions);
@@ -1170,6 +1247,7 @@ function AppContent() {
   }, [tabs]);
 
   useEffect(() => {
+    if (!isTauriRuntime) return;
     type FileWrittenPayload = { path: string; source?: string };
     const unlistenPromise = getCurrentWebviewWindow().listen<FileWrittenPayload>(
       "fs:file-written",
@@ -1224,6 +1302,7 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    if (!isTauriRuntime) return;
     type FileWrittenPayload = { path: string; source?: string };
     const unlistenPromise = getCurrentWebviewWindow().listen<FileWrittenPayload>(
       "fs:file-written",
@@ -1271,7 +1350,9 @@ function AppContent() {
       if (!open) await writeThemeFile(theme);
       void persistThemeId(theme.id);
       openFileTab(path);
-      void getCurrentWebviewWindow().setFocus();
+      if (isTauriRuntime) {
+        void getCurrentWebviewWindow().setFocus();
+      }
     }).then((fn) => {
       if (alive) unsub = fn;
       else fn();
@@ -1699,6 +1780,68 @@ function AppContent() {
       persistSidebarView("source-control");
     }
   }, [persistSidebarView, sidebarView]);
+  const dashboardProjectPaths = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const push = (value: string | null | undefined) => {
+      if (!value) return;
+      const normalized = value.replace(/\\/g, "/");
+      if (!normalized || normalized.startsWith("__preview__/")) return;
+      if (seen.has(normalized)) return;
+      seen.add(normalized);
+      out.push(normalized);
+    };
+    push(sourceControl.repo?.repoRoot);
+    push(phase1Repo?.previewOnly ? null : phase1Repo?.path);
+    push(
+      javaRepoHomeState.kind === "supported" || javaRepoHomeState.kind === "unsupported"
+        ? javaRepoHomeState.path
+        : null,
+    );
+    push(firstRunRepoPath);
+    push(javaWorkspaceRoot);
+    return out.slice(0, 5);
+  }, [firstRunRepoPath, javaRepoHomeState, javaWorkspaceRoot, phase1Repo, sourceControl.repo]);
+  const dashboardRecentFiles = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const tab of tabs) {
+      if (tab.kind !== "editor" && tab.kind !== "markdown") continue;
+      const path = tab.path.replace(/\\/g, "/");
+      if (seen.has(path)) continue;
+      seen.add(path);
+      out.push(path);
+    }
+    return out.slice(0, 6);
+  }, [tabs]);
+  const dashboardRepoStatus = useMemo(
+    () => ({
+      path:
+        sourceControl.repo?.repoRoot ??
+        (phase1Repo?.previewOnly ? null : phase1Repo?.path ?? null),
+      branch: sourceControl.status?.branch ?? sourceControl.repo?.branch ?? null,
+      upstream: sourceControl.status?.upstream ?? sourceControl.repo?.upstream ?? null,
+      changedCount: sourceControl.changedCount,
+      ahead: sourceControl.ahead,
+      behind: sourceControl.behind,
+      previewOnly: phase1Repo?.previewOnly === true,
+      isDetached:
+        sourceControl.status?.isDetached === true || sourceControl.repo?.isDetached === true,
+    }),
+    [phase1Repo, sourceControl],
+  );
+  const openAssistantFromDashboard = useCallback(
+    (prefill?: string) => {
+      focusInput(prefill ?? null);
+    },
+    [focusInput],
+  );
+  const openDashboardRecentFile = useCallback(
+    (path: string) => {
+      openFileTab(path, true);
+    },
+    [openFileTab],
+  );
 
   const openGitGraphFromContext = useCallback(async () => {
     const known = sourceControl.hasRepo ? sourceControl.repo : null;
@@ -1736,9 +1879,17 @@ function AppContent() {
     [newPreviewTab],
   );
   const openDashboardTab = useCallback(() => {
+    if (isBrowserPreview) {
+      setShowFirstRunSetup(false);
+      setPhase1Mode("hidden");
+    }
     newDashboardTab();
   }, [newDashboardTab]);
   const openAgentDashboardTab = useCallback(() => {
+    if (isBrowserPreview) {
+      setShowFirstRunSetup(false);
+      setPhase1Mode("hidden");
+    }
     newAgentDashboardTab();
   }, [newAgentDashboardTab]);
 
@@ -2296,6 +2447,7 @@ function AppContent() {
         repo={phase1Repo}
         selectedScanPath={javaAnalysisFolderPath}
         autoStartScanPath={javaAutoScanPath}
+        previewOnly={phase1Repo.previewOnly === true}
         onClose={handleClosePhase1}
       />
     </Suspense>
@@ -2306,6 +2458,7 @@ function AppContent() {
       <JavaRepoHome
         state={javaRepoHomeState}
         onChooseFolder={handleChooseJavaRepo}
+        onPreviewDashboard={handlePreviewJavaRefactor}
         onStartFullAnalysis={handleStartFullAnalysis}
         onClose={handleClosePhase1}
       />
@@ -2339,13 +2492,32 @@ function AppContent() {
   ) : (
     workspaceSurface
   );
+  const showHomeDashboardSurface =
+    activeTab?.kind === "terminal" &&
+    activeTab.id === 1 &&
+    activeTab.title === "shell" &&
+    tabs.length === 1 &&
+    phase1Mode === "hidden" &&
+    !javaPreviewActive &&
+    !isDashboardTab &&
+    !isAgentDashboardTab;
 
   const dashboardSurface = (
     <Suspense fallback={null}>
       <HomeDashboardLazy
         hasModelAccess={hasComposer}
+        hasWorkspace={hasWorkspace}
+        onOpenWorkspace={() => {
+          void handleChooseJavaRepo();
+        }}
+        onBrowseProject={hasWorkspace ? toggleExplorerFocus : undefined}
+        onSearchRepository={hasWorkspace ? openExplorerSearch : undefined}
+        onOpenAssistant={openAssistantFromDashboard}
+        onOpenRecentFile={openDashboardRecentFile}
+        recentProjectPaths={dashboardProjectPaths}
+        recentFilePaths={dashboardRecentFiles}
+        repoStatus={dashboardRepoStatus}
         onOpenJavaRefactor={handleOpenJavaRefactor}
-        onRunAniCliCommand={runAniCliCommandInTerminal}
       />
     </Suspense>
   );
@@ -2395,6 +2567,7 @@ function AppContent() {
             onNewPreview={() => openPreviewTab("")}
             onNewDashboard={openDashboardTab}
             onNewAgentDashboard={openAgentDashboardTab}
+            onOpenJavaRefactor={handleOpenJavaRefactor}
             onNewEditor={() => setNewEditorOpen(true)}
             onNewGitGraph={openGitGraphFromContext}
             onClose={handleClose}
@@ -2441,7 +2614,7 @@ function AppContent() {
               >
                 <div
                   className={cn(
-                    "javarf-terminal-shell flex h-full min-h-0 flex-col border-r border-[color:var(--border)] bg-[#090b0f]/96 transition-[opacity,border-color,background-color] duration-75 ease-out",
+                    "javarf-terminal-shell flex h-full min-h-0 flex-col border-r border-[color:var(--border)] bg-[#06080b]/92 transition-[opacity,border-color,background-color] duration-75 ease-out",
                     zenMode ? "opacity-96" : "opacity-100",
                   )}
                   onMouseEnter={() => {
@@ -2511,16 +2684,20 @@ function AppContent() {
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel id="workspace" className="min-w-0" defaultSize="78%" minSize="30%">
-                <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+                <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[#020304]">
                   <div
                     className={cn(
                       "relative min-h-0 min-w-0 flex-1 overflow-hidden transition-opacity duration-150 ease-out",
                       zenMode ? "opacity-[0.985]" : "opacity-100",
                     )}
                   >
-                    {showFirstRunSetup ? (
+                    {showFirstRunSetup &&
+                    !showHomeDashboardSurface &&
+                    !isDashboardTab &&
+                    !isAgentDashboardTab ? (
                       <JavaFirstRunSetup
                         hasModelAccess={hasComposer}
+                        canContinue={canContinueFirstRunSetup}
                         repoLabel={
                           javaRepoHomeState.kind === "supported"
                             ? javaRepoHomeState.path
@@ -2531,8 +2708,12 @@ function AppContent() {
                         onChooseRepo={handleChooseJavaRepo}
                         onContinue={handleCompleteFirstRunSetup}
                       />
-                    ) : phase1Mode !== "hidden" && !javaPreviewActive ? (
+                    ) : phase1Mode !== "hidden" &&
+                      !javaPreviewActive &&
+                      !isAgentDashboardTab ? (
                       phase1Surface
+                    ) : showHomeDashboardSurface ? (
+                      dashboardSurface
                     ) : isAgentDashboardTab ? (
                       agentDashboardSurface
                     ) : isDashboardTab ? (
@@ -2755,6 +2936,7 @@ function UnsavedDialogs({
     </>
   );
 }
+
 
 function JavaRefactorPreviewShell({
   repo,

@@ -1,4 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
+import {
+  browserReadDir,
+  browserReadFile,
+  browserWriteFile,
+  browserSearchFiles,
+} from "@/lib/browserWorkspace";
+import { isBrowserPreview } from "@/lib/runtime";
 import { currentWorkspaceEnv, type WorkspaceEnv } from "@/modules/workspace";
 
 export type ReadResult =
@@ -49,6 +56,18 @@ export type GrepResponse = {
 
 export type GlobHit = { path: string; rel: string };
 export type GlobResponse = { hits: GlobHit[]; truncated: boolean };
+
+export type FsSearchHit = {
+  path: string;
+  rel: string;
+  name: string;
+  is_dir: boolean;
+};
+
+export type FsSearchResult = {
+  hits: FsSearchHit[];
+  truncated: boolean;
+};
 
 export type GitRepoInfo = {
   repoRoot: string;
@@ -212,16 +231,20 @@ export const native = {
       workspace: currentWorkspaceEnv(),
     }),
   readFile: (path: string) =>
-    invoke<ReadResult>("fs_read_file", {
-      path,
-      workspace: currentWorkspaceEnv(),
-    }),
+    isBrowserPreview
+      ? browserReadFile(path)
+      : invoke<ReadResult>("fs_read_file", {
+          path,
+          workspace: currentWorkspaceEnv(),
+        }),
   writeFile: (path: string, content: string) =>
-    invoke<void>("fs_write_file", {
-      path,
-      content,
-      workspace: currentWorkspaceEnv(),
-    }),
+    isBrowserPreview
+      ? browserWriteFile(path, content)
+      : invoke<void>("fs_write_file", {
+          path,
+          content,
+          workspace: currentWorkspaceEnv(),
+        }),
   canonicalize: (path: string) =>
     invoke<string>("fs_canonicalize", {
       path,
@@ -232,12 +255,34 @@ export const native = {
   createDir: (path: string) =>
     invoke<void>("fs_create_dir", { path, workspace: currentWorkspaceEnv() }),
   
-  readDir: (path: string) =>
-    invoke<DirEntry[]>("fs_read_dir", {
-      path,
-      showHidden: false,
-      workspace: currentWorkspaceEnv(),
-    }),
+  readDir: (path: string, showHidden = false) =>
+    isBrowserPreview
+      ? browserReadDir(path, showHidden)
+      : invoke<DirEntry[]>("fs_read_dir", {
+          path,
+          showHidden,
+          workspace: currentWorkspaceEnv(),
+        }),
+  searchFiles: (params: {
+    root: string;
+    query: string;
+    limit?: number;
+    showHidden?: boolean;
+  }) =>
+    isBrowserPreview
+      ? browserSearchFiles({
+          root: params.root,
+          query: params.query,
+          limit: params.limit ?? 200,
+          showHidden: params.showHidden ?? false,
+        })
+      : invoke<FsSearchResult>("fs_search", {
+          root: params.root,
+          query: params.query,
+          limit: params.limit ?? 200,
+          showHidden: params.showHidden ?? false,
+          workspace: currentWorkspaceEnv(),
+        }),
   grep: (params: {
     pattern: string;
     root: string;

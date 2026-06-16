@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { isTauriRuntime } from "@/lib/runtime";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 
 const FS_CHANGED_EVENT = "fs:changed";
@@ -7,6 +8,7 @@ const FS_CHANGED_EVENT = "fs:changed";
 type FsChangedPayload = { paths: string[] };
 
 export function watchAdd(paths: string[]): void {
+  if (!isTauriRuntime) return;
   if (paths.length === 0) return;
   void invoke("fs_watch_add", {
     paths,
@@ -15,6 +17,7 @@ export function watchAdd(paths: string[]): void {
 }
 
 export function watchRemove(paths: string[]): void {
+  if (!isTauriRuntime) return;
   if (paths.length === 0) return;
   void invoke("fs_watch_remove", {
     paths,
@@ -25,6 +28,10 @@ export function watchRemove(paths: string[]): void {
 export function listenFsChanged(
   handler: (paths: string[]) => void,
 ): Promise<() => void> {
+  if (!isTauriRuntime) {
+    void handler;
+    return Promise.resolve(() => {});
+  }
   return getCurrentWebviewWindow().listen<FsChangedPayload>(
     FS_CHANGED_EVENT,
     (e) => handler(e.payload.paths),

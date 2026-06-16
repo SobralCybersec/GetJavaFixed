@@ -12,6 +12,7 @@ import { useI18n } from "@/modules/i18n";
 
 type Props = {
   hasModelAccess: boolean;
+  canContinue: boolean;
   repoLabel: string | null;
   repoReady: boolean;
   onOpenModels: () => void;
@@ -21,6 +22,7 @@ type Props = {
 
 export function JavaFirstRunSetup({
   hasModelAccess,
+  canContinue,
   repoLabel,
   repoReady,
   onOpenModels,
@@ -85,7 +87,7 @@ export function JavaFirstRunSetup({
           </div>
         </CardContent>
         <CardFooter className="justify-end gap-3">
-          <Button size="sm" onClick={onContinue} disabled={!hasModelAccess || !repoReady}>
+          <Button size="sm" onClick={onContinue} disabled={!canContinue || !repoReady}>
             {t("setup.continueWorkspace")}
           </Button>
         </CardFooter>

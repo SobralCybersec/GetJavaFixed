@@ -1,3 +1,4 @@
+import { isTauriRuntime } from "@/lib/runtime";
 import { emit, listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import {
@@ -19,6 +20,16 @@ type State = {
 
 let initialized = false;
 
+function broadcast(): void {
+  if (isTauriRuntime) {
+    void emit(CHANGED_EVENT);
+    return;
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(CHANGED_EVENT));
+  }
+}
+
 export const useSnippetsStore = create<State>((set, get) => ({
   hydrated: false,
   snippets: [],
@@ -26,9 +37,14 @@ export const useSnippetsStore = create<State>((set, get) => ({
     if (initialized) return;
     initialized = true;
     set({ snippets: await loadSnippets(), hydrated: true });
-    void listen(CHANGED_EVENT, async () => {
+    const onChange = async () => {
       set({ snippets: await loadSnippets() });
-    });
+    };
+    if (isTauriRuntime) {
+      void listen(CHANGED_EVENT, onChange);
+    } else if (typeof window !== "undefined") {
+      window.addEventListener(CHANGED_EVENT, () => void onChange());
+    }
   },
   upsert: (snippet) => {
     const list = get().snippets;
@@ -36,12 +52,12 @@ export const useSnippetsStore = create<State>((set, get) => ({
     const next =
       idx === -1 ? [...list, snippet] : list.map((s) => (s.id === snippet.id ? snippet : s));
     set({ snippets: next });
-    void saveSnippets(next).then(() => emit(CHANGED_EVENT));
+    void saveSnippets(next).then(broadcast);
   },
   remove: (id) => {
     const next = get().snippets.filter((s) => s.id !== id);
     set({ snippets: next });
-    void saveSnippets(next).then(() => emit(CHANGED_EVENT));
+    void saveSnippets(next).then(broadcast);
   },
 }));
 

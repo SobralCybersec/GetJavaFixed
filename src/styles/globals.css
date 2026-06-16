@@ -139,12 +139,6 @@
     @apply border-border outline-ring/50;
   }
 
-  *,
-  *::before,
-  *::after {
-    border-radius: 0 !important;
-  }
-
   html {
     @apply font-sans;
   }
@@ -276,7 +270,6 @@ html[data-chrome="borderless"] .javarf-bg-surface {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 0;
   background: var(--card);
   box-shadow:
     inset 0 1px 0 var(--foreground-2),
@@ -458,11 +451,7 @@ html[data-chrome="borderless"] .javarf-bg-surface {
   overflow-wrap: anywhere;
 }
 
-.javarf-ops-dashboard .ops-card,
-.javarf-ops-dashboard .ops-widget,
-.javarf-ops-dashboard .java-panel {
-  border-radius: 0 !important;
-}
+
 
 .javarf-ops-dashboard .ops-card,
 .javarf-ops-dashboard .java-panel {
@@ -480,9 +469,7 @@ html[data-chrome="borderless"] .javarf-bg-surface {
     radial-gradient(circle at 92% 10%, var(--primary-10), transparent 24%);
 }
 
-.javarf-ops-dashboard .ops-inset-panel {
-  border-radius: 0 !important;
-}
+
 
 .javarf-ops-dashboard .ops-chart-surface {
   position: relative;
@@ -514,15 +501,12 @@ html[data-chrome="borderless"] .javarf-bg-surface {
 }
 
 .javarf-ops-dashboard .ops-widget-handle {
-  border-radius: 0 !important;
   background: var(--background-76);
   border: 1px solid var(--border-76);
   box-shadow: 0 1px 0 var(--foreground-5) inset;
 }
 
-.javarf-ops-dashboard .ops-widget-handle button {
-  border-radius: 0 !important;
-}
+
 
 .javarf-ops-dashboard .ops-widget:active .ops-widget-handle,
 .javarf-ops-dashboard .ops-widget:hover .ops-widget-handle {
@@ -574,14 +558,12 @@ html[data-chrome="borderless"] .javarf-bg-surface {
    ========================================== */
 
 .javarf-terminal-tabs {
-  border-radius: 0 !important;
   box-shadow:
     inset 0 1px 0 var(--foreground-4),
     inset 0 0 0 1px var(--primary-5);
 }
 
 .javarf-terminal-tab {
-  border-radius: 0 !important;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted-foreground-92);

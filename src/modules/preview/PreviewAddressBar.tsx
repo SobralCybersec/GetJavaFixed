@@ -15,7 +15,8 @@ import {
   LinkSquare02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@/lib/openUrl";
+import { isBrowserPreview } from "@/lib/runtime";
 import { useI18n } from "@/modules/i18n";
 import {
   listInstalledBrowsers,
@@ -98,6 +99,10 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
     const [checkingPort, setCheckingPort] = useState<number | null>(null);
 
     useEffect(() => {
+      if (isBrowserPreview) {
+        setBrowsers([]);
+        return;
+      }
       let cancelled = false;
       void listInstalledBrowsers()
         .then((next) => {

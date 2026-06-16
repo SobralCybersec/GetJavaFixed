@@ -5,7 +5,7 @@ import { useUpdater } from "@/modules/updater";
 import { GithubIcon, Globe02Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getName, getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@/lib/openUrl";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { useEffect, useMemo, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";

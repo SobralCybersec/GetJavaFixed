@@ -11,7 +11,7 @@ function assistantMessage(parts: UIMessage["parts"]): UIMessage {
 }
 
 describe("shouldAutoContinueAgentTurn", () => {
-  it("continues after server tool output is available", () => {
+  it("does not start a new request after server tool output is available", () => {
     const message = assistantMessage([
       { type: "step-start" },
       {
@@ -23,7 +23,7 @@ describe("shouldAutoContinueAgentTurn", () => {
       },
     ] as unknown as UIMessage["parts"]);
 
-    expect(shouldAutoContinueAgentTurn({ messages: [message] })).toBe(true);
+    expect(shouldAutoContinueAgentTurn({ messages: [message] })).toBe(false);
   });
 
   it("continues after an approval response is recorded", () => {

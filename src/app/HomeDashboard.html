@@ -1,0 +1,692 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Codex Mono | Kinetic Interface</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #1d100f; }
+        ::-webkit-scrollbar-thumb { background: #59413f; }
+        ::-webkit-scrollbar-thumb:hover { background: #e54d4d; }
+        
+        .hud-mask {
+            clip-path: polygon(20% 0%, 100% 0, 100% 80%, 80% 100%, 0 100%, 0% 20%);
+        }
+
+        .tab-content {
+            display: none;
+            opacity: 0;
+        }
+        .tab-content.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        /* Interactive glows */
+        button:hover, input:focus {
+            box-shadow: 0 0 10px rgba(229, 77, 77, 0.2);
+            border-color: #e54d4d;
+        }
+        
+        .corner-bracket {
+            position: relative;
+        }
+        .corner-bracket::before, .corner-bracket::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-color: #e54d4d;
+            border-style: solid;
+            pointer-events: none;
+        }
+        .corner-bracket::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+        .corner-bracket::after { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        /* Bongo Cat Styles */
+        .bongo-cat-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .bongo-cat {
+            width: 100px;
+            height: 80px;
+        }
+        .paw-left {
+            transform-origin: 30% 80%;
+            animation: type-left 0.2s infinite alternate;
+        }
+        .paw-right {
+            transform-origin: 70% 80%;
+            animation: type-right 0.2s infinite alternate;
+            animation-delay: 0.1s;
+        }
+        @keyframes type-left {
+            0% { transform: rotate(0deg) translateY(0); }
+            100% { transform: rotate(-15deg) translateY(10px); }
+        }
+        @keyframes type-right {
+            0% { transform: rotate(0deg) translateY(0); }
+            100% { transform: rotate(15deg) translateY(10px); }
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 200px;
+            position: relative;
+        }
+        .anime-element {
+            will-change: transform, opacity;
+        }
+    </style>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-tertiary-fixed": "#00201b",
+                "on-tertiary-container": "#003029",
+                "surface-container-highest": "#413130",
+                "on-error": "#690005",
+                "error": "#ffb4ab",
+                "inverse-primary": "#b3282d",
+                "surface-container": "#2a1c1b",
+                "secondary-fixed-dim": "#00dbe9",
+                "on-secondary-fixed": "#002022",
+                "on-error-container": "#ffdad6",
+                "tertiary-fixed-dim": "#69d9c5",
+                "on-primary": "#68000d",
+                "on-primary-fixed-variant": "#900919",
+                "surface-container-lowest": "#170b0a",
+                "inverse-surface": "#f7ddda",
+                "on-secondary": "#00363a",
+                "surface-container-low": "#261817",
+                "background": "#1d100f",
+                "primary-container": "#5c000a",
+                "surface-variant": "#413130",
+                "secondary-fixed": "#7df4ff",
+                "on-background": "#f7ddda",
+                "surface-container-high": "#362625",
+                "surface-dim": "#1d100f",
+                "on-tertiary-fixed-variant": "#005046",
+                "on-tertiary": "#003730",
+                "error-container": "#93000a",
+                "on-surface": "#f7ddda",
+                "outline": "#a98987",
+                "inverse-on-surface": "#3c2d2b",
+                "on-secondary-fixed-variant": "#004f54",
+                "tertiary-container": "#26a28f",
+                "primary": "#e54d4d",
+                "on-secondary-container": "#00686f",
+                "surface": "#1d100f",
+                "on-primary-fixed": "#410005",
+                "tertiary-fixed": "#87f6e0",
+                "tertiary": "#69d9c5",
+                "primary-fixed": "#ffdad7",
+                "secondary-container": "#00eefc",
+                "secondary": "#d3fbff",
+                "outline-variant": "#59413f",
+                "primary-fixed-dim": "#ffb3af",
+                "on-surface-variant": "#e1bebc",
+                "surface-bright": "#463534",
+                "on-primary-container": "#5c000a",
+                "surface-tint": "#e54d4d"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "unit": "4px",
+                "gutter": "16px",
+                "margin": "24px",
+                "container-max": "1440px"
+        },
+        "fontFamily": {
+                "code-sm": [
+                        "JetBrains Mono"
+                ],
+                "headline-md": [
+                        "JetBrains Mono"
+                ],
+                "headline-lg": [
+                        "JetBrains Mono"
+                ],
+                "body-md": [
+                        "JetBrains Mono"
+                ],
+                "body-lg": [
+                        "JetBrains Mono"
+                ],
+                "label-caps": [
+                        "JetBrains Mono"
+                ],
+                "headline-display": [
+                        "JetBrains Mono"
+                ]
+        },
+        "fontSize": {
+                "code-sm": [
+                        "12px",
+                        {
+                                "lineHeight": "1.4",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "18px",
+                        {
+                                "lineHeight": "1.4",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-lg": [
+                        "24px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "1.5",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-caps": [
+                        "11px",
+                        {
+                                "lineHeight": "1",
+                                "letterSpacing": "0.1em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-display": [
+                        "32px",
+                        {
+                                "lineHeight": "1.1",
+                                "letterSpacing": "-0.04em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden selection:bg-primary-container selection:text-primary min-h-screen relative">
+<main class="relative z-10 w-full h-screen overflow-hidden flex flex-col pt-4 pb-4 px-4 gap-4">
+<!-- Top Navigation Area -->
+<header class="w-full flex justify-between items-end border-b-2 border-primary/30 pb-2 stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<div class="flex items-end gap-6">
+<div class="font-headline-display text-[24px] font-bold tracking-tighter text-primary leading-none uppercase drop-shadow-[0_0_10px_rgba(229,77,77,0.3)]">
+                Codex<span class="text-on-surface">Mono</span>
+</div>
+<nav class="flex gap-4 items-center mb-1">
+<button class="nav-tab active-tab font-label-caps text-[12px] text-primary font-bold tracking-widest border-b border-primary pb-1 transition-all" data-target="launch-view">01. LAUNCH</button>
+<button class="nav-tab font-label-caps text-[12px] text-on-surface-variant tracking-widest border-b border-transparent hover:text-primary transition-all pb-1" data-target="workflow-view">02. WORKFLOW</button>
+<button class="nav-tab font-label-caps text-[12px] text-on-surface-variant tracking-widest border-b border-transparent hover:text-primary transition-all pb-1" data-target="agents-view">03. AGENTS</button>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="font-code-sm text-[10px] text-primary opacity-70 tracking-widest text-right">
+                SYS.VER: 1.0.4<br>NODE: US-EAST-01
+            </div>
+</div>
+</header>
+<!-- Main Grid Layout -->
+<div class="flex-grow flex gap-4 overflow-hidden">
+<!-- LEFT COLUMN (45%) -->
+<div class="w-[45%] h-full flex flex-col gap-4 relative">
+<!-- Character HUD Section -->
+<div class="relative h-[60%] border border-outline-variant bg-surface-container/50 corner-bracket overflow-hidden stagger-item" id="character-container" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none"></div>
+<!-- Parallax Character Image -->
+<div class="absolute inset-0 z-0 flex items-center justify-center p-4">
+<div class="relative w-full h-full hud-mask border border-primary/20 bg-black/40 overflow-hidden" id="parallax-wrapper" style="translate: none; rotate: none; scale: none; transform: translate(0px);">
+<img alt="Command Operator" class="w-full h-full object-cover opacity-80" id="operator-img" src="https://lh3.googleusercontent.com/aida/AP1WRLvYh5WsuzDig-IlHInEtwowh8NDipQCvOsDhYjBWXefENCr925HbZt7TlrAdhw62XIAriP-ir6yEuFsxCvSwEbAudobUymdBREJHPYDCWaxII4Qt3vwS3V_ntmaXAmuKDzjpRhq9XCbccnz9b3uqmZHfoZe2WHRKdihuDZueByFCKhp_Wbc12vqZt71VlZkRNXaKIP8a1OYkcj4kskEgZJln8KKpXG5NNlhoAxlPpESYs7lknfiHihP9CU" style="transform: translate3d(0px, -9.4384px, 0px); translate: none; rotate: none; scale: none;">
+</div>
+</div>
+<!-- HUD Overlays -->
+<div class="absolute top-4 left-4 z-20 space-y-1">
+<div class="font-label-caps text-[10px] text-primary tracking-widest bg-primary/10 px-2 py-0.5 border border-primary/30 w-fit drop-shadow-[0_0_5px_rgba(229,77,77,0.3)]">OPERATOR: YUFFIE_ALT</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant tracking-widest">SYNC RATE: <span class="text-primary font-bold">98.4%</span></div>
+</div>
+<div class="absolute bottom-4 left-4 z-20 space-y-2">
+<h1 class="font-headline-display text-[42px] font-bold text-on-surface leading-none tracking-tighter uppercase drop-shadow-[0_0_10px_rgba(229,77,77,0.3)]">
+                        Tactical<br><span class="text-primary">Command</span>
+</h1>
+<div class="flex gap-2">
+<button class="bg-primary text-background font-bold px-4 py-2 text-[12px] font-label-caps tracking-widest hover:bg-white transition-colors">ENGAGE</button>
+<button class="border border-outline-variant text-on-surface px-4 py-2 text-[12px] font-label-caps tracking-widest hover:border-primary transition-colors">OVERRIDE</button>
+</div>
+</div>
+</div>
+<!-- Media Stream Card -->
+<div class="flex-grow border border-outline-variant bg-surface-container corner-bracket p-4 flex flex-col justify-between stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<div class="flex justify-between items-center border-b border-outline-variant/50 pb-2">
+<span class="font-label-caps text-[10px] text-on-surface-variant tracking-widest">MEDIA.STREAM</span>
+<span class="material-symbols-outlined text-[14px] text-primary">equalizer</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 bg-surface-container-high border border-primary/30 flex items-center justify-center rounded-full relative overflow-hidden group">
+<div class="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin [animation-duration:3s]"></div>
+<span class="material-symbols-outlined text-primary text-[24px] group-hover:scale-110 transition-transform">play_arrow</span>
+</div>
+<div>
+<div class="font-code-sm text-[12px] text-on-surface font-bold">NIHILITY_THEME.OGG</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant">01:24 / 04:05</div>
+<!-- Progress Bar -->
+<div class="w-32 h-1 bg-surface-container-highest mt-2 overflow-hidden relative">
+<div class="absolute top-0 left-0 h-full bg-primary w-[35%] shadow-[0_0_8px_#e54d4d]"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-4">
+<button class="bg-surface-container-high border border-outline-variant hover:border-primary text-[10px] font-label-caps tracking-widest py-2 transition-colors text-on-surface">SEARCH REPO</button>
+<button class="bg-surface-container-high border border-outline-variant hover:border-primary text-[10px] font-label-caps tracking-widest py-2 transition-colors text-on-surface">AI REVIEW</button>
+</div>
+</div>
+</div>
+<!-- CENTER COLUMN (42%) -->
+<div class="w-[42%] h-full border border-outline-variant bg-surface/80 backdrop-blur-sm corner-bracket relative overflow-hidden flex flex-col">
+<div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+<div class="flex-grow p-4 overflow-y-auto relative z-10" id="content-area">
+<!-- Launch View -->
+<div class="tab-content active flex-col gap-4 h-full" id="launch-view">
+<div class="border-b border-primary/30 pb-2 mb-2 flex justify-between items-center stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<span class="font-label-caps text-[12px] text-primary tracking-widest font-bold drop-shadow-[0_0_5px_rgba(229,77,77,0.3)]">LAUNCH_DESK</span>
+<div class="flex gap-1">
+<span class="w-2 h-2 bg-primary"></span>
+<span class="w-2 h-2 bg-primary/50"></span>
+<span class="w-2 h-2 bg-primary/20"></span>
+</div>
+</div>
+<!-- Action Cards -->
+<div class="flex flex-col gap-4 flex-grow stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<button class="flex items-center gap-4 border border-outline-variant p-4 bg-black/40 hover:border-primary transition-colors text-left group">
+<div class="w-12 h-12 bg-black/40 border border-primary/30 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary text-[24px]">folder_open</span>
+</div>
+<div>
+<div class="font-label-caps text-[12px] text-on-surface font-bold tracking-widest">OPEN WORKSPACE</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant mt-1">Load primary development environment</div>
+</div>
+</button>
+<button class="flex items-center gap-4 border border-outline-variant p-4 bg-black/40 hover:border-primary transition-colors text-left group">
+<div class="w-12 h-12 bg-black/40 border border-primary/30 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary text-[24px]">play_circle</span>
+</div>
+<div>
+<div class="font-label-caps text-[12px] text-on-surface font-bold tracking-widest">CONTINUE SESSION</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant mt-1">Resume active project: neural-engine</div>
+</div>
+</button>
+<button class="flex items-center gap-4 border border-outline-variant p-4 bg-black/40 hover:border-primary transition-colors text-left group">
+<div class="w-12 h-12 bg-black/40 border border-primary/30 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary text-[24px]">code_blocks</span>
+</div>
+<div>
+<div class="font-label-caps text-[12px] text-on-surface font-bold tracking-widest">CODE REFACTOR</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant mt-1">Initiate AI-assisted optimization</div>
+</div>
+</button>
+</div>
+<div class="relative stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<input class="w-full bg-black/60 border border-primary/50 text-primary font-code-sm text-[12px] px-4 py-3 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-primary/30 transition-all shadow-[0_0_5px_rgba(229,77,77,0.1)] focus:shadow-[0_0_10px_rgba(229,77,77,0.3)]" placeholder="&gt;_ INPUT COMMAND..." type="text">
+<button class="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-white transition-colors p-1">
+<span class="material-symbols-outlined text-[18px]">keyboard_return</span>
+</button>
+</div>
+</div>
+<!-- Workflow View -->
+<div class="tab-content flex-col gap-4 h-full" id="workflow-view">
+<div class="border-b border-primary/30 pb-2 mb-2 flex justify-between items-center">
+<span class="font-label-caps text-[12px] text-primary tracking-widest font-bold drop-shadow-[0_0_5px_rgba(229,77,77,0.3)]">WORKFLOW_MATRIX</span>
+</div>
+<div class="border border-outline-variant bg-black/40 mb-4 overflow-hidden" id="canvas-container"></div>
+<div class="grid grid-cols-1 gap-4 flex-grow">
+<div class="anime-element border border-outline-variant p-4 hover:border-primary transition-colors cursor-pointer bg-black/40 flex justify-between items-center">
+<div>
+<div class="font-code-sm text-[12px] text-on-surface font-bold">neural-engine</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant">Active Branch: feat/auth</div>
+</div>
+<span class="text-[10px] text-primary border border-primary/30 px-2 py-1">2h ago</span>
+</div>
+<div class="anime-element border border-outline-variant p-4 hover:border-primary transition-colors cursor-pointer bg-black/40 flex justify-between items-center">
+<div>
+<div class="font-code-sm text-[12px] text-on-surface font-bold">quantum-api</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant">Active Branch: main</div>
+</div>
+<span class="text-[10px] text-on-surface-variant border border-outline-variant px-2 py-1">5h ago</span>
+</div>
+<div class="anime-element border border-outline-variant p-4 hover:border-primary transition-colors cursor-pointer bg-black/40 flex justify-between items-center">
+<div>
+<div class="font-code-sm text-[12px] text-on-surface font-bold">cyber-vault</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant">Active Branch: fix/leak</div>
+</div>
+<span class="text-[10px] text-on-surface-variant border border-outline-variant px-2 py-1">Yesterday</span>
+</div>
+</div>
+</div>
+<!-- Agents View -->
+<div class="tab-content flex-col gap-4 h-full" id="agents-view">
+<div class="border-b border-primary/30 pb-2 mb-2 flex justify-between items-center stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<span class="font-label-caps text-[12px] text-primary tracking-widest font-bold drop-shadow-[0_0_5px_rgba(229,77,77,0.3)]">AI_AGENTS</span>
+</div><div class="flex-grow flex flex-col gap-4 stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<div class="border border-outline-variant p-4 bg-black/40">
+<div class="flex justify-between items-end mb-2">
+<span class="font-label-caps text-[10px] text-on-surface-variant tracking-widest">AGENT OMEGA HEALTH</span>
+<span class="font-code-sm text-[12px] text-primary">94%</span>
+</div>
+<div class="h-1 w-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-primary w-[94%] shadow-[0_0_5px_#e54d4d]"></div>
+</div>
+</div>
+<!-- Chart Container -->
+<div class="flex-grow border border-outline-variant p-4 bg-black/40 flex flex-col gap-4 relative overflow-y-auto">
+<div class="border border-outline-variant p-3 bg-surface-container/50">
+<div class="flex justify-between items-center mb-2">
+<span class="font-label-caps text-[10px] text-primary tracking-widest">AGENT ALPHA</span>
+<span class="font-code-sm text-[10px] text-primary border border-primary/30 px-1">IDLE</span>
+</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant">Assigned: None</div>
+</div>
+<div class="border border-primary/50 p-3 bg-primary/5 shadow-[0_0_10px_rgba(229,77,77,0.1)]">
+<div class="flex justify-between items-center mb-2">
+<span class="font-label-caps text-[10px] text-primary tracking-widest">AGENT BETA</span>
+<span class="font-code-sm text-[10px] text-background bg-primary px-1 font-bold">ACTIVE</span>
+</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant">Assigned: Code Refactoring (neural-engine)</div>
+</div>
+<div class="flex-grow flex items-center justify-center">
+<div class="w-48 h-48">
+<canvas id="readinessChart"></canvas>
+</div>
+</div>
+</div>
+</div></div>
+</div>
+</div>
+<!-- RIGHT COLUMN (13%) -->
+<div class="w-[13%] h-full flex flex-col gap-4">
+<!-- System Status Vertical -->
+<div class="flex-grow border border-outline-variant bg-surface-container/80 flex flex-col items-center py-4 justify-between corner-bracket stagger-item" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<div class="flex flex-col items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px] drop-shadow-[0_0_5px_rgba(229,77,77,0.5)]">warning</span>
+<div class="w-8 h-px bg-primary/50 shadow-[0_0_5px_#e54d4d]"></div>
+<span class="vertical-text font-label-caps text-[10px] text-primary tracking-[0.3em] font-bold drop-shadow-[0_0_5px_rgba(229,77,77,0.3)]">DEFCON 3</span>
+</div>
+<div class="flex flex-col gap-1 items-center">
+<div class="w-2 h-8 bg-surface-container-highest border border-outline-variant">
+<div class="w-full h-[70%] bg-secondary-fixed mt-[30%]"></div>
+</div>
+<div class="w-2 h-8 bg-surface-container-highest border border-outline-variant">
+<div class="w-full h-[40%] bg-primary mt-[60%]"></div>
+</div>
+<div class="w-2 h-8 bg-surface-container-highest border border-outline-variant">
+<div class="w-full h-[90%] bg-primary mt-[10%] shadow-[0_0_5px_#e54d4d]"></div>
+</div>
+</div>
+<div class="flex flex-col items-center gap-4">
+<div class="text-[24px] font-bold text-on-surface-variant opacity-20 vertical-text tracking-widest leading-none" style="font-family: 'Courier New', Courier, monospace;">
+                        機動
+                    </div>
+<div class="font-code-sm text-[10px] text-on-surface-variant vertical-text">SYS.STABLE</div>
+</div>
+</div>
+<!-- Stamps/Indicators -->
+<div class="h-32 border border-outline-variant bg-primary/5 flex flex-col items-center justify-center gap-2 stagger-item overflow-hidden relative" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px);">
+<div class="bongo-cat-wrapper absolute inset-0 opacity-80">
+<svg class="bongo-cat" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+<g id="laptop">
+<rect fill="#2a1c1b" height="20" width="300" x="250" y="400"></rect>
+<rect fill="#413130" height="20" width="260" x="270" y="380"></rect>
+<path d="M 270 380 L 300 250 L 500 250 L 530 380 Z" fill="#362625"></path>
+<rect fill="#170b0a" height="90" width="160" x="320" y="270"></rect>
+<text fill="#e54d4d" font-family="'JetBrains Mono', monospace" font-size="12" x="330" y="290">&gt;</text>
+<text fill="#00dbe9" font-family="'JetBrains Mono', monospace" font-size="12" x="345" y="290">npm i</text>
+</g>
+<g id="cat-body">
+<path d="M 200 450 C 150 450 150 200 400 200 C 650 200 650 450 600 450 Z" fill="#ffffff"></path>
+<path d="M 250 200 C 220 150 200 150 200 200 Z" fill="#ffffff"></path>
+<path d="M 550 200 C 580 150 600 150 600 200 Z" fill="#ffffff"></path>
+<circle cx="350" cy="280" fill="#1d100f" r="15"></circle>
+<circle cx="450" cy="280" fill="#1d100f" r="15"></circle>
+<path d="M 390 310 C 400 320 410 310 410 310" fill="none" stroke="#1d100f" stroke-width="4"></path>
+</g>
+<g class="paw-left" id="paw-left">
+<path d="M 220 380 C 220 380 300 420 300 420 C 300 420 280 440 250 430 Z" fill="#ffffff" stroke="#1d100f" stroke-width="4"></path>
+</g>
+<g class="paw-right" id="paw-right">
+<path d="M 580 380 C 580 380 500 420 500 420 C 500 420 520 440 550 430 Z" fill="#ffffff" stroke="#1d100f" stroke-width="4"></path>
+</g>
+</svg>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // GSAP Initial Stagger Animation
+        const tl = gsap.timeline();
+        
+        tl.from(".stagger-item", {
+            y: 30,
+            opacity: 0,
+            duration: 0.8,
+            stagger: 0.1,
+            ease: "power3.out",
+            delay: 0.2
+        });
+
+        // Soft Parallax on Character
+        const charContainer = document.getElementById('character-container');
+        const parallaxWrapper = document.getElementById('parallax-wrapper');
+        const opImg = document.getElementById('operator-img');
+
+        gsap.to(opImg, {
+            y: -10,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+            duration: 4
+        });
+
+        charContainer.addEventListener('mousemove', (e) => {
+            const rect = charContainer.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width - 0.5;
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+
+            gsap.to(parallaxWrapper, {
+                x: x * 20,
+                y: y * 20,
+                duration: 0.5,
+                ease: "power2.out"
+            });
+        });
+
+        charContainer.addEventListener('mouseleave', () => {
+            gsap.to(parallaxWrapper, {
+                x: 0,
+                y: 0,
+                duration: 0.5,
+                ease: "power2.out"
+            });
+        });
+
+        // Tab Switching Logic
+        const tabs = document.querySelectorAll('.nav-tab');
+        const contents = document.querySelectorAll('.tab-content');
+        
+        let threeJsInitialized = false;
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                if(tab.classList.contains('active-tab')) return;
+
+                const targetId = tab.getAttribute('data-target');
+
+                // Tab Styles
+                tabs.forEach(t => {
+                    t.classList.remove('active-tab', 'text-primary', 'font-bold', 'border-primary');
+                    t.classList.add('text-on-surface-variant', 'border-transparent');
+                });
+                tab.classList.remove('text-on-surface-variant', 'border-transparent');
+                tab.classList.add('active-tab', 'text-primary', 'font-bold', 'border-primary');
+
+                // Content Transition
+                const currentActive = document.querySelector('.tab-content.active');
+                if(currentActive) {
+                    gsap.to(currentActive, {
+                        opacity: 0,
+                        duration: 0.2,
+                        onComplete: () => {
+                            currentActive.classList.remove('active');
+                            const target = document.getElementById(targetId);
+                            target.classList.add('active');
+                            gsap.fromTo(target, 
+                                { opacity: 0, x: -10 },
+                                { opacity: 1, x: 0, duration: 0.3 }
+                            );
+                            
+                            // Initialize Chart if Agents view
+                            if(targetId === 'agents-view' && !window.chartInitialized) {
+                                initChart();
+                                window.chartInitialized = true;
+                            }
+                            
+                            // Initialize Three.js and Anime if Workflow view
+                            if(targetId === 'workflow-view') {
+                                if(!threeJsInitialized) {
+                                    initThreeJS();
+                                    threeJsInitialized = true;
+                                }
+                                anime({
+                                    targets: '.anime-element',
+                                    translateX: [-20, 0],
+                                    opacity: [0, 1],
+                                    delay: anime.stagger(100),
+                                    easing: 'easeOutExpo',
+                                    duration: 800
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        // Chart.js Initialization for Agents Tab
+        function initChart() {
+            const ctx = document.getElementById('readinessChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Sync', 'Entropy'],
+                    datasets: [{
+                        data: [78, 22],
+                        backgroundColor: [
+                            '#e54d4d',
+                            '#261817'
+                        ],
+                        borderColor: '#e54d4d',
+                        borderWidth: 1,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(29, 16, 15, 0.9)',
+                            titleFont: { family: 'JetBrains Mono', size: 10 },
+                            bodyFont: { family: 'JetBrains Mono', size: 10 },
+                            cornerRadius: 0,
+                            borderColor: '#e54d4d',
+                            borderWidth: 1
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true,
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // Three.js Initialization for Workflow Tab
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            const geometry = new THREE.IcosahedronGeometry(1, 1);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0xe54d4d, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.5
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            camera.position.z = 3;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                mesh.rotation.x += 0.005;
+                mesh.rotation.y += 0.01;
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            window.addEventListener('resize', () => {
+                if(container.clientWidth > 0) {
+                    camera.aspect = container.clientWidth / container.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                }
+            });
+        }
+    });
+</script>
+</body></html>

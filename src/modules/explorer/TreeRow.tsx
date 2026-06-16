@@ -109,8 +109,8 @@ function EntryRowImpl(props: EntryRowProps) {
             onClick={handleClick}
             onDoubleClick={() => !isDir && tree.beginRename(path)}
             className={cn(
-              "javarf-explorer-row group relative isolate flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden border-l border-transparent px-1 text-left font-mono text-[12px] text-white/72 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.03] hover:text-white [contain:paint]",
-              isSelected && "border-l-primary text-white",
+              "javarf-explorer-row group relative isolate flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden border-l-2 border-transparent px-1.5 text-left font-mono text-[12px] text-white/68 transition-[background-color,color,border-color] duration-75 hover:bg-white/[0.04] hover:text-white [contain:paint]",
+              isSelected && "border-l-primary bg-primary/10 text-white",
             )}
             style={{ paddingLeft }}
           >
@@ -127,17 +127,17 @@ function EntryRowImpl(props: EntryRowProps) {
                 />
               ) : null}
             </span>
-            {iconUrl ? (
-              <img src={iconUrl} alt="" className="size-4 shrink-0" />
-            ) : (
-              <span className="size-4 shrink-0" />
-            )}
+            <span
+              className={cn(
+                "shrink-0 transition-colors",
+                isDir
+                  ? "size-2 rounded-full border border-white/20 bg-transparent"
+                  : "size-1.5 rounded-full bg-white/22",
+                isSelected &&
+                  (isDir ? "border-primary/70" : "bg-primary/85"),
+              )}
+            />
             <span className="min-w-0 flex-1 truncate">{name}</span>
-            {isDir ? (
-              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-white/22 transition-colors duration-75 group-hover:text-white/44">
-                dir
-              </span>
-            ) : null}
           </button>
         )}
       </ContextMenuTrigger>

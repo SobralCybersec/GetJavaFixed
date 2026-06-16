@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/modules/i18n";
 import {
@@ -28,6 +27,7 @@ import { clearKey, getAllKeys, setKey } from "@/modules/ai/lib/keyring";
 import {
   native,
   normalizeOpenAiCompatibleBaseUrl,
+  normalizeOpenAiCompatibleModelsBaseUrl,
   type ProxyExampleModel,
 } from "@/modules/ai/lib/native";
 import { matchDiscoveredModel } from "@/modules/ai/lib/modelResolution";
@@ -37,7 +37,6 @@ import {
   setRefactorToolKey,
 } from "@/modules/ai/lib/toolKeyring";
 import { useChatStore } from "@/modules/ai/store/chatStore";
-import { revealInFinder } from "@/modules/explorer/lib/contextActions";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
@@ -55,7 +54,6 @@ import {
   setOpenaiCompatibleContextLimit,
   setOpenaiCompatibleModelId,
   setOpenrouterModelId,
-  setRefactorCustomInstructions,
 } from "@/modules/settings/store";
 import {
   Add01Icon,
@@ -66,7 +64,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@/lib/openUrl";
+import { isBrowserPreview } from "@/lib/runtime";
 import { useEffect, useMemo, useState } from "react";
 import { ProviderIcon } from "../components/ProviderIcon";
 import { McpToolsBlock } from "../components/McpToolsBlock";
@@ -131,6 +130,58 @@ const LOCAL_META: Partial<Record<ProviderId, LocalMeta>> = {
   },
 };
 
+function openAiCompatibleModelsUrl(baseUrl: string): string {
+  return `${normalizeOpenAiCompatibleModelsBaseUrl(baseUrl)}/models`;
+}
+
+async function loadProxyExampleModels(
+  baseUrl: string,
+  apiKey?: string | null,
+): Promise<ProxyExampleModel[]> {
+  if (!isBrowserPreview) {
+    return native.proxyexampleModels(baseUrl, apiKey ?? null);
+  }
+
+  const response = await fetch(openAiCompatibleModelsUrl(baseUrl), {
+    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+  });
+  if (!response.ok) {
+    throw new Error(`models request failed with status ${response.status}`);
+  }
+
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== "object") {
+    throw new Error("invalid models response");
+  }
+
+  const data = (payload as { data?: unknown }).data;
+  if (!Array.isArray(data)) {
+    throw new Error("invalid models response");
+  }
+
+  return data.flatMap((item): ProxyExampleModel[] => {
+    if (!item || typeof item !== "object") return [];
+    const model = item as { id?: unknown; object?: unknown; owned_by?: unknown };
+    if (typeof model.id !== "string" || !model.id.trim()) return [];
+    return [
+      {
+        id: model.id,
+        object: typeof model.object === "string" ? model.object : null,
+        ownedBy: typeof model.owned_by === "string" ? model.owned_by : null,
+      },
+    ];
+  });
+}
+
+async function probeOpenAiCompatibleModels(baseUrl: string): Promise<number> {
+  if (!isBrowserPreview) {
+    return invoke<number>("lm_ping", { baseUrl });
+  }
+
+  const response = await fetch(openAiCompatibleModelsUrl(baseUrl));
+  return response.status;
+}
+
 export function ModelsSection() {
   const { t } = useI18n();
   const [keys, setKeys] = useState<KeysMap | null>(null);
@@ -153,9 +204,6 @@ export function ModelsSection() {
   const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
   const mcpProviders = usePreferencesStore((s) => s.mcpProviders);
   const managedMcpPresets = usePreferencesStore((s) => s.managedMcpPresets);
-  const refactorCustomInstructions = usePreferencesStore(
-    (s) => s.refactorCustomInstructions,
-  );
   useEffect(() => {
     void getAllKeys().then(setKeys);
     void Promise.all([getRefactorToolKey("exa"), getRefactorToolKey("context7")]).then(
@@ -306,10 +354,6 @@ export function ModelsSection() {
           setContext7Key(null);
         }}
       />
-
-      <RefactorPromptControlBlock value={refactorCustomInstructions} />
-      <RefactorRulesExplorerBlock />
-
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <Label>{t("models.providers")}</Label>
@@ -465,247 +509,6 @@ function DefaultsBlock({
           />
         </FieldRow>
         <AutocompleteRow keys={keys} configuredIds={configuredIds} />
-      </div>
-    </div>
-  );
-}
-
-function RefactorPromptControlBlock({ value }: { value: string }) {
-  const { t } = useI18n();
-  const [draft, setDraft] = useState(value);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  const openRefactorPromptFolder = async () => {
-    const path = await native.refactorRulesRoot();
-    await revealInFinder(path);
-  };
-
-  const openRefactorPromptBuilder = async () => {
-    const path = await native.canonicalize(
-      "src/modules/findings/lib/useRefactorGeneration.ts",
-    );
-    await revealInFinder(path);
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <Label>{t("models.refactorPromptControl")}</Label>
-      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          {t("models.refactorPromptControlHelp")}
-        </p>
-        <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-          {t("models.refactorPromptControlHelpSecondary")}
-        </p>
-        <Textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t("models.refactorPromptPlaceholder")}
-          className="min-h-[120px] resize-y border border-border bg-card/50 font-sans text-[12px] leading-relaxed"
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => void setRefactorCustomInstructions(draft)}
-            className="h-8 px-3 text-[11px]"
-          >
-            {t("models.saveRefactorInstructions")}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void openRefactorPromptFolder()}
-            className="h-8 px-3 text-[11px]"
-          >
-            {t("models.openRulesFolder")}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void openRefactorPromptBuilder()}
-            className="h-8 px-3 text-[11px]"
-          >
-            {t("models.openBuilderFile")}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RefactorRulesExplorerBlock() {
-  const { t } = useI18n();
-  const [root, setRoot] = useState<string | null>(null);
-  const [files, setFiles] = useState<string[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [content, setContent] = useState("");
-  const [savedContent, setSavedContent] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "saving" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
-
-  const loadFiles = async () => {
-    setStatus("loading");
-    setError(null);
-    try {
-      const nextRoot = await native.refactorRulesRoot();
-      const [entries, manifestFiles] = await Promise.all([
-        native.readDir(nextRoot),
-        native.refactorRulesList(),
-      ]);
-      const next = manifestFiles
-        .filter((name) => entries.some((entry) => entry.kind === "file" && entry.name === name))
-        .sort((left, right) => left.localeCompare(right));
-      setRoot(nextRoot);
-      setFiles(next);
-      setSelectedFile((current) => current ?? next[0] ?? null);
-      setStatus("idle");
-    } catch (cause) {
-      setStatus("error");
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  };
-
-  useEffect(() => {
-    void loadFiles();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedFile) {
-      setContent("");
-      setSavedContent("");
-      return;
-    }
-    setStatus("loading");
-    setError(null);
-    void native
-      .readFile(`${root}/${selectedFile}`)
-      .then((result) => {
-        if (result.kind !== "text") {
-          throw new Error(t("models.ruleFileNotReadable"));
-        }
-        setContent(result.content);
-        setSavedContent(result.content);
-        setStatus("idle");
-      })
-      .catch((cause) => {
-        setStatus("error");
-        setError(cause instanceof Error ? cause.message : String(cause));
-      });
-  }, [root, selectedFile]);
-
-  const dirty = content !== savedContent;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <Label>{t("models.refactorRules")}</Label>
-      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-3">
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          {t("models.refactorRulesDescription")}
-        </p>
-        <p className="text-[10.5px] leading-relaxed text-muted-foreground/80">
-          {root ? t("models.rulesFolderValue", { path: root }) : t("models.loadingRulesFolder")}
-        </p>
-        <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <div className="rounded-lg border border-border/60 bg-card/50 p-2">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-muted-foreground">{t("models.ruleFiles")}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => void loadFiles()}
-                className="h-7 px-2 text-[11px]"
-              >
-                Refresh
-              </Button>
-            </div>
-            <div className="flex max-h-[320px] flex-col gap-1 overflow-auto">
-              {files.map((file) => (
-                <button
-                  key={file}
-                  type="button"
-                  onClick={() => setSelectedFile(file)}
-                  className={cn(
-                    "rounded-md px-2 py-1.5 text-left text-[11px] transition-colors",
-                    selectedFile === file
-                      ? "bg-primary/12 text-primary"
-                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                  )}
-                >
-                  {file}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">
-                {selectedFile ?? t("models.noRuleSelected")}
-              </Badge>
-              {dirty ? <Badge variant="secondary">{t("models.unsaved")}</Badge> : null}
-              {status === "error" && error ? (
-                <span className="text-[11px] text-destructive/80">{error}</span>
-              ) : null}
-            </div>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={t("models.selectRulePlaceholder")}
-              className="min-h-[320px] resize-y border border-border bg-card/50 font-mono text-[11.5px] leading-relaxed"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                disabled={!selectedFile || !dirty || status === "saving"}
-                onClick={async () => {
-                  if (!selectedFile) return;
-                  setStatus("saving");
-                  setError(null);
-                  try {
-                    await native.writeFile(
-                      `${root}/${selectedFile}`,
-                      content,
-                    );
-                    setSavedContent(content);
-                    setStatus("idle");
-                  } catch (cause) {
-                    setStatus("error");
-                    setError(cause instanceof Error ? cause.message : String(cause));
-                  }
-                }}
-                className="h-8 px-3 text-[11px]"
-              >
-                {t("models.saveSelectedRule")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  if (!root) return;
-                  const path = await native.canonicalize(root);
-                  await revealInFinder(path);
-                }}
-                className="h-8 px-3 text-[11px]"
-              >
-                {t("models.revealRulesFolder")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  if (!root) return;
-                  const path = await native.canonicalize(`${root}/manifest.json`);
-                  await revealInFinder(path);
-                }}
-                className="h-8 px-3 text-[11px]"
-              >
-                {t("models.revealManifest")}
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1096,7 +899,7 @@ function LocalProviderCard({
   const test = async () => {
     setTestStatus("testing");
     try {
-      const status = await invoke<number>("lm_ping", { baseUrl: urlDraft });
+      const status = await probeOpenAiCompatibleModels(urlDraft);
       setTestStatus(status > 0 ? "ok" : "fail");
     } catch {
       setTestStatus("fail");
@@ -1108,7 +911,7 @@ function LocalProviderCard({
     setModelsBusy(true);
     setModelsError(null);
     try {
-      const loaded = await native.proxyexampleModels(
+      const loaded = await loadProxyExampleModels(
         normalizeOpenAiCompatibleBaseUrl(urlDraft),
         compatKey ?? null,
       );

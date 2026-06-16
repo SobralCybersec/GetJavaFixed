@@ -12,12 +12,15 @@ import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import { initLaunchDir } from "./lib/launchDir";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "./lib/platform";
+import { isTauriRuntime } from "./lib/runtime";
 
 if (USE_CUSTOM_WINDOW_CONTROLS) {
   document.documentElement.dataset.chrome = "borderless";
 }
 
-await invoke("pty_close_all").catch(() => {});
+if (isTauriRuntime) {
+  await invoke("pty_close_all").catch(() => {});
+}
 
 await initLaunchDir();
 
@@ -27,6 +30,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 
 
 const showWindow = () => {
+  if (!isTauriRuntime) return;
   getCurrentWindow()
     .show()
     .catch((e) => console.error("window.show failed:", e));

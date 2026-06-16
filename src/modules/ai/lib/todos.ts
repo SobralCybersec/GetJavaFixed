@@ -1,3 +1,9 @@
+import {
+  deleteBrowserStoreValue,
+  readBrowserStoreValue,
+  writeBrowserStoreValue,
+} from "@/lib/browserJsonStore";
+import { isTauriRuntime } from "@/lib/runtime";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
@@ -15,6 +21,9 @@ const todosKey = (sessionId: string) => `todos:${sessionId}`;
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
 
 export async function loadTodos(sessionId: string): Promise<Todo[]> {
+  if (!isTauriRuntime) {
+    return readBrowserStoreValue<Todo[]>(STORE_PATH, todosKey(sessionId)) ?? [];
+  }
   return (await store.get<Todo[]>(todosKey(sessionId))) ?? [];
 }
 
@@ -22,10 +31,18 @@ export async function saveTodos(
   sessionId: string,
   todos: Todo[],
 ): Promise<void> {
+  if (!isTauriRuntime) {
+    writeBrowserStoreValue(STORE_PATH, todosKey(sessionId), todos);
+    return;
+  }
   await store.set(todosKey(sessionId), todos);
 }
 
 export async function deleteTodos(sessionId: string): Promise<void> {
+  if (!isTauriRuntime) {
+    deleteBrowserStoreValue(STORE_PATH, todosKey(sessionId));
+    return;
+  }
   await store.delete(todosKey(sessionId));
 }
 

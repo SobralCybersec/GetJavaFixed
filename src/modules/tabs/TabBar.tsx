@@ -8,7 +8,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
-import { fileIconUrl } from "@/modules/explorer/lib/iconResolver";
 import { useI18n } from "@/modules/i18n";
 import {
   Cancel01Icon,
@@ -36,6 +35,7 @@ type Props = {
   onNewPreview: () => void;
   onNewDashboard: () => void;
   onNewAgentDashboard: () => void;
+  onOpenJavaRefactor: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
   onClose: (id: number) => void;
@@ -53,6 +53,7 @@ export function TabBar({
   onNewPreview,
   onNewDashboard,
   onNewAgentDashboard,
+  onOpenJavaRefactor,
   onNewEditor,
   onNewGitGraph,
   onClose,
@@ -96,7 +97,7 @@ export function TabBar({
           value={String(activeId)}
           onValueChange={(v) => onSelect(Number(v))}
         >
-          <TabsList className="h-8 w-max gap-1 bg-transparent p-0">
+          <TabsList className="h-8 w-max gap-0.5 bg-transparent p-0">
             {tabs.map((t) => {
               const isPreview = t.kind === "editor" && (t as EditorTab).preview;
               return (
@@ -116,7 +117,7 @@ export function TabBar({
                     if (e.button === 1) e.preventDefault();
                   }}
                   className={cn(
-                    "group h-8 shrink-0 justify-between gap-1.5 border border-[color:var(--border)] bg-black/28 text-xs font-mono uppercase tracking-[0.08em] text-white/42 transition-[background-color,border-color,color,opacity] duration-75 data-[state=active]:border-primary/50 data-[state=active]:bg-primary/8 data-[state=active]:text-white hover:border-primary/30 hover:bg-white/[0.03] hover:text-white/82",
+                    "group h-8 shrink-0 justify-between gap-2 border border-transparent bg-transparent text-[12px] font-medium text-white/46 transition-[background-color,border-color,color,opacity] duration-75 data-[state=active]:border-[color:var(--border)] data-[state=active]:bg-[#0d1118] data-[state=active]:text-white hover:border-white/8 hover:bg-white/[0.04] hover:text-white/82",
                     compact
                       ? "px-1.5!"
                       : tabs.length === 1
@@ -171,7 +172,7 @@ export function TabBar({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0 border border-[color:var(--border)] bg-black/28 text-white/56 hover:border-primary/35 hover:bg-primary/10 hover:text-white"
+            className="size-8 shrink-0 border border-transparent bg-transparent text-white/46 hover:border-[color:var(--border)] hover:bg-white/[0.04] hover:text-white"
             title={translate("tabs.newTab")}
           >
             <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
@@ -224,6 +225,16 @@ export function TabBar({
               {fmtShortcut(MOD_KEY, "E")}
             </span>
           </DropdownMenuItem>
+            <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
+            onSelect={() => onNewPreview()}
+          >
+            <HugeiconsIcon icon={Globe02Icon} size={14} strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">{translate("tabs.preview")}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {fmtShortcut(MOD_KEY, "P")}
+            </span>
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="min-w-0 whitespace-normal"
             onSelect={() => onNewDashboard()}
@@ -233,21 +244,18 @@ export function TabBar({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="min-w-0 whitespace-normal"
+            onSelect={() => onOpenJavaRefactor()}
+          >
+            <HugeiconsIcon icon={GitCompareIcon} size={14} strokeWidth={1.75} />
+            <span className="min-w-0 flex-1">{translate("home.javaRefactor")}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="min-w-0 whitespace-normal"
             onSelect={() => onNewAgentDashboard()}
           >
             <HugeiconsIcon icon={RobotIcon} size={14} strokeWidth={1.75} />
             <span className="min-w-0 flex-1">
               {translate("tabs.agentDashboard")}
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="min-w-0 whitespace-normal"
-            onSelect={() => onNewPreview()}
-          >
-            <HugeiconsIcon icon={Globe02Icon} size={14} strokeWidth={1.75} />
-            <span className="min-w-0 flex-1">{translate("tabs.preview")}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {fmtShortcut(MOD_KEY, "P")}
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -264,15 +272,12 @@ export function TabBar({
 }
 
 function TabIcon({ tab }: { tab: Tab }) {
-  if (tab.kind === "editor" || tab.kind === "markdown") {
-    const url = fileIconUrl(tab.title);
-    return url ? <img src={url} alt="" className="size-3.5 shrink-0" /> : null;
-  }
+  if (tab.kind === "editor" || tab.kind === "markdown") return null;
   if (tab.kind === "preview") {
     return (
       <HugeiconsIcon
         icon={Globe02Icon}
-        size={14}
+        size={13}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -282,7 +287,7 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={GridViewIcon}
-        size={14}
+        size={13}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -292,7 +297,7 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={RobotIcon}
-        size={14}
+        size={13}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -302,27 +307,30 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={GitCompareIcon}
-        size={14}
+        size={13}
         strokeWidth={2}
         className="shrink-0"
       />
     );
   }
-  if (tab.kind === "terminal" && tab.private) {
-    return (
-      <HugeiconsIcon
-        icon={IncognitoIcon}
-        size={14}
-        strokeWidth={2}
-        className="shrink-0"
-      />
-    );
+  if (tab.kind === "terminal") {
+    if (tab.private) {
+      return (
+        <HugeiconsIcon
+          icon={IncognitoIcon}
+          size={13}
+          strokeWidth={2}
+          className="shrink-0"
+        />
+      );
+    }
+    return null;
   }
   if (tab.kind === "git-diff" || tab.kind === "git-commit-file") {
     return (
       <HugeiconsIcon
         icon={GitCompareIcon}
-        size={14}
+        size={13}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -332,20 +340,13 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={Clock01Icon}
-        size={14}
+        size={13}
         strokeWidth={2}
         className="shrink-0"
       />
     );
   }
-  return (
-    <HugeiconsIcon
-      icon={ComputerTerminal02Icon}
-      size={14}
-      strokeWidth={2}
-      className="shrink-0"
-    />
-  );
+  return null;
 }
 
 function labelFor(t: Tab): string {

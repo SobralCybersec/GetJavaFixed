@@ -7,9 +7,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
-  FileAddIcon,
   Folder01Icon,
-  FolderAddIcon,
   Refresh01Icon,
   Search01Icon,
 } from "@hugeicons/core-free-icons";
@@ -37,6 +35,7 @@ import { useI18n } from "@/modules/i18n";
 export type FileExplorerHandle = {
   focus: () => void;
   isFocused: () => boolean;
+  openSearch: () => void;
 };
 
 type Props = {
@@ -221,6 +220,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           const active = document.activeElement;
           return active instanceof Node && c.contains(active);
         },
+        openSearch: () => {
+          setIsSearchOpen(true);
+          containerRef.current?.focus();
+          requestAnimationFrame(() => searchRef.current?.focus());
+        },
       }),
       [entryPaths, scrollEntryIntoView, selectedPath],
     );
@@ -373,22 +377,15 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     return (
       <div
         ref={containerRef}
-        className="javarf-terminal-shell flex h-full flex-col bg-[#050608] font-mono outline-none"
+        className="javarf-terminal-shell flex h-full flex-col bg-[#040508] font-mono outline-none"
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex h-11 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b border-[color:var(--border)] bg-[#090b10] px-2.5">
+        <div className="flex h-10 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b border-[color:var(--border)] bg-[#07090d]/96 px-2.5">
           <span
-            className="flex min-w-0 flex-1 items-center truncate font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-white/72"
+            className="min-w-0 flex-1 truncate text-[12px] font-medium text-white/68"
             title={rootPath}
           >
-            <img
-              src={folderIconUrl(basename(rootPath), false)}
-              alt=""
-              height={16}
-              width={16}
-              className="mr-2 opacity-80"
-            />
             {basename(rootPath)}
           </span>
 
@@ -401,25 +398,6 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             aria-label={t("explorer.searchFiles")}
           >
             <HugeiconsIcon icon={Search01Icon} size={13} strokeWidth={2} />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
-            onClick={() => tree.beginCreate(rootPath, "file")}
-            title={t("explorer.newFile")}
-          >
-            <HugeiconsIcon icon={FileAddIcon} size={13} strokeWidth={2} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 border border-[color:var(--border)] bg-black/20 text-white/56 hover:border-primary/45 hover:bg-primary/10 hover:text-white"
-            onClick={() => tree.beginCreate(rootPath, "dir")}
-            title={t("explorer.newFolder")}
-          >
-            <HugeiconsIcon icon={FolderAddIcon} size={13} strokeWidth={2} />
           </Button>
           <Button
             variant="ghost"

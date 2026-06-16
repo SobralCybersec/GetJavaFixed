@@ -8,6 +8,7 @@ export const messages = {
     "settings.tabs.shortcuts": "Shortcuts",
     "settings.tabs.models": "Models",
     "settings.tabs.agents": "Agents",
+    "settings.tabs.refactor": "Refactor",
     "settings.tabs.about": "About",
     "themes.title": "Themes",
     "themes.description": "Theme, background image, and customization.",
@@ -268,6 +269,13 @@ export const messages = {
     "models.saveSelectedRule": "Save selected rule",
     "models.revealRulesFolder": "Reveal rules folder",
     "models.revealManifest": "Reveal manifest",
+    "refactor.active": "Active",
+    "refactor.inactive": "Inactive",
+    "refactor.coverage": "Coverage",
+    "refactor.rulesDistribution": "Rules distribution",
+    "refactor.visualization": "3D refactor rules",
+    "refactor.refresh": "Refresh",
+    "refactor.noRules": "No rules found",
     "models.removeKey": "Remove key",
     "models.autocomplete": "Autocomplete",
     "models.notConnected": "not connected",
@@ -576,6 +584,93 @@ export const messages = {
     "home.javaRefactor": "Code refactor",
     "home.javaRefactorDisabled":
       "Connect a model in Settings to unlock code refactor.",
+    "home.commandCenter.eyebrow": "Command center",
+    "home.commandCenter.badge": "TACTICAL DASHBOARD",
+    "home.commandCenter.title": "Refactor command center.",
+    "home.commandCenter.description":
+      "Start from live repo status, recent work, and one direct path into AI or refactor tools instead of a blank editor.",
+    "home.commandCenter.visualLabel": "Tactical board",
+    "home.commandCenter.visualValue": "Anime command center",
+    "home.commandCenter.systemLabel": "System",
+    "home.commandCenter.systemValue":
+      "Use strong identity here. Keep work surfaces calmer once editing starts.",
+    "home.commandCenter.continueSession": "Continue session",
+    "home.commandCenter.searchRepo": "Search repository",
+    "home.commandCenter.browseProject": "Browse project",
+    "home.commandCenter.commandLabel": "Quick prompt",
+    "home.commandCenter.commandPlaceholder":
+      "Ask for next step, review risk, or inspect repository status...",
+    "home.commandCenter.commandSend": "Send",
+    "home.commandCenter.commandFallback":
+      "Review workspace status and recommend the next best action.",
+    "home.commandCenter.projects": "Recent projects",
+    "home.commandCenter.noProjects":
+      "No recent projects yet. Open a workspace to seed this deck.",
+    "home.commandCenter.sessions": "AI sessions",
+    "home.commandCenter.noSessions":
+      "No recent sessions yet. Start with a quick prompt or continue later.",
+    "home.commandCenter.status": "Workspace status",
+    "home.commandCenter.metrics": "Metrics",
+    "home.commandCenter.metricsDescription":
+      "Chart.js snapshot from current workspace state.",
+    "home.commandCenter.openAssistant": "Assistant prompts",
+    "home.commandCenter.recentFiles": "Recent files",
+    "home.commandCenter.noRecentFiles": "No recent files open yet.",
+    "home.commandCenter.branchDeck": "Branch deck",
+    "home.commandCenter.alerts": "Alerts",
+    "home.commandCenter.project.current": "Current",
+    "home.commandCenter.project.known": "Known",
+    "home.commandCenter.metric.files": "Files",
+    "home.commandCenter.metric.changes": "Changes",
+    "home.commandCenter.metric.sessions": "Sessions",
+    "home.commandCenter.metric.sync": "Sync",
+    "home.commandCenter.prompt.inspect": "Inspect repo",
+    "home.commandCenter.prompt.inspectBody":
+      "Inspect current repository posture and summarize highest-priority work.",
+    "home.commandCenter.prompt.branch": "Review branch",
+    "home.commandCenter.prompt.branchBody":
+      "Review current branch risk and suggest next safe actions.",
+    "home.commandCenter.prompt.next": "Plan next step",
+    "home.commandCenter.prompt.nextBody":
+      "Plan next refactor step based on workspace status and open files.",
+    "home.commandCenter.status.workspace": "Workspace",
+    "home.commandCenter.status.branch": "Branch",
+    "home.commandCenter.status.changes": "Changes",
+    "home.commandCenter.status.remote": "Remote",
+    "home.commandCenter.status.assistant": "Assistant",
+    "home.commandCenter.status.models": "Models",
+    "home.commandCenter.status.offline": "Offline",
+    "home.commandCenter.status.preview": "Preview",
+    "home.commandCenter.status.clean": "Clean",
+    "home.commandCenter.status.open": "Open",
+    "home.commandCenter.status.ready": "Ready",
+    "home.commandCenter.status.needsModel": "Connect model",
+    "home.commandCenter.status.noSession": "No session",
+    "home.commandCenter.browseDescription":
+      "Jump into explorer and keep code panes clean.",
+    "home.commandCenter.browseDescriptionOffline":
+      "Mount repository before branch review and file search.",
+    "home.commandCenter.refactorDescription":
+      "Review findings dashboard or preview-first refactor surface.",
+    "home.commandCenter.alert.noWorkspace": "Workspace not mounted yet.",
+    "home.commandCenter.alert.noModel":
+      "Model access missing. Connect one in Settings for AI workflows.",
+    "home.commandCenter.alert.preview":
+      "Refactor dashboard running in preview mode.",
+    "home.commandCenter.alert.behind":
+      "Local branch is behind upstream by {count}.",
+    "home.commandCenter.alert.changes":
+      "{count} uncommitted file changes detected.",
+    "home.commandCenter.alert.clear":
+      "System clear. Repository state steady.",
+    "workspace.empty.title": "No file selected",
+    "workspace.empty.description":
+      "Browse project, jump into code refactor, or open a fresh terminal.",
+    "workspace.empty.browse": "Browse project",
+    "workspace.empty.terminal": "Open terminal",
+    "workspace.empty.noWorkspaceTitle": "No workspace open",
+    "workspace.empty.noWorkspaceDescription":
+      "Mount a repository or jump straight into refactor dashboard preview.",
     "home.kpi.explorer.label": "Explorer",
     "home.kpi.explorer.value": "Workspace gated",
     "home.kpi.explorer.hint":
@@ -884,6 +979,9 @@ export const messages = {
     "sourceControl.pendingDiscard.many": "{count} unstaged files",
 
     "findings.title": "Diagnose Code",
+    "findings.previewMode": "Preview mode",
+    "findings.previewDescription":
+      "Layout preview only. Choose a repository to unlock scanning, findings generation, and refactor apply flow.",
     "findings.tabs.overview": "Overview",
     "findings.tabs.intelligence": "Refactor",
     "findings.tabs.findings": "Findings Queue",
@@ -1048,9 +1146,20 @@ export const messages = {
     "repoIntake.inspectFailed": "We could not inspect that folder.",
     "repoIntake.chooseAnother": "Choose another folder",
     "repoIntake.chooseRepo": "Choose code repository",
+    "repoIntake.previewDashboard": "Preview refactor dashboard",
+    "repoIntake.previewRepoName": "Refactor dashboard preview",
     "repoIntake.startFullAnalysis": "Start full analysis",
     "repoIntake.rootManifestValueFull":
       "package.json, Cargo.toml, go.mod, Package.swift, pubspec.yaml, mix.exs, pyproject.toml, JVM, Assembly roots, or generic code",
+    "repoIntake.previewMode": "Preview-first workflow",
+    "repoIntake.previewModeDescription":
+      "Inspect full refactor dashboard surface before mounting repository. Scan actions stay locked until you choose a real workspace.",
+    "repoIntake.visualStack": "Visual stack",
+    "repoIntake.visualStackValue": "Three.js scene + HUD cards",
+    "repoIntake.motionSystem": "Motion system",
+    "repoIntake.motionSystemValue": "GSAP stagger + drift",
+    "repoIntake.entryMode": "Entry mode",
+    "repoIntake.entryModeValue": "Dashboard preview or live repo",
 
     "preview.reload": "Reload",
     "preview.back": "Back",
@@ -1180,6 +1289,7 @@ export const messages = {
     "settings.tabs.shortcuts": "Atalhos",
     "settings.tabs.models": "Modelos",
     "settings.tabs.agents": "Agentes",
+    "settings.tabs.refactor": "Refatoração",
     "settings.tabs.about": "Sobre",
     "themes.title": "Temas",
     "themes.description": "Tema, imagem de fundo e personalização.",
@@ -1440,6 +1550,13 @@ export const messages = {
     "models.saveSelectedRule": "Salvar regra selecionada",
     "models.revealRulesFolder": "Revelar pasta de regras",
     "models.revealManifest": "Revelar manifest",
+    "refactor.active": "Ativas",
+    "refactor.inactive": "Inativas",
+    "refactor.coverage": "Cobertura",
+    "refactor.rulesDistribution": "Distribuição das regras",
+    "refactor.visualization": "Regras de refatoração em 3D",
+    "refactor.refresh": "Atualizar",
+    "refactor.noRules": "Nenhuma regra encontrada",
     "models.removeKey": "Remover chave",
     "models.autocomplete": "Autocomplete",
     "models.notConnected": "não conectado",
@@ -1748,6 +1865,95 @@ export const messages = {
     "home.javaRefactor": "Refatoração de código",
     "home.javaRefactorDisabled":
       "Conecte um modelo em Configurações para liberar a refatoração de código.",
+    "home.commandCenter.eyebrow": "Centro de comando",
+    "home.commandCenter.badge": "DASHBOARD TATICO",
+    "home.commandCenter.title": "Centro de comando de refatoração.",
+    "home.commandCenter.description":
+      "Comece por status real do repositório, trabalho recente e um caminho direto para IA ou refatoração, em vez de editor vazio.",
+    "home.commandCenter.visualLabel": "Quadro tatico",
+    "home.commandCenter.visualValue": "Centro anime",
+    "home.commandCenter.systemLabel": "Sistema",
+    "home.commandCenter.systemValue":
+      "Concentre identidade forte aqui. Mantenha telas de trabalho mais calmas quando edição começar.",
+    "home.commandCenter.continueSession": "Continuar sessão",
+    "home.commandCenter.searchRepo": "Buscar repositório",
+    "home.commandCenter.browseProject": "Explorar projeto",
+    "home.commandCenter.commandLabel": "Prompt rapido",
+    "home.commandCenter.commandPlaceholder":
+      "Peça próximo passo, revise risco ou consulte status do repositório...",
+    "home.commandCenter.commandSend": "Enviar",
+    "home.commandCenter.commandFallback":
+      "Revise status do workspace e recomende próxima melhor ação.",
+    "home.commandCenter.projects": "Projetos recentes",
+    "home.commandCenter.noProjects":
+      "Ainda sem projetos recentes. Abra um workspace para alimentar este painel.",
+    "home.commandCenter.sessions": "Sessões de IA",
+    "home.commandCenter.noSessions":
+      "Ainda sem sessões recentes. Comece com um prompt rapido ou continue depois.",
+    "home.commandCenter.status": "Status do workspace",
+    "home.commandCenter.metrics": "Metricas",
+    "home.commandCenter.metricsDescription":
+      "Snapshot do Chart.js com estado atual do workspace.",
+    "home.commandCenter.openAssistant": "Prompts do assistente",
+    "home.commandCenter.recentFiles": "Arquivos recentes",
+    "home.commandCenter.noRecentFiles":
+      "Ainda não há arquivos recentes abertos.",
+    "home.commandCenter.branchDeck": "Painel de branch",
+    "home.commandCenter.alerts": "Alertas",
+    "home.commandCenter.project.current": "Atual",
+    "home.commandCenter.project.known": "Conhecido",
+    "home.commandCenter.metric.files": "Arquivos",
+    "home.commandCenter.metric.changes": "Mudanças",
+    "home.commandCenter.metric.sessions": "Sessões",
+    "home.commandCenter.metric.sync": "Sync",
+    "home.commandCenter.prompt.inspect": "Inspecionar repo",
+    "home.commandCenter.prompt.inspectBody":
+      "Inspecione situação atual do repositório e resuma trabalho de maior prioridade.",
+    "home.commandCenter.prompt.branch": "Revisar branch",
+    "home.commandCenter.prompt.branchBody":
+      "Revise risco atual da branch e sugira próximas ações seguras.",
+    "home.commandCenter.prompt.next": "Planejar próximo passo",
+    "home.commandCenter.prompt.nextBody":
+      "Planeje próximo passo de refatoração com base no status do workspace e arquivos abertos.",
+    "home.commandCenter.status.workspace": "Workspace",
+    "home.commandCenter.status.branch": "Branch",
+    "home.commandCenter.status.changes": "Mudanças",
+    "home.commandCenter.status.remote": "Remoto",
+    "home.commandCenter.status.assistant": "Assistente",
+    "home.commandCenter.status.models": "Modelos",
+    "home.commandCenter.status.offline": "Offline",
+    "home.commandCenter.status.preview": "Preview",
+    "home.commandCenter.status.clean": "Limpo",
+    "home.commandCenter.status.open": "Aberto",
+    "home.commandCenter.status.ready": "Pronto",
+    "home.commandCenter.status.needsModel": "Conectar modelo",
+    "home.commandCenter.status.noSession": "Sem sessão",
+    "home.commandCenter.browseDescription":
+      "Abra explorador e mantenha paineis de codigo limpos.",
+    "home.commandCenter.browseDescriptionOffline":
+      "Monte repositório antes de revisar branch ou buscar arquivos.",
+    "home.commandCenter.refactorDescription":
+      "Abra dashboard de achados ou superficie de refatoração em preview.",
+    "home.commandCenter.alert.noWorkspace":
+      "Workspace ainda não montado.",
+    "home.commandCenter.alert.noModel":
+      "Falta acesso a modelo. Conecte um em Configurações para fluxos de IA.",
+    "home.commandCenter.alert.preview":
+      "Dashboard de refatoração rodando em modo preview.",
+    "home.commandCenter.alert.behind":
+      "Branch local está {count} commits atrás do upstream.",
+    "home.commandCenter.alert.changes":
+      "{count} alterações de arquivo não commitadas detectadas.",
+    "home.commandCenter.alert.clear":
+      "Sistema limpo. Estado do repositório estável.",
+    "workspace.empty.title": "Nenhum arquivo selecionado",
+    "workspace.empty.description":
+      "Explore projeto, abra a refatoração de código ou inicie um terminal limpo.",
+    "workspace.empty.browse": "Explorar projeto",
+    "workspace.empty.terminal": "Abrir terminal",
+    "workspace.empty.noWorkspaceTitle": "Nenhum workspace aberto",
+    "workspace.empty.noWorkspaceDescription":
+      "Monte um repositório ou pule direto para o preview do dashboard de refatoração.",
     "home.kpi.explorer.label": "Explorador",
     "home.kpi.explorer.value": "Workspace bloqueado",
     "home.kpi.explorer.hint":
@@ -2056,6 +2262,9 @@ export const messages = {
     "sourceControl.pendingDiscard.many": "{count} arquivos unstaged",
 
     "findings.title": "Diagnosticar Código",
+    "findings.previewMode": "Modo preview",
+    "findings.previewDescription":
+      "Só preview de layout. Escolha um repositório para liberar scan, geração de findings e fluxo de aplicar refatoração.",
     "findings.tabs.overview": "Visão geral",
     "findings.tabs.intelligence": "Refatorar",
     "findings.tabs.findings": "Fila de findings",
@@ -2220,9 +2429,20 @@ export const messages = {
     "repoIntake.inspectFailed": "Não conseguimos inspecionar essa pasta.",
     "repoIntake.chooseAnother": "Escolher outra pasta",
     "repoIntake.chooseRepo": "Escolher repositório de código",
+    "repoIntake.previewDashboard": "Visualizar dashboard de refatoração",
+    "repoIntake.previewRepoName": "Preview do dashboard de refatoração",
     "repoIntake.startFullAnalysis": "Iniciar análise completa",
     "repoIntake.rootManifestValueFull":
       "package.json, Cargo.toml, go.mod, Package.swift, pubspec.yaml, mix.exs, pyproject.toml, JVM, raízes Assembly ou código genérico",
+    "repoIntake.previewMode": "Fluxo preview-first",
+    "repoIntake.previewModeDescription":
+      "Inspecione toda a superfície do dashboard de refatoração antes de montar o repositório. Ações de scan ficam bloqueadas até você escolher um workspace real.",
+    "repoIntake.visualStack": "Stack visual",
+    "repoIntake.visualStackValue": "Cena Three.js + cards HUD",
+    "repoIntake.motionSystem": "Sistema de motion",
+    "repoIntake.motionSystemValue": "Stagger GSAP + drift",
+    "repoIntake.entryMode": "Modo de entrada",
+    "repoIntake.entryModeValue": "Preview do dashboard ou repo real",
 
     "preview.reload": "Recarregar",
     "preview.back": "Voltar",

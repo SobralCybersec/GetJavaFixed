@@ -29,6 +29,7 @@ import {
   FileTerminalIcon,
   FolderOpenIcon,
   GitBranchIcon,
+  GitCompareIcon,
   GridViewIcon,
   Hamburger01Icon,
   HelpCircleIcon,
@@ -56,6 +57,7 @@ type Props = {
   onNewPreview: () => void;
   onNewDashboard: () => void;
   onNewAgentDashboard: () => void;
+  onOpenJavaRefactor: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
   onClose: (id: number) => void;
@@ -92,6 +94,7 @@ export function Header({
   onNewPreview,
   onNewDashboard,
   onNewAgentDashboard,
+  onOpenJavaRefactor,
   onNewEditor,
   onNewGitGraph,
   onClose,
@@ -116,7 +119,6 @@ export function Header({
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
-  const [gifFailedFor, setGifFailedFor] = useState<string | null>(null);
   const compactOps = layoutMode === "compact-ops";
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
   const familyMode = usePreferencesStore((s) => s.agentFamilyMode);
@@ -142,12 +144,6 @@ export function Header({
 
   const splitRightTokens = tokensFor("pane.splitRight");
   const splitDownTokens = tokensFor("pane.splitDown");
-  const activeAgentGif = activeAgent.gifPath ?? `/agents/${activeAgent.id.replace(/[:/\\]/g, "-")}.gif`;
-  const showAgentGif = gifFailedFor !== activeAgent.id;
-
-  useEffect(() => {
-    setGifFailedFor(null);
-  }, [activeAgent.id]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -160,18 +156,6 @@ export function Header({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  const settingsButton = (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-7 shrink-0 rounded-md bg-black/20 text-white/46 hover:bg-primary/10 hover:text-white"
-      onClick={onOpenSettings}
-      title={t("header.settings")}
-    >
-      <HugeiconsIcon icon={Settings01Icon} size={15} strokeWidth={1.75} />
-    </Button>
-  );
   const sidebarButton = (
     <Button
       onClick={onToggleSidebar}
@@ -215,6 +199,10 @@ export function Header({
         <DropdownMenuItem onSelect={onNewDashboard}>
           <HugeiconsIcon icon={GridViewIcon} size={14} strokeWidth={1.75} />
           <span>{t("header.newDashboard")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onOpenJavaRefactor}>
+          <HugeiconsIcon icon={GitCompareIcon} size={14} strokeWidth={1.75} />
+          <span>{t("home.javaRefactor")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onNewAgentDashboard}>
           <HugeiconsIcon icon={RobotIcon} size={14} strokeWidth={1.75} />
@@ -272,74 +260,6 @@ export function Header({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-  const zenButton = (
-    <Button
-      onClick={onToggleZenMode}
-      title={zenMode ? t("header.disableZen") : t("header.enableZen")}
-      variant="ghost"
-      size="icon-sm"
-      className={cn(
-        "shrink-0 text-white/48 transition-colors hover:bg-primary/10 hover:text-white",
-        "bg-black/30 text-white/46",
-        zenMode && "text-primary",
-      )}
-    >
-      <YinYangGlyph />
-    </Button>
-  );
-  const splitMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="shrink-0 bg-black/30 text-white/46 hover:bg-primary/10 hover:text-white disabled:opacity-50"
-          title={t("header.splitTerminal")}
-          disabled={!canSplit}
-        >
-          <HugeiconsIcon icon={GridViewIcon} size={16} strokeWidth={1.75} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
-        <DropdownMenuItem onSelect={() => onSplit("row")} disabled={!canSplit}>
-          <HugeiconsIcon icon={LayoutTwoColumnIcon} size={14} strokeWidth={1.75} />
-          <span className="flex-1">{t("header.splitRight")}</span>
-          {splitRightTokens && (
-            <span className="text-xs text-muted-foreground">{splitRightTokens}</span>
-          )}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSplit("col")} disabled={!canSplit}>
-          <HugeiconsIcon icon={LayoutTwoRowIcon} size={14} strokeWidth={1.75} />
-          <span className="flex-1">{t("header.splitDown")}</span>
-          {splitDownTokens && (
-            <span className="text-xs text-muted-foreground">{splitDownTokens}</span>
-          )}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-  const workspaceButton = (
-    <Button
-      onClick={onOpenWorkspace}
-      title={t("header.openWorkspace")}
-      variant="ghost"
-      size="icon-sm"
-      className="shrink-0 bg-black/30 text-white/46 hover:bg-primary/10 hover:text-white"
-    >
-      <HugeiconsIcon icon={FolderOpenIcon} size={16} strokeWidth={1.75} />
-    </Button>
-  );
-  const tutorialButton = (
-    <Button
-      onClick={onOpenTutorial}
-      title={t("header.openTutorial")}
-      variant="ghost"
-      size="icon-sm"
-      className="shrink-0 bg-black/30 text-white/46 hover:bg-primary/10 hover:text-white"
-    >
-      <HugeiconsIcon icon={HelpCircleIcon} size={16} strokeWidth={1.75} />
-    </Button>
-  );
   const hiddenInZenClass = hiddenInZen
     ? placement === "bottom"
       ? "translate-y-full opacity-0 pointer-events-none"
@@ -353,7 +273,7 @@ export function Header({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       className={cn(
-        "javarf-terminal-shell flex h-12 min-w-0 shrink-0 items-center gap-2 overflow-hidden border-[color:var(--border)] bg-[#050506]/96 select-none transition-[transform,opacity,background-color] duration-150",
+        "javarf-terminal-shell flex h-11 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-[color:var(--border)] bg-[#040506]/92 select-none transition-[transform,opacity,background-color] duration-150",
         placement === "bottom" ? "border-t" : "border-b",
         zenMode && "opacity-30 hover:opacity-100 hover:bg-[#08090b]/98",
         hiddenInZenClass,
@@ -362,29 +282,11 @@ export function Header({
     >
       <div className="flex shrink-0 items-center gap-1.5">
         {!compact && !compactOps ? (
-          <div className="hidden h-9 shrink-0 items-center gap-3 border border-[color:var(--border)] bg-black/45 px-3 sm:flex">
-            <span className="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden border border-primary/55 bg-primary/8 text-primary">
-              {showAgentGif ? (
-                <img
-                  src={activeAgentGif}
-                  alt=""
-                  className="size-full object-cover"
-                  onError={() => setGifFailedFor(activeAgent.id)}
-                />
-              ) : (
-                <span className="font-mono text-[10px] font-semibold uppercase">
-                  {activeAgent.name.slice(0, 2)}
-                </span>
-              )}
+          <div className="hidden h-8 shrink-0 items-center gap-2 border border-[color:var(--border)] bg-black/28 px-3 sm:flex">
+            <span className="size-2 shrink-0 rounded-full bg-primary/72" />
+            <span className="truncate text-[12px] font-medium text-white/76">
+              {activeAgent.name}
             </span>
-            <div className="flex min-w-0 flex-col leading-none">
-              <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white/88">
-                {activeAgent.name}
-              </span>
-              <span className="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-primary/72">
-                {activeAgent.subtitle ?? activeAgent.role ?? activeAgent.name}
-              </span>
-            </div>
           </div>
         ) : null}
       </div>
@@ -409,6 +311,7 @@ export function Header({
           onNewPreview={onNewPreview}
           onNewDashboard={onNewDashboard}
           onNewAgentDashboard={onNewAgentDashboard}
+          onOpenJavaRefactor={onOpenJavaRefactor}
           onNewEditor={onNewEditor}
           onNewGitGraph={onNewGitGraph}
           onClose={onClose}
@@ -421,26 +324,12 @@ export function Header({
       <SearchInline ref={searchRef} target={searchTarget} compact={compact} />
 
       <div className="flex shrink-0 items-center gap-1">
-        {compactOps ? (
-          <>
-            {compactMenu}
-          </>
-        ) : (
-          <>
-            {workspaceButton}
-            {tutorialButton}
-            <span className="mx-1 h-5 w-px shrink-0 bg-white/8" />
-            {sidebarButton}
-            {zenButton}
-            {splitMenu}
-            {compactMenu}
-          </>
-        )}
+        {!compactOps ? sidebarButton : null}
+        {compactMenu}
         <NotificationBell
           onActivate={onActivateAgent}
           onActivateLocal={onActivateLocalAgent}
         />
-        {!compactOps ? settingsButton : null}
       </div>
 
       {USE_CUSTOM_WINDOW_CONTROLS && (
@@ -450,16 +339,5 @@ export function Header({
         </>
       )}
     </div>
-  );
-}
-
-function YinYangGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true" fill="none">
-      <path
-        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 0 1 0 16 4 4 0 0 1 0-8 4 4 0 1 0 0-8Zm0 3.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm0 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"
-        fill="currentColor"
-      />
-    </svg>
   );
 }

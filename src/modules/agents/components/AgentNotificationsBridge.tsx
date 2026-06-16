@@ -1,5 +1,6 @@
 import type { Tab } from "@/modules/tabs";
 import { hasLeaf, leafIdForPty } from "@/modules/terminal";
+import { isTauriRuntime } from "@/lib/runtime";
 import { playInteractionSound } from "@/modules/sound/interactionSounds";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
@@ -106,6 +107,7 @@ export function AgentNotificationsBridge({
   ctxRef.current = { tabs, activeId, focused, onActivate };
 
   useEffect(() => {
+    if (!isTauriRuntime) return;
     let alive = true;
     let unlisten: (() => void) | undefined;
     listen<AgentSignal>("javarf:agent-signal", (e) =>
