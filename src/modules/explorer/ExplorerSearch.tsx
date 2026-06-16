@@ -49,7 +49,7 @@ type Props = {
 };
 
 export type ExplorerSearchHandle = {
-  focus: () => void;
+  focus: (query?: string) => void;
   isFocused: () => boolean;
 };
 
@@ -139,8 +139,12 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
   useImperativeHandle(
     ref,
     () => ({
-      focus: () => {
+      focus: (query?: string) => {
         requestAnimationFrame(() => {
+          if (typeof query === "string") {
+            setQuery(query);
+            setSelectedIndex(0);
+          }
           inputRef.current?.focus();
         });
       },

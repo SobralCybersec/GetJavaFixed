@@ -35,7 +35,7 @@ import { useI18n } from "@/modules/i18n";
 export type FileExplorerHandle = {
   focus: () => void;
   isFocused: () => boolean;
-  openSearch: () => void;
+  openSearch: (query?: string) => void;
 };
 
 type Props = {
@@ -220,10 +220,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           const active = document.activeElement;
           return active instanceof Node && c.contains(active);
         },
-        openSearch: () => {
+        openSearch: (query?: string) => {
           setIsSearchOpen(true);
           containerRef.current?.focus();
-          requestAnimationFrame(() => searchRef.current?.focus());
+          requestAnimationFrame(() => searchRef.current?.focus(query));
         },
       }),
       [entryPaths, scrollEntryIntoView, selectedPath],

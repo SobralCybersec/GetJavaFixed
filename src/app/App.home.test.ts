@@ -43,6 +43,7 @@ describe("App dashboard routing", () => {
     expect(appSrc).toContain(
       "onSearchRepository={hasWorkspace ? openExplorerSearch : undefined}",
     );
+    expect(appSrc).toContain("onOpenBrowser={openPreviewTab}");
     expect(appSrc).toContain("recentProjectPaths={dashboardProjectPaths}");
   });
 });

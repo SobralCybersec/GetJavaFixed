@@ -855,18 +855,33 @@ kbd,
   display: none !important;
 }
 
-html,
-html *,
-html *::before,
-html *::after {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--background);
 }
 
-html *::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--background);
+  border-left: 1px solid var(--border);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 0px;
+  border: 1px solid var(--border);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--background);
 }
 
 @keyframes javarf-collapsible-down {

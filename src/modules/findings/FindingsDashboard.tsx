@@ -548,7 +548,7 @@ export function FindingsDashboard({
                                   className="h-7 text-xs"
                                   onClick={refactor.reset}
                                 >
-                                  Clear
+                                  {t("findings.clear")}
                                 </Button>
                               ) : null}
                             </div>

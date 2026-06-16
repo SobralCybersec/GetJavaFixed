@@ -733,7 +733,7 @@ function AppContent() {
       active instanceof HTMLElement && active !== document.body ? active : null;
     explorer.focus();
   }, [persistSidebarView, sidebarView]);
-  const openExplorerSearch = useCallback(() => {
+  const openExplorerSearch = useCallback((initialQuery?: string) => {
     if (!hasWorkspaceRef.current) return;
     const panel = sidebarRef.current;
     const collapsed = panel ? panel.getSize().asPercentage <= 0 : false;
@@ -743,7 +743,7 @@ function AppContent() {
     if (sidebarView !== "explorer") {
       persistSidebarView("explorer");
     }
-    requestAnimationFrame(() => explorerRef.current?.openSearch());
+    requestAnimationFrame(() => explorerRef.current?.openSearch(initialQuery));
   }, [persistSidebarView, sidebarView]);
 
   const zenHoverActive = statusBarHover || headerHover;
@@ -2514,6 +2514,7 @@ function AppContent() {
         onSearchRepository={hasWorkspace ? openExplorerSearch : undefined}
         onOpenAssistant={openAssistantFromDashboard}
         onOpenRecentFile={openDashboardRecentFile}
+        onOpenBrowser={openPreviewTab}
         recentProjectPaths={dashboardProjectPaths}
         recentFilePaths={dashboardRecentFiles}
         repoStatus={dashboardRepoStatus}

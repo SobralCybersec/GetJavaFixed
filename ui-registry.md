@@ -80,21 +80,21 @@ Last updated: 2026-06-16
 
 | Property | Class |
 | --- | --- |
-| Shell background | `bg-[#03050a]`, layered radial gradients, subtle grid overlay |
-| Hero panels | `bg-card/84`, `bg-card/88`, `border border-border/70`, `rounded-none` |
-| Support cards | `bg-card/82`, `border border-border/70`, `rounded-none` |
-| Section switcher | `border border-border/70 bg-black/18 p-2`, active `border-cyan-300/30 bg-cyan-300/10 text-cyan-100` |
-| Text - primary | `font-project-title`, `text-white`, `tracking-tight` |
-| Text - secondary | `text-white/68`, `text-white/58`, `text-white/44` |
-| Spacing | `px-4 py-4`, `sm:px-5`, `lg:px-7 lg:py-5`, compact `gap-3`, repeated `px-3 py-3`, `px-4 py-4` |
-| Motion | GSAP entrance on hero/cards, anime.js HUD pulses, raw Three.js `Timer` hero scene, Chart.js metrics card |
-| Accent usage | cyan/orange only in chips, meters, hover borders, hero glow, and compact status pills |
+| Background | `bg-[var(--dash-bg)]`, `bg-[var(--dash-panel)]`, `bg-[var(--dash-panel-strong)]`, layered `var(--dash-primary)` / `var(--dash-accent)` radial gradients, theme-tinted grid overlay |
+| Border | `border border-[var(--dash-border)]`, softer callouts `border-[var(--dash-border-soft)]`, status fills `border-[var(--dash-primary-soft)]` / `border-[var(--dash-accent-soft)]` |
+| Border radius | angular shell with masked hero plane, square support cards, circular media trigger only via `rounded-full` |
+| Text - primary | `font-project-title`, `font-mono`, `text-[var(--dash-text)]`, `text-[var(--dash-primary)]`, `text-[var(--dash-accent)]` |
+| Text - secondary | `text-[var(--dash-text-soft)]`, `text-[var(--dash-muted)]` |
+| Spacing | shell `px-4 py-4`, panel `p-4` to `p-6`, repeated `gap-4`, dense chips `px-3 py-1.5` |
+| Hover state | cards/buttons pivot between `var(--dash-border)` and accent borders, with filled surfaces staying on the same theme family instead of dropping to raw black |
+| Shadow | glow is implicit through theme gradients and accent fills; avoid standalone drop shadows unless matching the active theme token set |
+| Accent usage | primary token drives command, auth, and readiness states; accent token drives news/live telemetry; both stay scoped to pills, charts, grids, and verification rails |
 
 **Pattern notes:**
-Put strongest anime identity on first-screen dashboard, empty states, and assistant entry points. Keep rest of app calmer. Hero can carry 3D scene and HUD mood, but supporting cards stay flat, square, and information-first. Card headers now stay text-only to reduce chrome, and section bodies should stack into uneven groups instead of stretching three equal empty slabs.
+Surface is now a theme-native tactical shell instead of a fixed dark red/cyan deck. The hero stays masked and image-led, with the GitHub avatar becoming the background when a profile is present, but the old `Tactical / Command` title stack and relay-copy filler are removed. Navigation stays terse, and the 02/03/04 views are split into dedicated files: `HomeDashboardWorkflowView.tsx`, `HomeDashboardAgentsView.tsx`, and `HomeDashboardGithubView.tsx`.
 
 **Behavior notes:**
-This surface now replaces startup blank-shell state, even with no mounted workspace. Lower dashboard content should stay inside viewport via section switching instead of one long scroller. Each tab should prioritize sectional grouping over equal-height grids: content-heavy assistant/status panels can be tall, while sparse empty-state cards stay compact. Readiness metrics should fall back to KPI tiles when chart data is too thin, and dashboard shell must prefer scroll over clipping when space gets tight.
+This surface still replaces the startup blank-shell state even with no mounted workspace. Keep the three major decks responsive, keep the hero on a single GitHub entry button plus client-id strip, preserve the typewriter greeting, and filter news to the active UI language only. When a feed item has no usable image, the rail should render a source-aware fallback preview card instead of a dead placeholder. GitHub scope should keep profile, integrations, repo intake, clone logs, branch/file checker, and recent project surfaces aligned with the current theme tokens rather than fixed literal colors.
 
 ### Explorer Quiet Header
 

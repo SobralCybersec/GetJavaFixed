@@ -831,20 +831,13 @@ function chooseRoutedModelId(
   if (LOCAL_TOOLCALL_PROVIDERS.has(provider)) return modelId;
   switch (modelId) {
     case "gpt-5.5":
-    case "gpt-5.3-codex":
       return "gpt-5.4-mini";
-    case "claude-opus-4-7":
-    case "claude-opus-4-6":
-      return "claude-sonnet-4-6";
     case "claude-sonnet-4-6":
       return "claude-haiku-4-5";
     case "gemini-3.1-pro-preview":
     case "gemini-2.5-pro":
       return "gemini-2.5-flash";
-    case "grok-4.20-reasoning":
-      return "grok-4.20-non-reasoning";
     case "deepseek-v4-pro":
-    case "deepseek-reasoner":
       return "deepseek-v4-flash";
     default:
       return modelId;
@@ -854,16 +847,11 @@ function chooseRoutedModelId(
 export function chooseRefactorPreviewModelId(modelId: ModelId): ModelId {
   switch (modelId) {
     case "gpt-5.5":
-    case "gpt-5.3-codex":
       return "gpt-5.4-mini";
-    case "claude-opus-4-7":
-    case "claude-opus-4-6":
-      return "claude-sonnet-4-6";
     case "gemini-3.1-pro-preview":
     case "gemini-2.5-pro":
       return "gemini-2.5-flash";
     case "deepseek-v4-pro":
-    case "deepseek-reasoner":
       return "deepseek-v4-flash";
     default:
       return modelId;

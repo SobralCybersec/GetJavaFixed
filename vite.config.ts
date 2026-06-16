@@ -5,9 +5,117 @@ import { defineConfig } from "vite";
 
 const host = process.env.TAURI_DEV_HOST;
 const port = 1422;
+const DASHBOARD_PROXY_ROUTE = "/__dashboard_proxy__";
+const DASHBOARD_PROXY_HOSTS = new Set([
+  "api.github.com",
+  "blog.pridesec.com.br",
+  "feeds.feedburner.com",
+  "github.com",
+  "infoq.com",
+  "rss.tecmundo.com.br",
+  "www.infoq.com",
+]);
+
+function dashboardProxyPlugin() {
+  return {
+    name: "dashboard-proxy",
+    configureServer(server: {
+      middlewares: {
+        use: (
+          handler: (
+            req: import("node:http").IncomingMessage,
+            res: import("node:http").ServerResponse,
+            next: () => void,
+          ) => void | Promise<void>,
+        ) => void;
+      };
+    }) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url == null) {
+          next();
+          return;
+        }
+
+        const requestUrl = new URL(req.url, `http://localhost:${port}`);
+        if (requestUrl.pathname !== DASHBOARD_PROXY_ROUTE || req.method !== "POST") {
+          next();
+          return;
+        }
+
+        try {
+          const body = await readRequestBody(req);
+          const payload = JSON.parse(body) as {
+            body?: string;
+            headers?: Record<string, string>;
+            method?: string;
+            url?: string;
+          };
+
+          if (!payload.url) {
+            res.statusCode = 400;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ message: "Missing url." }));
+            return;
+          }
+
+          const target = new URL(payload.url);
+          if (
+            target.protocol !== "https:" ||
+            !DASHBOARD_PROXY_HOSTS.has(target.hostname.toLowerCase())
+          ) {
+            res.statusCode = 403;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ message: "Target host is not allowed." }));
+            return;
+          }
+
+          const upstream = await fetch(target, {
+            method: payload.method?.toUpperCase() || "GET",
+            headers: payload.headers,
+            body: payload.body,
+          });
+
+          res.statusCode = upstream.status;
+          const contentType = upstream.headers.get("content-type");
+          if (contentType) {
+            res.setHeader("Content-Type", contentType);
+          }
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+
+          const bytes = Buffer.from(await upstream.arrayBuffer());
+          res.end(bytes);
+        } catch (error) {
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              message: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
+      });
+    },
+  };
+}
+
+function readRequestBody(
+  req: import("node:http").IncomingMessage,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    req.on("error", reject);
+  });
+}
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), dashboardProxyPlugin()],
 
   base: "./",
 
@@ -101,11 +209,7 @@ export default defineConfig(({ mode }) => ({
           host,
           port: 1424,
         }
-      : {
-          protocol: "ws",
-          host: "localhost",
-          port,
-        },
+      : undefined,
 
     watch: {
       ignored: ["**/src-tauri/**"],

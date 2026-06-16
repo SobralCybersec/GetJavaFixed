@@ -9,6 +9,8 @@ lerna-debug.log*
 effects.html
 needhavesupport/*
 .agents
+.playwright-cli
+output
 
 node_modules
 dist
@@ -33,3 +35,4 @@ src-tauri/resources/extensions
 *.tsbuildinfo
 proxyexamples
 wordlist.txt
+.screenshots

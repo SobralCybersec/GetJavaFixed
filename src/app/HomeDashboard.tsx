@@ -1,34 +1,61 @@
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isTauriRuntime } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/modules/ai";
-import {
-  DASHBOARD_CHART_COLORS,
-  chartAnimation,
-  getDashboardChartTheme,
-} from "@/modules/dashboard/chartSetup";
+import { native } from "@/modules/ai/lib/native";
+import { chartAnimation, getDashboardChartTheme } from "@/modules/dashboard/chartSetup";
 import { useI18n } from "@/modules/i18n";
+import { pickJavaRepoDirectory } from "@/modules/java-intake";
 import { useGSAP } from "@gsap/react";
 import {
   Clock01Icon,
   FolderOpenIcon,
   GitCompareIcon,
   Search01Icon,
+  Github01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { animate, createScope, stagger } from "animejs";
 import type { ChartData, ChartOptions } from "chart.js";
 import gsap from "gsap";
 import { useReducedMotion } from "motion/react";
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { Bar } from "react-chartjs-2";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { BongoTerminal } from "./BongoCode/BongoTerminal";
+import { HomeDashboardAgentsView } from "./HomeDashboardAgentsView";
+import { HomeDashboardGithubView } from "./HomeDashboardGithubView";
+import {
+  ActionCard,
+  EmptyStrip,
+  NewsBadge,
+  type HomeDashboardAgentStatus,
+  UtilityButton,
+  ViewHeader,
+} from "./HomeDashboardShared";
+import { HomeDashboardAnimeView } from "./HomeDashboardAnimeView";
+import { HomeDashboardWorkflowView } from "./HomeDashboardWorkflowView";
+import {
+  PREVIEW_NEWS_ITEMS,
+  disconnectGithubSession,
+  fetchDashboardNews,
+  fetchGithubDashboardData,
+  finishGithubDeviceFlow,
+  readStoredGithubClientId,
+  requestGithubDeviceChallenge,
+  restoreGithubSession,
+  storeGithubClientId,
+  type DashboardNewsItem,
+  type GitHubDashboardData,
+  type GitHubDeviceChallenge,
+  type GitHubProfile,
+} from "./homeDashboardData";
 
 gsap.registerPlugin(useGSAP);
 
@@ -49,16 +76,79 @@ type Props = {
   hasWorkspace?: boolean;
   onOpenWorkspace?: () => void;
   onBrowseProject?: () => void;
-  onSearchRepository?: () => void;
+  onSearchRepository?: (query?: string) => void;
   onOpenAssistant: (prefill?: string) => void;
   onOpenRecentFile?: (path: string) => void;
+  onOpenBrowser?: (url: string) => void;
   recentProjectPaths?: string[];
   recentFilePaths?: string[];
   repoStatus?: RepoStatus | null;
 };
 
-type AlertTone = "ready" | "warn";
-type DashboardSectionId = "launch" | "workflow" | "readiness";
+type DashboardSectionId = "launch" | "workflow" | "agents" | "github" | "anime";
+type GitHubFlowState =
+  | "idle"
+  | "restoring"
+  | "requesting"
+  | "polling"
+  | "connected"
+  | "error";
+type NewsState = "loading" | "ready" | "fallback";
+type CloneState = "idle" | "running" | "done" | "error";
+type ResolvedThemeColors = {
+  background: string;
+  card: string;
+  border: string;
+  grid: string;
+  foreground: string;
+  muted: string;
+  primary: string;
+  accent: string;
+};
+
+const RESOLVED_THEME_FALLBACK: ResolvedThemeColors = {
+  background: "#050505",
+  card: "#111111",
+  border: "rgba(148, 163, 184, 0.24)",
+  grid: "rgba(148, 163, 184, 0.16)",
+  foreground: "#f5f5f5",
+  muted: "rgba(245, 245, 245, 0.68)",
+  primary: "#f97316",
+  accent: "#22d3ee",
+};
+
+const dashboardThemeStyle: CSSProperties = {
+  ["--dash-bg" as string]: "color-mix(in srgb, var(--background) 96%, var(--card))",
+  ["--dash-panel" as string]: "color-mix(in srgb, var(--card) 92%, var(--background))",
+  ["--dash-panel-strong" as string]: "color-mix(in srgb, var(--card) 80%, var(--background))",
+  ["--dash-border" as string]: "var(--border)",
+  ["--dash-border-soft" as string]: "color-mix(in srgb, var(--border) 78%, transparent)",
+  ["--dash-primary" as string]: "var(--primary)",
+  ["--dash-primary-soft" as string]: "color-mix(in srgb, var(--primary) 18%, var(--background))",
+  ["--dash-accent" as string]: "var(--accent)",
+  ["--dash-accent-soft" as string]: "color-mix(in srgb, var(--accent) 18%, var(--background))",
+  ["--dash-text" as string]: "var(--foreground)",
+  ["--dash-text-soft" as string]: "color-mix(in srgb, var(--foreground) 82%, var(--background))",
+  ["--dash-muted" as string]: "var(--muted-foreground)",
+};
+
+function readResolvedThemeColors(): ResolvedThemeColors {
+  if (typeof window === "undefined") return RESOLVED_THEME_FALLBACK;
+  const chartTheme = getDashboardChartTheme();
+  const styles = window.getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
+
+  return {
+    background: read("--background", chartTheme.surface),
+    card: read("--card", chartTheme.surface),
+    border: read("--border", chartTheme.border),
+    grid: chartTheme.grid,
+    foreground: read("--foreground", chartTheme.text),
+    muted: read("--muted-foreground", chartTheme.text),
+    primary: read("--primary", RESOLVED_THEME_FALLBACK.primary),
+    accent: read("--accent", RESOLVED_THEME_FALLBACK.accent),
+  };
+}
 
 function basename(path: string): string {
   const parts = path.split(/[\\/]/).filter(Boolean);
@@ -72,7 +162,8 @@ function compactPath(path: string, maxSegments: number = 3): string {
   return `.../${parts.slice(-maxSegments).join("/")}`;
 }
 
-function formatTime(value: number): string {
+function formatTime(value: number, liveFallback: string): string {
+  if (!Number.isFinite(value) || value <= 0) return liveFallback;
   return new Date(value).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -88,205 +179,95 @@ export function HomeDashboard({
   onSearchRepository,
   onOpenAssistant,
   onOpenRecentFile,
+  onOpenBrowser,
   recentProjectPaths = [],
   recentFilePaths = [],
   repoStatus,
 }: Props) {
-  const { t } = useI18n();
-  const sessions = useChatStore((s) => s.sessions);
-  const activeSessionId = useChatStore((s) => s.activeSessionId);
-  const panelOpen = useChatStore((s) => s.panelOpen);
+  const { locale, t } = useI18n();
+  const sessions = useChatStore((state) => state.sessions);
+  const panelOpen = useChatStore((state) => state.panelOpen);
   const reducedMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [commandDraft, setCommandDraft] = useState("");
+  const heroParallaxRef = useRef<HTMLDivElement | null>(null);
+  const githubAbortRef = useRef<AbortController | null>(null);
+  const cloneLogOffsetRef = useRef(0);
+  const navContainerRef = useRef<HTMLDivElement | null>(null);
+  const [navIndicatorStyle, setNavIndicatorStyle] = useState({ left: 0, width: 0 });
+
   const [activeSection, setActiveSection] = useState<DashboardSectionId>("launch");
+  const [commandDraft, setCommandDraft] = useState("");
+  const [reviewCue, setReviewCue] = useState("");
+  const [githubRepoQuery, setGithubRepoQuery] = useState("");
+  const [githubClientId, setGithubClientId] = useState(() => readStoredGithubClientId());
+  const [githubProfile, setGithubProfile] = useState<GitHubProfile | null>(null);
+  const [githubChallenge, setGithubChallenge] = useState<GitHubDeviceChallenge | null>(null);
+  const [githubState, setGithubState] = useState<GitHubFlowState>("restoring");
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [githubDashboard, setGithubDashboard] = useState<GitHubDashboardData | null>(null);
+  const [githubDashboardState, setGithubDashboardState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [githubDashboardError, setGithubDashboardError] = useState<string | null>(null);
+  const [typedGreeting, setTypedGreeting] = useState("");
+  const [newsItems, setNewsItems] = useState<DashboardNewsItem[]>(PREVIEW_NEWS_ITEMS);
+  const [newsState, setNewsState] = useState<NewsState>("loading");
+  const [newsError, setNewsError] = useState<string | null>(null);
+  const [newsQuery, setNewsQuery] = useState("");
+  const [newsIndex, setNewsIndex] = useState(0);
+  const [cloneState, setCloneState] = useState<CloneState>("idle");
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  const [cloneHandle, setCloneHandle] = useState<number | null>(null);
+  const [cloneLogs, setCloneLogs] = useState("");
+  const [cloneTargetDir, setCloneTargetDir] = useState<string | null>(null);
+  const [resolvedThemeColors, setResolvedThemeColors] = useState<ResolvedThemeColors>(() =>
+    readResolvedThemeColors(),
+  );
+  const deferredNewsQuery = useDeferredValue(newsQuery.trim());
 
   const activeProjectPath = repoStatus?.path ?? null;
   const sessionRows = sessions.slice(0, 3);
-  const assistantStatus = panelOpen
-    ? t("home.commandCenter.status.open")
-    : sessionRows.length > 0
-      ? t("home.commandCenter.status.ready")
-      : t("home.commandCenter.status.noSession");
-  const modelsStatus = hasModelAccess
-    ? t("home.commandCenter.status.ready")
-    : t("home.commandCenter.status.needsModel");
+  const workspaceLabel = activeProjectPath
+    ? basename(activeProjectPath)
+    : t("home.commandCenter.status.offline");
+  const branchLabel = repoStatus?.previewOnly
+    ? t("home.commandCenter.status.preview")
+    : repoStatus?.branch ?? t("home.commandCenter.status.offline");
   const remoteTotal = (repoStatus?.ahead ?? 0) + (repoStatus?.behind ?? 0);
   const remoteLabel = repoStatus?.upstream
     ? remoteTotal === 0
       ? t("home.commandCenter.status.clean")
       : `+${repoStatus?.ahead ?? 0} / -${repoStatus?.behind ?? 0}`
     : t("home.commandCenter.status.clean");
-  const telemetryItems = useMemo(
-    () => [
-      {
-        label: t("home.commandCenter.metric.files"),
-        value: recentFilePaths.length,
-        color: DASHBOARD_CHART_COLORS[0],
-      },
-      {
-        label: t("home.commandCenter.metric.changes"),
-        value: repoStatus?.changedCount ?? 0,
-        color: DASHBOARD_CHART_COLORS[1],
-      },
-      {
-        label: t("home.commandCenter.metric.sessions"),
-        value: sessions.length,
-        color: DASHBOARD_CHART_COLORS[5],
-      },
-      {
-        label: t("home.commandCenter.metric.sync"),
-        value: remoteTotal,
-        color: DASHBOARD_CHART_COLORS[2],
-      },
-    ],
-    [recentFilePaths.length, remoteTotal, repoStatus?.changedCount, sessions.length, t],
-  );
-  const telemetryHasChartSignal =
-    telemetryItems.filter((item) => item.value > 0).length > 1 ||
-    telemetryItems.some((item) => item.value > 2);
+  const assistantStatus = panelOpen
+    ? t("home.commandCenter.status.open")
+    : sessionRows.length > 0
+      ? t("home.commandCenter.status.ready")
+      : t("home.commandCenter.status.noSession");
+  const preferredNewsLanguage: DashboardNewsItem["language"] = locale.startsWith("pt")
+    ? "pt"
+    : "en";
 
-  const statusRows = useMemo(
-    () => [
-      {
-        label: t("home.commandCenter.status.workspace"),
-        value:
-          activeProjectPath !== null
-            ? basename(activeProjectPath)
-            : t("home.commandCenter.status.offline"),
-        percent: activeProjectPath ? 100 : 14,
-      },
-      {
-        label: t("home.commandCenter.status.branch"),
-        value: repoStatus?.previewOnly
-          ? t("home.commandCenter.status.preview")
-          : repoStatus?.branch ??
-            (repoStatus?.isDetached
-              ? t("home.commandCenter.status.preview")
-              : "--"),
-        percent: repoStatus?.branch ? 82 : repoStatus?.previewOnly ? 70 : 18,
-      },
-      {
-        label: t("home.commandCenter.status.changes"),
-        value:
-          (repoStatus?.changedCount ?? 0) > 0
-            ? String(repoStatus?.changedCount ?? 0)
-            : t("home.commandCenter.status.clean"),
-        percent: Math.min(100, Math.max(12, (repoStatus?.changedCount ?? 0) * 14)),
-      },
-      {
-        label: t("home.commandCenter.status.remote"),
-        value: remoteLabel,
-        percent: Math.min(100, Math.max(12, remoteTotal * 20)),
-      },
-      {
-        label: t("home.commandCenter.status.assistant"),
-        value: assistantStatus,
-        percent: panelOpen ? 100 : Math.min(84, Math.max(18, sessionRows.length * 22)),
-      },
-      {
-        label: t("home.commandCenter.status.models"),
-        value: modelsStatus,
-        percent: hasModelAccess ? 100 : 20,
-      },
-    ],
-    [
-      activeProjectPath,
-      assistantStatus,
-      hasModelAccess,
-      modelsStatus,
-      panelOpen,
-      remoteLabel,
-      remoteTotal,
-      repoStatus?.branch,
-      repoStatus?.changedCount,
-      repoStatus?.isDetached,
-      repoStatus?.previewOnly,
-      sessionRows.length,
-      t,
-    ],
-  );
-
-  const telemetryData = useMemo<ChartData<"bar">>(
-    () => ({
-      labels: telemetryItems.map((item) => item.label),
-      datasets: [
-        {
-          label: t("home.commandCenter.metrics"),
-          data: telemetryItems.map((item) => item.value),
-          backgroundColor: telemetryItems.map((item) => item.color),
-          borderColor: "rgba(255, 255, 255, 0.16)",
-          borderWidth: 1,
-          borderRadius: 3,
-        },
-      ],
-    }),
-    [telemetryItems, t],
-  );
-
-  const telemetryOptions = useMemo<ChartOptions<"bar">>(() => {
-    const theme = getDashboardChartTheme();
-    return {
-      indexAxis: "y",
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: chartAnimation(reducedMotion),
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: theme.surface,
-          bodyColor: theme.text,
-          borderColor: theme.border,
-          borderWidth: 1,
-          displayColors: false,
-          titleColor: theme.text,
-        },
-      },
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: theme.grid },
-          ticks: { color: theme.text, precision: 0 },
-        },
-        y: {
-          grid: { display: false },
-          ticks: { color: theme.text },
-        },
-      },
-    };
-  }, [reducedMotion]);
-
-  const alerts = useMemo<{ tone: AlertTone; body: string }[]>(() => {
-    const next: { tone: AlertTone; body: string }[] = [];
-    if (!hasWorkspace) {
-      next.push({ tone: "warn", body: t("home.commandCenter.alert.noWorkspace") });
-    }
-    if (!hasModelAccess) {
-      next.push({ tone: "warn", body: t("home.commandCenter.alert.noModel") });
-    }
-    if (repoStatus?.previewOnly) {
-      next.push({ tone: "warn", body: t("home.commandCenter.alert.preview") });
-    }
+  const alerts = useMemo(() => {
+    const next: string[] = [];
+    if (!hasWorkspace) next.push(t("home.commandCenter.alert.noWorkspace"));
+    if (!hasModelAccess) next.push(t("home.commandCenter.alert.noModel"));
+    if (repoStatus?.previewOnly) next.push(t("home.commandCenter.alert.preview"));
     if ((repoStatus?.behind ?? 0) > 0) {
-      next.push({
-        tone: "warn",
-        body: t("home.commandCenter.alert.behind", {
+      next.push(
+        t("home.commandCenter.alert.behind", {
           count: String(repoStatus?.behind ?? 0),
         }),
-      });
+      );
     }
     if ((repoStatus?.changedCount ?? 0) > 0) {
-      next.push({
-        tone: "warn",
-        body: t("home.commandCenter.alert.changes", {
+      next.push(
+        t("home.commandCenter.alert.changes", {
           count: String(repoStatus?.changedCount ?? 0),
         }),
-      });
+      );
     }
-    if (next.length === 0) {
-      next.push({ tone: "ready", body: t("home.commandCenter.alert.clear") });
-    }
-    return next;
+    return next.length > 0 ? next : [t("home.commandCenter.alert.clear")];
   }, [
     hasModelAccess,
     hasWorkspace,
@@ -296,984 +277,1699 @@ export function HomeDashboard({
     t,
   ]);
 
-  const promptDeck = useMemo(
+  const recentProjects = useMemo(
+    () =>
+      recentProjectPaths.slice(0, 3).map((path, index) => ({
+        path,
+        title: basename(path),
+        subtitle:
+          index === 0 && repoStatus?.branch
+            ? `${t("home.commandCenter.status.branch")}: ${repoStatus.branch}`
+            : compactPath(path, 4),
+        stamp:
+          activeProjectPath === path
+            ? t("home.commandCenter.project.current")
+            : t("home.commandCenter.project.known"),
+      })),
+    [activeProjectPath, recentProjectPaths, repoStatus?.branch, t],
+  );
+
+  const workflowEntries = useMemo(() => {
+    if (recentProjects.length > 0) return recentProjects;
+    return recentFilePaths.slice(0, 3).map((path) => ({
+      path,
+      title: basename(path),
+      subtitle: compactPath(path, 4),
+      stamp: t("home.commandCenter.recentFiles"),
+    }));
+  }, [recentFilePaths, recentProjects, t]);
+
+  const telemetryItems = useMemo(
     () => [
       {
-        label: t("home.commandCenter.prompt.inspect"),
-        prompt: t("home.commandCenter.prompt.inspectBody"),
+        label: t("home.commandCenter.metric.files"),
+        value: recentFilePaths.length,
+        color: resolvedThemeColors.accent,
       },
       {
-        label: t("home.commandCenter.prompt.branch"),
-        prompt: t("home.commandCenter.prompt.branchBody"),
+        label: t("home.commandCenter.metric.changes"),
+        value: repoStatus?.changedCount ?? 0,
+        color: resolvedThemeColors.primary,
       },
       {
-        label: t("home.commandCenter.prompt.next"),
-        prompt: t("home.commandCenter.prompt.nextBody"),
+        label: t("home.commandCenter.metric.sessions"),
+        value: sessions.length,
+        color: resolvedThemeColors.foreground,
       },
+      {
+        label: t("home.commandCenter.metric.sync"),
+        value: remoteTotal,
+        color: resolvedThemeColors.muted,
+      },
+    ],
+    [
+      recentFilePaths.length,
+      remoteTotal,
+      repoStatus?.changedCount,
+      resolvedThemeColors.accent,
+      resolvedThemeColors.foreground,
+      resolvedThemeColors.muted,
+      resolvedThemeColors.primary,
+      sessions.length,
+      t,
+    ],
+  );
+
+  const workflowChartData = useMemo<ChartData<"bar">>(
+    () => ({
+      labels: telemetryItems.map((item) => item.label),
+      datasets: [
+        {
+          label: "Workflow Trace",
+          data: telemetryItems.map((item) => item.value),
+          backgroundColor: telemetryItems.map((item) => item.color),
+          borderColor: resolvedThemeColors.border,
+          borderWidth: 1,
+        },
+      ],
+    }),
+    [resolvedThemeColors.border, telemetryItems],
+  );
+
+  const workflowChartOptions = useMemo<ChartOptions<"bar">>(
+    () => ({
+      indexAxis: "y",
+      maintainAspectRatio: false,
+      responsive: true,
+      animation: chartAnimation(reducedMotion),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: resolvedThemeColors.background,
+          borderColor: resolvedThemeColors.primary,
+          borderWidth: 1,
+          bodyColor: resolvedThemeColors.foreground,
+          displayColors: false,
+          titleColor: resolvedThemeColors.foreground,
+        },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          border: { display: false },
+          grid: { color: resolvedThemeColors.grid },
+          ticks: { color: resolvedThemeColors.muted, precision: 0 },
+        },
+        y: {
+          border: { display: false },
+          grid: { display: false },
+          ticks: { color: resolvedThemeColors.foreground },
+        },
+      },
+    }),
+    [reducedMotion, resolvedThemeColors],
+  );
+
+  const workflowTrendData = useMemo<ChartData<"line">>(
+    () => ({
+      labels: telemetryItems.map((item) => item.label),
+      datasets: [
+        {
+          label: t("home.workflow.signal.series"),
+          data: telemetryItems.map((item) => item.value),
+          borderColor: resolvedThemeColors.primary,
+          backgroundColor: `${resolvedThemeColors.primary}22`,
+          fill: true,
+          tension: 0.34,
+          pointBackgroundColor: resolvedThemeColors.accent,
+          pointBorderColor: resolvedThemeColors.background,
+          pointBorderWidth: 1,
+          pointRadius: 3,
+        },
+      ],
+    }),
+    [
+      resolvedThemeColors.accent,
+      resolvedThemeColors.background,
+      resolvedThemeColors.primary,
+      telemetryItems,
+      t,
+    ],
+  );
+
+  const workflowTrendOptions = useMemo<ChartOptions<"line">>(
+    () => ({
+      maintainAspectRatio: false,
+      responsive: true,
+      animation: chartAnimation(reducedMotion),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: resolvedThemeColors.background,
+          borderColor: resolvedThemeColors.primary,
+          borderWidth: 1,
+          bodyColor: resolvedThemeColors.foreground,
+          displayColors: false,
+          titleColor: resolvedThemeColors.foreground,
+        },
+      },
+      scales: {
+        x: {
+          border: { display: false },
+          grid: { display: false },
+          ticks: { color: resolvedThemeColors.muted },
+        },
+        y: {
+          beginAtZero: true,
+          border: { display: false },
+          grid: { color: resolvedThemeColors.grid },
+          ticks: { color: resolvedThemeColors.muted, precision: 0 },
+        },
+      },
+    }),
+    [reducedMotion, resolvedThemeColors],
+  );
+
+  const workflowLanguageSummary = useMemo(
+    () => buildWorkflowLanguageSummary(recentFilePaths, githubDashboard).slice(0, 6),
+    [githubDashboard, recentFilePaths],
+  );
+
+  const workflowLanguageChartData = useMemo<ChartData<"doughnut">>(
+    () => ({
+      labels:
+        workflowLanguageSummary.length > 0
+          ? workflowLanguageSummary.map((item) => item.label)
+          : [t("home.workflow.files.empty")],
+      datasets: [
+        {
+          data:
+            workflowLanguageSummary.length > 0
+              ? workflowLanguageSummary.map((item) => item.value)
+              : [1],
+          backgroundColor:
+            workflowLanguageSummary.length > 0
+              ? workflowLanguageSummary.map((item) => item.color)
+              : [resolvedThemeColors.border],
+          borderColor: resolvedThemeColors.background,
+          borderWidth: 1,
+        },
+      ],
+    }),
+    [
+      resolvedThemeColors.background,
+      resolvedThemeColors.border,
+      t,
+      workflowLanguageSummary,
+    ],
+  );
+
+  const workflowLanguageChartOptions = useMemo<ChartOptions<"doughnut">>(
+    () => ({
+      maintainAspectRatio: false,
+      responsive: true,
+      cutout: "66%",
+      animation: chartAnimation(reducedMotion),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) =>
+              t("home.workflow.files.count", {
+                count: String(context.raw ?? 0),
+              }),
+          },
+        },
+      },
+    }),
+    [reducedMotion, t],
+  );
+
+  const readinessScore = useMemo(() => {
+    let total = 0;
+    total += hasWorkspace ? 24 : 8;
+    total += hasModelAccess ? 24 : 6;
+    total += sessionRows.length > 0 ? 18 : 8;
+    total += repoStatus?.branch ? 10 : 4;
+    total += (repoStatus?.behind ?? 0) === 0 ? 12 : 4;
+    total += (repoStatus?.changedCount ?? 0) === 0 ? 12 : 6;
+    return Math.max(12, Math.min(96, total));
+  }, [
+    hasModelAccess,
+    hasWorkspace,
+    repoStatus?.behind,
+    repoStatus?.branch,
+    repoStatus?.changedCount,
+    sessionRows.length,
+  ]);
+
+  const agentChartData = useMemo<ChartData<"doughnut">>(
+    () => ({
+      labels: ["Ready", "Attention"],
+      datasets: [
+        {
+          data: [readinessScore, 100 - readinessScore],
+          backgroundColor: [resolvedThemeColors.primary, resolvedThemeColors.card],
+          borderColor: [resolvedThemeColors.primary, resolvedThemeColors.border],
+          borderWidth: 1,
+          hoverOffset: 4,
+        },
+      ],
+    }),
+    [readinessScore, resolvedThemeColors.border, resolvedThemeColors.card, resolvedThemeColors.primary],
+  );
+
+  const agentChartOptions = useMemo<ChartOptions<"doughnut">>(
+    () => ({
+      maintainAspectRatio: false,
+      responsive: true,
+      cutout: "72%",
+      animation: chartAnimation(reducedMotion),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: resolvedThemeColors.background,
+          borderColor: resolvedThemeColors.primary,
+          borderWidth: 1,
+          bodyColor: resolvedThemeColors.foreground,
+          displayColors: false,
+          titleColor: resolvedThemeColors.foreground,
+        },
+      },
+    }),
+    [reducedMotion, resolvedThemeColors],
+  );
+
+  const navTabs = useMemo(
+    () => [
+      { id: "launch" as const, label: t("home.tabs.launch").toUpperCase() },
+      { id: "workflow" as const, label: t("home.tabs.workflow").toUpperCase() },
+      { id: "agents" as const, label: t("home.tabs.agents").toUpperCase() },
+      { id: "github" as const, label: t("home.tabs.github").toUpperCase() },
+      { id: "anime" as const, label: t("home.tabs.anime").toUpperCase() },
     ],
     [t],
   );
 
-  const sectionTabs = useMemo(
+  const githubUserLabel = githubProfile?.login ?? t("home.github.userFallback");
+  const githubStatusLabel = githubProfile
+    ? t("home.github.status.connected")
+    : githubState === "polling"
+      ? t("home.github.status.verifyDevice")
+      : githubState === "requesting"
+        ? t("home.github.status.requesting")
+        : githubState === "restoring"
+          ? t("home.github.status.restoring")
+          : githubError
+            ? t("home.github.status.error")
+      : t("home.github.status.idle");
+  const githubIdentity =
+    githubProfile?.name || githubProfile?.login || t("home.github.identityFallback");
+  const greetingTarget = t("home.github.greeting", { user: githubUserLabel });
+  const githubHeroSummary = githubProfile?.bio
+    ? githubProfile.bio
+    : githubChallenge
+      ? t("home.github.challengePrompt", { code: githubChallenge.userCode })
+      : "";
+  const githubScopeSummary = githubHeroSummary || t("home.github.summary");
+  const githubHeroBadges = githubProfile
+    ? [
+        `${githubDashboard?.totals.repoCount ?? githubProfile.publicRepos} ${t("home.github.badgeRepos")}`,
+        `${githubProfile.followers} ${t("home.github.badgeFollowers")}`,
+        `${githubProfile.following} ${t("home.github.badgeFollowing")}`,
+      ]
+    : [];
+  const githubIntegrationRows = useMemo(
     () => [
-      { id: "launch" as const, label: t("home.tabs.launch") },
-      { id: "workflow" as const, label: t("home.tabs.workflow") },
-      { id: "readiness" as const, label: t("home.tabs.readiness") },
+      {
+        label: t("home.github.integration.oauth"),
+        value: githubProfile
+          ? t("home.github.integration.connected")
+          : githubState === "polling"
+            ? t("home.github.integration.pending")
+            : t("home.github.integration.idle"),
+      },
+      {
+        label: t("home.github.integration.repoSearch"),
+        value: hasWorkspace
+          ? t("home.github.integration.workspace")
+          : t("home.github.integration.web"),
+      },
+      {
+        label: t("home.github.integration.desktopClone"),
+        value: isTauriRuntime
+          ? t("home.github.integration.ready")
+          : t("home.github.integration.browser"),
+      },
+      {
+        label: t("home.github.integration.cicd"),
+        value:
+          (repoStatus?.behind ?? 0) === 0
+            ? t("home.github.integration.green")
+            : t("home.github.integration.check"),
+      },
     ],
-    [t],
+    [githubProfile, githubState, hasWorkspace, repoStatus?.behind, t],
   );
+  const repoCheckerRows = useMemo(
+    () => [
+      { label: t("home.github.repo.head"), value: branchLabel },
+      {
+        label: t("home.github.repo.remote"),
+        value: repoStatus?.upstream ?? t("home.github.repo.noUpstream"),
+      },
+      { label: t("home.github.repo.sync"), value: remoteLabel },
+      {
+        label: t("home.github.repo.mode"),
+        value: repoStatus?.isDetached
+          ? t("home.github.repo.detached")
+          : repoStatus?.previewOnly
+            ? t("home.commandCenter.status.preview")
+            : t("home.github.repo.tracked"),
+      },
+    ],
+    [branchLabel, remoteLabel, repoStatus?.isDetached, repoStatus?.previewOnly, repoStatus?.upstream, t],
+  );
+  const agentRows = useMemo<HomeDashboardAgentStatus[]>(
+    () => [
+      {
+        title: t("home.agents.agentAlpha"),
+        status: hasWorkspace
+          ? t("home.agents.status.tracking")
+          : t("home.agents.status.offline"),
+        body: `${t("home.commandCenter.status.workspace")}: ${workspaceLabel}`,
+        active: hasWorkspace,
+      },
+      {
+        title: t("home.agents.agentBeta"),
+        status:
+          sessionRows.length > 0
+            ? t("home.agents.status.active")
+            : t("home.agents.status.idle"),
+        body: `${t("home.commandCenter.status.assistant")}: ${assistantStatus}`,
+        active: sessionRows.length > 0,
+      },
+      {
+        title: t("home.agents.agentGamma"),
+        status:
+          hasModelAccess
+            ? t("home.agents.status.ready")
+            : t("home.agents.status.locked"),
+        body: `${t("home.javaRefactor")}: ${
+          hasModelAccess
+            ? t("home.commandCenter.refactorDescription")
+            : t("home.commandCenter.alert.noModel")
+        }`,
+        active: hasModelAccess,
+      },
+    ],
+    [assistantStatus, hasModelAccess, hasWorkspace, sessionRows.length, t, workspaceLabel],
+  );
+  const recentScopeEntries = workflowEntries.slice(0, 4);
+  const openScopeEntry = (path: string) => {
+    if (recentProjects.length > 0) {
+      if (hasWorkspace) {
+        onBrowseProject?.();
+        return;
+      }
+      onOpenWorkspace?.();
+      return;
+    }
+    onOpenRecentFile?.(path);
+  };
+  const githubPrimaryActionLabel = githubProfile
+    ? t("home.github.action.refreshProfile")
+    : t("home.github.action.connect");
+  const githubSecondaryActionLabel = githubProfile
+    ? t("home.github.action.disconnect")
+    : t("home.github.action.openDevice");
+  const cloneStateLabel =
+    cloneState === "running"
+      ? t("home.github.cloneState.running")
+      : cloneState === "done"
+        ? t("home.github.cloneState.done")
+        : cloneState === "error"
+          ? t("home.github.cloneState.error")
+          : t("home.github.cloneState.idle");
+
+  const mediaCue = reviewCue.trim();
+  const mediaLabel = mediaCue
+    ? mediaCue.toUpperCase().slice(0, 32)
+    : t("home.media.labelFallback");
+  const mediaProgress = Math.max(22, Math.min(96, 24 + mediaCue.length * 4));
+  const streamEntries = workflowEntries.slice(0, 2);
+
+  const filteredNews = useMemo(
+    () =>
+      newsItems.filter(
+        (item) =>
+          item.language === preferredNewsLanguage &&
+          matchesNewsQuery(item, deferredNewsQuery),
+      ),
+    [deferredNewsQuery, newsItems, preferredNewsLanguage],
+  );
+  const activeNews =
+    filteredNews.length > 0 ? filteredNews[newsIndex % filteredNews.length] : null;
+  const newsStatusLabel =
+    newsState === "loading"
+      ? t("home.news.status.sync")
+      : newsState === "fallback"
+        ? t("home.news.status.fallback")
+        : t("home.news.status.live", { count: String(filteredNews.length) });
 
   useGSAP(
     () => {
       if (reducedMotion) return;
-      gsap.from(".dashboard-hero-panel", {
-        duration: 0.88,
+      gsap.from("[data-dash-stagger='header']", {
+        y: 20,
         opacity: 0,
-        y: 24,
-        stagger: 0.1,
+        duration: 0.72,
         ease: "power3.out",
       });
-      gsap.from(".dashboard-card", {
-        duration: 0.74,
+      gsap.from("[data-dash-stagger='panel']", {
+        y: 24,
         opacity: 0,
-        y: 16,
-        stagger: 0.06,
-        delay: 0.14,
-        ease: "power2.out",
+        duration: 0.78,
+        stagger: 0.08,
+        ease: "power3.out",
+        delay: 0.08,
       });
     },
     { scope: rootRef, dependencies: [reducedMotion], revertOnUpdate: true },
   );
 
+  useGSAP(
+    () => {
+      if (reducedMotion) return;
+      gsap.from("[data-dashboard-view='active']", {
+        x: 14,
+        opacity: 0,
+        duration: 0.28,
+        ease: "power2.out",
+      });
+    },
+    { scope: rootRef, dependencies: [activeSection, reducedMotion], revertOnUpdate: true },
+  );
+
   useEffect(() => {
     if (reducedMotion || !rootRef.current) return;
     const scope = createScope({ root: rootRef.current }).add(() => {
-      animate(".hud-pulse-dot", {
-        scale: [0.82, 1.18],
-        opacity: [0.42, 1],
-        duration: 920,
-        delay: stagger(130),
-        ease: "inOut(3)",
-        loop: true,
-        alternate: true,
-      });
-      animate(".hud-meter-fill", {
-        scaleX: [0.72, 1],
-        opacity: [0.56, 1],
-        duration: 1280,
-        delay: stagger(90),
-        ease: "inOut(2)",
-        loop: true,
-        alternate: true,
-      });
-      animate(".hero-scan-line", {
-        translateY: ["-110%", "120%"],
-        opacity: [{ from: 0, to: 0.2 }, { to: 0.68 }, { to: 0 }],
-        duration: 2600,
-        ease: "linear",
-        loop: true,
-      });
-      animate(".hero-orbit-line", {
-        rotate: "1turn",
-        duration: 12000,
-        ease: "linear",
-        loop: true,
+      const targetSelector =
+        activeSection === "workflow"
+          ? ".workflow-entry"
+          : activeSection === "agents"
+            ? ".agent-entry"
+            : ".launch-entry";
+      const targets = rootRef.current?.querySelectorAll<HTMLElement>(targetSelector) ?? [];
+      if (targets.length === 0) return;
+
+      animate(targets, {
+        opacity: [0, 1],
+        translateY: [18, 0],
+        delay: stagger(70),
+        duration: 720,
+        ease: "out(3)",
       });
     });
+
     return () => scope.revert();
-  }, [reducedMotion, statusRows.length]);
+  }, [activeSection, reducedMotion]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => setResolvedThemeColors(readResolvedThemeColors());
+    update();
+
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style", "data-theme"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const profile = await restoreGithubSession();
+        if (cancelled) return;
+        setGithubProfile(profile);
+        setGithubState(profile ? "connected" : "idle");
+        setGithubError(null);
+      } catch (error) {
+        if (cancelled) return;
+        setGithubError(getErrorMessage(error));
+        setGithubState("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      githubAbortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    storeGithubClientId(githubClientId);
+  }, [githubClientId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!githubProfile) {
+      setGithubDashboard(null);
+      setGithubDashboardError(null);
+      setGithubDashboardState("idle");
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setGithubDashboardState("loading");
+    setGithubDashboardError(null);
+    void (async () => {
+      try {
+        const next = await fetchGithubDashboardData();
+        if (cancelled) return;
+        setGithubDashboard(next);
+        setGithubDashboardState(next ? "ready" : "idle");
+      } catch (error) {
+        if (cancelled) return;
+        setGithubDashboard(null);
+        setGithubDashboardError(getErrorMessage(error));
+        setGithubDashboardState("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [githubProfile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const items = await fetchDashboardNews();
+        if (cancelled) return;
+        setNewsItems(items);
+        setNewsState(items.some((item) => item.id.startsWith("preview:")) ? "fallback" : "ready");
+        setNewsError(null);
+      } catch (error) {
+        if (cancelled) return;
+        setNewsItems(PREVIEW_NEWS_ITEMS);
+        setNewsState("fallback");
+        setNewsError(getErrorMessage(error));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let frame = 0;
+    let index = 0;
+    setTypedGreeting("");
+
+    const tick = () => {
+      index += 1;
+      setTypedGreeting(greetingTarget.slice(0, index));
+      if (index < greetingTarget.length) {
+        frame = window.setTimeout(tick, 42);
+      }
+    };
+
+    frame = window.setTimeout(tick, 90);
+    return () => {
+      window.clearTimeout(frame);
+    };
+  }, [greetingTarget]);
+
+  useEffect(() => {
+    if (cloneHandle === null) return;
+
+    let cancelled = false;
+    let timer = 0;
+
+    const pollLogs = async () => {
+      try {
+        const next = await native.shellBgLogs(cloneHandle, cloneLogOffsetRef.current);
+        if (cancelled) return;
+
+        cloneLogOffsetRef.current = next.next_offset;
+        if (next.bytes) {
+          setCloneLogs((current) => `${current}${next.bytes}`.slice(-5000));
+        }
+
+        if (next.exited) {
+          setCloneState(next.exit_code === 0 ? "done" : "error");
+          if (next.exit_code !== 0) {
+            setCloneError(
+              t("home.github.cloneFailed", {
+                code: String(next.exit_code ?? t("home.github.cloneUnknownCode")),
+              }),
+            );
+          }
+          setCloneHandle(null);
+          return;
+        }
+
+        timer = window.setTimeout(pollLogs, 700);
+      } catch (error) {
+        if (cancelled) return;
+        setCloneError(getErrorMessage(error));
+        setCloneState("error");
+        setCloneHandle(null);
+      }
+    };
+
+    void pollLogs();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [cloneHandle, t]);
+
+  useEffect(() => {
+    if (!navContainerRef.current) return;
+    const updateIndicator = () => {
+      const container = navContainerRef.current;
+      if (!container) return;
+      const buttons = container.querySelectorAll('button');
+      const activeIndex = navTabs.findIndex(t => t.id === activeSection);
+      const activeButton = buttons[activeIndex];
+      if (activeButton) {
+        const containerRect = container.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+        setNavIndicatorStyle({
+          left: buttonRect.left - containerRect.left,
+          width: buttonRect.width,
+        });
+      }
+    };
+    updateIndicator();
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [activeSection, navTabs]);
+
+  useEffect(() => {
+    setNewsIndex(0);
+  }, [deferredNewsQuery]);
+
+  useEffect(() => {
+    if (filteredNews.length === 0) {
+      setNewsIndex(0);
+      return;
+    }
+    if (newsIndex >= filteredNews.length) {
+      setNewsIndex(0);
+    }
+  }, [filteredNews.length, newsIndex]);
+
+  const handleHeroMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (reducedMotion || !heroParallaxRef.current) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+    gsap.to(heroParallaxRef.current, {
+      x: x * 18,
+      y: y * 18,
+      duration: 0.35,
+      ease: "power2.out",
+    });
+  };
+
+  const handleHeroLeave = () => {
+    if (reducedMotion || !heroParallaxRef.current) return;
+    gsap.to(heroParallaxRef.current, {
+      x: 0,
+      y: 0,
+      duration: 0.4,
+      ease: "power2.out",
+    });
+  };
+
+  const openInDashboardBrowser = (url?: string | null) => {
+    if (!url) return;
+    if (onOpenBrowser) {
+      onOpenBrowser(url);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleGithubConnect = async () => {
+    const trimmedClientId = githubClientId.trim();
+    if (!trimmedClientId) {
+      setGithubError(t("home.github.clientIdMissing"));
+      setGithubState("error");
+      return;
+    }
+
+    storeGithubClientId(trimmedClientId);
+    githubAbortRef.current?.abort();
+    githubAbortRef.current = null;
+    setGithubError(null);
+    setGithubChallenge(null);
+    setGithubState("requesting");
+
+    let controller: AbortController | null = null;
+    try {
+      const challenge = await requestGithubDeviceChallenge(trimmedClientId);
+      setGithubChallenge(challenge);
+      openInDashboardBrowser(challenge.verificationUri);
+
+      controller = new AbortController();
+      githubAbortRef.current = controller;
+      setGithubState("polling");
+
+      const profile = await finishGithubDeviceFlow(
+        trimmedClientId,
+        challenge,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      setGithubProfile(profile);
+      setGithubChallenge(null);
+      setGithubError(null);
+      setGithubState("connected");
+    } catch (error) {
+      if (isAbortError(error)) {
+        setGithubState(githubProfile ? "connected" : "idle");
+        return;
+      }
+      setGithubError(getErrorMessage(error));
+      setGithubState("error");
+    } finally {
+      if (controller && githubAbortRef.current === controller) {
+        githubAbortRef.current = null;
+      }
+    }
+  };
+
+  const handleGithubRefresh = async () => {
+    setGithubError(null);
+    setGithubState("restoring");
+    try {
+      const profile = await restoreGithubSession();
+      setGithubProfile(profile);
+      setGithubState(profile ? "connected" : "idle");
+      if (!profile) {
+        setGithubError(t("home.github.noStoredSession"));
+      }
+    } catch (error) {
+      setGithubError(getErrorMessage(error));
+      setGithubState("error");
+    }
+  };
+
+  const handleGithubCancel = () => {
+    githubAbortRef.current?.abort();
+    githubAbortRef.current = null;
+    setGithubChallenge(null);
+    setGithubState(githubProfile ? "connected" : "idle");
+  };
+
+  const handleGithubDisconnect = async () => {
+    githubAbortRef.current?.abort();
+    githubAbortRef.current = null;
+    await disconnectGithubSession();
+    setGithubChallenge(null);
+    setGithubProfile(null);
+    setGithubError(null);
+    setGithubState("idle");
+  };
+
+  const handleGithubRelayAction = () => {
+    if (githubProfile) {
+      void handleGithubRefresh();
+      return;
+    }
+    void handleGithubConnect();
+  };
+
+  const handleMediaSearch = () => {
+    if (hasWorkspace) {
+      onSearchRepository?.(mediaCue || undefined);
+      return;
+    }
+    onOpenWorkspace?.();
+  };
+
+  const handleMediaReview = () => {
+    onOpenAssistant(mediaCue || t("home.commandCenter.prompt.inspectBody"));
+  };
+
+  const handleNewsRefresh = async () => {
+    setNewsState("loading");
+    setNewsError(null);
+    try {
+      const items = await fetchDashboardNews();
+      setNewsItems(items);
+      setNewsState(items.some((item) => item.id.startsWith("preview:")) ? "fallback" : "ready");
+    } catch (error) {
+      setNewsItems(PREVIEW_NEWS_ITEMS);
+      setNewsState("fallback");
+      setNewsError(getErrorMessage(error));
+    }
+  };
+
+  const handleRotateNews = () => {
+    if (filteredNews.length <= 1) return;
+    setNewsIndex((current) => (current + 1) % filteredNews.length);
+  };
+
+  const handleGitHubSearch = () => {
+    if (!githubRepoQuery.trim()) return;
+    if (hasWorkspace) {
+      onSearchRepository?.(githubRepoQuery.trim());
+      return;
+    }
+    onOpenBrowser?.(`https://github.com/search?q=${encodeURIComponent(githubRepoQuery.trim())}`);
+  };
+
+  const handleCloneRepository = async () => {
+    const repoUrl = parseGithubCloneUrl(githubRepoQuery);
+    if (!repoUrl) {
+      setCloneError(t("home.github.cloneInvalidRepo"));
+      setCloneState("error");
+      return;
+    }
+    if (!isTauriRuntime) {
+      setCloneError(t("home.github.cloneDesktopOnly"));
+      setCloneState("error");
+      return;
+    }
+
+    const targetDir = await pickJavaRepoDirectory(t("home.github.cloneTargetPicker"));
+    if (!targetDir) return;
+
+    setCloneState("running");
+    setCloneError(null);
+    setCloneLogs("");
+    setCloneTargetDir(targetDir);
+    cloneLogOffsetRef.current = 0;
+
+    try {
+      const handle = await native.shellBgSpawn(`git clone "${repoUrl}"`, targetDir);
+      setCloneHandle(handle);
+    } catch (error) {
+      setCloneError(getErrorMessage(error));
+      setCloneState("error");
+    }
+  };
 
   return (
     <div
       ref={rootRef}
-      className="javarf-ops-dashboard relative flex h-full min-h-0 flex-col overflow-y-auto bg-[#03050a] text-foreground"
+      style={dashboardThemeStyle}
+      className="relative flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-[var(--dash-bg)] px-4 py-4 text-[var(--dash-text)]"
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(251,146,60,0.12),transparent_24%),linear-gradient(180deg,#04060b,#020304)]"
+        className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(color-mix(in_srgb,var(--dash-text)_10%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--dash-text)_10%,transparent)_1px,transparent_1px)] [background-size:32px_32px]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:34px_34px]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--dash-accent)_12%,transparent),transparent_22%),radial-gradient(circle_at_bottom_left,color-mix(in_srgb,var(--dash-primary)_14%,transparent),transparent_24%)]"
       />
 
-      <div className="relative mx-auto flex w-full max-w-[1700px] flex-1 min-h-0 flex-col gap-3 overflow-visible px-4 py-4 sm:px-5 lg:px-7 lg:py-5">
-        <section className="order-2 grid items-start shrink-0 gap-3 lg:order-1 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)]">
-          <Card className="dashboard-hero-panel dashboard-card overflow-hidden rounded-none border border-border/70 bg-card/84">
-            <CardContent className="grid min-h-[220px] gap-0 p-0 sm:min-h-[240px] xl:grid-cols-[minmax(0,1fr)_180px]">
-              <div className="relative min-h-[180px] overflow-hidden border-b border-border/60 sm:min-h-[200px] xl:border-r xl:border-b-0">
-                <div
-                  aria-hidden
-                  className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.18),transparent_44%),linear-gradient(180deg,rgba(8,12,19,0.15),rgba(4,6,9,0.92))]"
-                />
-                <div
-                  aria-hidden
-                  className="hero-orbit-line pointer-events-none absolute inset-6 z-10 rounded-full border border-cyan-300/18"
-                />
-                <div
-                  aria-hidden
-                  className="hero-scan-line pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-linear-to-b from-cyan-300/0 via-cyan-300/20 to-cyan-300/0"
-                />
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center"
-                >
-                  <div className="relative flex size-28 items-center justify-center rounded-full border border-cyan-300/14 bg-black/18 shadow-[0_0_48px_rgba(34,211,238,0.08)] sm:size-32">
-                    <div className="absolute inset-3 rounded-full border border-white/8" />
-                    <div className="absolute h-px w-14 bg-cyan-200/30 sm:w-16" />
-                    <div className="absolute h-14 w-px bg-cyan-200/30 sm:h-16" />
-                  </div>
-                </div>
-                <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/58">
-                  <span className="border border-border/70 bg-black/32 px-2 py-1 text-cyan-200">
-                    {t("home.commandCenter.visualLabel")}
-                  </span>
-                  <span className="border border-border/70 bg-black/20 px-2 py-1">
-                    {t("home.commandCenter.visualValue")}
-                  </span>
-                </div>
-                <div className="absolute inset-0">
-                  <CommandCenterScene />
-                </div>
-                <div className="absolute inset-x-4 bottom-4 z-10 grid gap-2 sm:grid-cols-3">
-                  <SceneChip
-                    label={t("home.commandCenter.systemLabel")}
-                    value={t("home.commandCenter.systemValue")}
-                  />
-                  <SceneChip
-                    label={t("home.commandCenter.status.workspace")}
-                    value={
-                      activeProjectPath
-                        ? basename(activeProjectPath)
-                        : t("home.commandCenter.status.offline")
-                    }
-                  />
-                  <SceneChip
-                    label={t("home.commandCenter.status.models")}
-                    value={modelsStatus}
-                  />
-                </div>
-              </div>
-
-              <div className="relative flex flex-col justify-between gap-3 bg-black/14 p-3.5 sm:p-4">
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/54">
-                    <span className="hud-pulse-dot size-2 rounded-full bg-cyan-300" />
-                    <span>{t("home.commandCenter.status")}</span>
-                  </div>
-                  <p className="text-sm leading-6 text-white/68">
-                    {t("home.commandCenter.description")}
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  {statusRows.slice(0, 4).map((row) => (
-                    <MeterRow
-                      key={row.label}
-                      label={row.label}
-                      value={row.value}
-                      percent={row.percent}
-                    />
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="dashboard-hero-panel dashboard-card rounded-none border border-border/70 bg-card/88">
-            <CardHeader className="gap-3 border-b border-border/60 pb-3">
-              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/54">
-                <span className="border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-cyan-100">
-                  {t("home.commandCenter.eyebrow")}
-                </span>
-                <span className="border border-border/70 bg-background/45 px-2 py-1">
-                  {t("home.commandCenter.badge")}
-                </span>
-              </div>
-              <div className="space-y-2">
-                <CardTitle className="font-project-title text-2xl leading-[0.96] tracking-tight text-white sm:text-3xl">
-                  {t("home.commandCenter.title")}
-                </CardTitle>
-                <CardDescription className="max-w-2xl text-sm leading-6 text-white/62">
-                  {t("home.commandCenter.description")}
-                </CardDescription>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-3 pt-3.5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <QuickActionButton
-                  icon={FolderOpenIcon}
-                  label={t("header.openWorkspace")}
-                  onClick={onOpenWorkspace}
-                />
-                <QuickActionButton
-                  icon={Clock01Icon}
-                  label={t("home.commandCenter.continueSession")}
-                  onClick={() => onOpenAssistant()}
-                />
-                <QuickActionButton
-                  icon={GitCompareIcon}
-                  label={t("home.javaRefactor")}
-                  onClick={onOpenJavaRefactor}
-                  disabled={!hasModelAccess}
-                />
-                <QuickActionButton
-                  icon={Search01Icon}
-                  label={t("home.commandCenter.searchRepo")}
-                  onClick={hasWorkspace ? onSearchRepository : onOpenWorkspace}
-                  disabled={!hasWorkspace && !onOpenWorkspace}
-                />
-              </div>
-
-              <form
-                className="space-y-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const nextPrompt =
-                    commandDraft.trim() ||
-                    t("home.commandCenter.commandFallback");
-                  onOpenAssistant(nextPrompt);
-                  setCommandDraft("");
-                }}
-              >
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/54">
-                  {t("home.commandCenter.commandLabel")}
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input
-                    value={commandDraft}
-                    onChange={(event) => setCommandDraft(event.target.value)}
-                    placeholder={t("home.commandCenter.commandPlaceholder")}
-                    className="h-11 rounded-none border-border/70 bg-background/75 text-sm text-white placeholder:text-white/34"
-                  />
-                  <Button
-                    type="submit"
-                    className="h-11 min-w-32 rounded-none px-4 text-xs font-semibold uppercase tracking-[0.18em]"
-                  >
-                    {t("home.commandCenter.commandSend")}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="dashboard-card order-1 shrink-0 rounded-none border border-border/70 bg-black/18 p-2 lg:order-2">
-          <div className="flex flex-wrap gap-2">
-            {sectionTabs.map((tab) => (
+      <header
+        data-dash-stagger="header"
+        className="relative z-10 flex shrink-0 flex-col gap-3 border-b border-[var(--dash-border)] pb-3"
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:gap-6">
+          <div className="font-project-title text-[24px] uppercase leading-none tracking-[-0.05em] text-[var(--dash-primary)] [text-shadow:0_0_10px_color-mix(in_srgb,var(--dash-primary)_28%,transparent)]">
+            Anime<span className="text-[var(--dash-text)]">Assistant</span>
+          </div>
+          <nav ref={navContainerRef} className="relative flex flex-1 items-center justify-between gap-0 pb-1">
+            <div 
+              className="absolute bottom-0 h-0.5 bg-[var(--dash-primary)] shadow-[0_0_8px_var(--dash-primary)] transition-all duration-[400ms] ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]"
+              style={{
+                left: `${navIndicatorStyle.left}px`,
+                width: `${navIndicatorStyle.width}px`,
+              }}
+            />
+            {navTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveSection(tab.id)}
                 className={cn(
-                  "border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors",
+                  "relative flex-1 px-4 py-1 text-[12px] font-semibold tracking-[0.18em] transition-all",
                   activeSection === tab.id
-                    ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"
-                    : "border-border/60 bg-background/45 text-white/54 hover:border-white/14 hover:text-white",
+                    ? "text-[var(--dash-primary)] font-bold"
+                    : "text-[var(--dash-muted)] hover:text-[var(--dash-primary)]",
                 )}
               >
-                {tab.label}
+                <span className="relative z-10">{tab.label}</span>
+                {activeSection === tab.id && (
+                  <div className="absolute inset-0 opacity-100 transition-opacity duration-300">
+                    <div className="absolute left-0 top-0 h-1 w-1 border-l border-t border-[var(--dash-primary)]" />
+                    <div className="absolute right-0 top-0 h-1 w-1 border-r border-t border-[var(--dash-primary)]" />
+                    <div className="absolute bottom-0 left-0 h-1 w-1 border-b border-l border-[var(--dash-primary)]" />
+                    <div className="absolute bottom-0 right-0 h-1 w-1 border-b border-r border-[var(--dash-primary)]" />
+                  </div>
+                )}
               </button>
             ))}
+          </nav>
+        </div>
+      </header>
+
+      {activeSection === "launch" ? (
+        <div className="relative z-10 mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(280px,0.45fr)_minmax(320px,0.37fr)_minmax(200px,0.18fr)] lg:overflow-hidden">
+        <div className="flex min-h-0 flex-col gap-4" data-dash-stagger="panel">
+          <section
+            className="relative flex min-h-[420px] flex-[3] overflow-hidden border border-[var(--dash-border)] bg-[var(--dash-panel)]"
+            onPointerMove={handleHeroMove}
+            onPointerLeave={handleHeroLeave}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--dash-bg)] to-transparent opacity-90" />
+            <div
+              className="absolute inset-4 overflow-hidden border border-[var(--dash-border-soft)] bg-[color-mix(in_srgb,var(--dash-bg)_46%,transparent)]"
+              style={heroMaskStyle}
+            >
+              <div
+                ref={heroParallaxRef}
+                className="absolute inset-0"
+              />
+              {githubProfile?.avatarUrl ? (
+                <img
+                  src={githubProfile.avatarUrl}
+                  alt={githubProfile.login}
+                  className="absolute inset-0 h-full w-full scale-[1.45] object-cover opacity-60 blur-[2px]"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,var(--dash-primary-soft),transparent_30%),radial-gradient(circle_at_70%_68%,var(--dash-accent-soft),transparent_34%),linear-gradient(135deg,color-mix(in_srgb,var(--dash-primary)_14%,transparent),transparent_58%)]" />
+              )}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,color-mix(in_srgb,var(--dash-bg)_52%,transparent)_100%)]" />
+              <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(color-mix(in_srgb,var(--dash-text)_22%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--dash-text)_22%,transparent)_1px,transparent_1px)] [background-size:28px_28px]" />
+            </div>
+
+            <div className="absolute left-4 top-4 z-10">
+              <button
+                type="button"
+                onClick={handleGithubRelayAction}
+                className="inline-flex items-center justify-center border border-[var(--dash-primary-soft)] bg-[var(--dash-primary-soft)] p-2.5 transition-colors hover:border-[var(--dash-accent)]"
+              >
+                <HugeiconsIcon icon={Github01Icon} className="h-5 w-5 text-[var(--dash-primary)] transition-colors hover:text-[var(--dash-accent)]" />
+              </button>
+            </div>
+
+            <div className="absolute right-4 top-4 z-10 flex w-full max-w-[360px] flex-col gap-2">
+              {githubChallenge ? (
+                <div className="border border-[var(--dash-accent-soft)] bg-[var(--dash-accent-soft)] px-3 py-2 font-mono text-[10px] leading-5 text-[var(--dash-text)]">
+                  CODE: {githubChallenge.userCode}
+                  <button
+                    type="button"
+                    onClick={handleGithubCancel}
+                    className="ml-3 border border-[var(--dash-border)] px-2 py-1 uppercase tracking-[0.16em] text-[var(--dash-text)] transition-colors hover:border-[var(--dash-accent)] hover:text-[var(--dash-accent)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
+              {githubError ? (
+                <div className="border border-[var(--dash-primary-soft)] bg-[var(--dash-primary-soft)] px-3 py-2 font-mono text-[10px] leading-5 text-[var(--dash-text)]">
+                  {githubError}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="absolute bottom-4 left-4 z-10 max-w-[420px] space-y-4">
+              <div className="font-project-title text-[42px] uppercase leading-none tracking-[-0.05em] text-[var(--dash-text)]">
+                {typedGreeting}
+              </div>
+              {githubHeroSummary ? (
+                <div className="max-w-[320px] font-mono text-[11px] leading-6 text-[var(--dash-text-soft)]">
+                  {githubHeroSummary}
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <NewsBadge text={githubStatusLabel} tone="primary" />
+                {githubHeroBadges.map((badge) => (
+                  <NewsBadge
+                    key={badge}
+                    text={badge}
+                    tone="muted"
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="flex min-h-[220px] flex-[2] flex-col border border-[var(--dash-border)] bg-[var(--dash-panel)] p-4"
+            data-dash-stagger="panel"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--dash-border)] pb-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--dash-muted)]">
+                {t("home.media.header")}
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--dash-accent)]">
+                {branchLabel}
+              </span>
+            </div>
+
+            <div className="mt-4 flex items-center gap-4 border border-[var(--dash-border)] bg-[var(--dash-panel-strong)] p-3">
+              <button
+                type="button"
+                onClick={handleMediaSearch}
+                className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--dash-primary-soft)] bg-[var(--dash-bg)]"
+              >
+                <div className="absolute inset-0 rounded-full border-2 border-[var(--dash-primary)] border-t-transparent animate-spin [animation-duration:3s]" />
+                <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--dash-primary)] transition-transform group-hover:scale-110">
+                  GO
+                </span>
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-mono text-[12px] font-bold text-[var(--dash-text)]">
+                  {mediaLabel}
+                </div>
+                <div className="mt-1 font-mono text-[10px] text-[var(--dash-muted)]">
+                  {hasWorkspace
+                    ? t("home.media.workspaceReady", { remote: remoteLabel })
+                    : t("home.media.workspaceMissing")}
+                </div>
+                <div className="mt-3 h-1 w-full bg-[var(--dash-bg)]">
+                  <div
+                    className="h-full bg-[linear-gradient(90deg,var(--dash-primary)_0%,var(--dash-accent)_55%,var(--dash-primary)_100%)]"
+                    style={{ width: `${mediaProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <Input
+                value={reviewCue}
+                onChange={(event) => setReviewCue(event.target.value)}
+                placeholder={t("home.media.searchPlaceholder")}
+                className="h-10 rounded-none border-[var(--dash-border)] bg-[var(--dash-panel-strong)] font-mono text-[11px] text-[var(--dash-text)] placeholder:text-[var(--dash-muted)]"
+              />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <UtilityButton onClick={handleMediaSearch}>
+                {hasWorkspace ? t("home.media.searchAction") : t("header.openWorkspace")}
+              </UtilityButton>
+              <UtilityButton onClick={handleMediaReview}>
+                {t("home.media.reviewAction")}
+              </UtilityButton>
+            </div>
+
+            <div className="mt-4 flex flex-1 flex-col gap-3 overflow-y-auto">
+              {streamEntries.length > 0 ? (
+                streamEntries.map((project) => (
+                  <button
+                    key={project.path}
+                    type="button"
+                    className="launch-entry flex items-center justify-between gap-3 border border-[var(--dash-border)] bg-[var(--dash-panel-strong)] px-3 py-3 text-left transition-colors hover:border-[var(--dash-accent)]"
+                    onClick={() =>
+                      recentProjects.length > 0
+                        ? hasWorkspace
+                          ? onBrowseProject?.()
+                          : onOpenWorkspace?.()
+                        : onOpenRecentFile?.(project.path)
+                    }
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-mono text-[12px] font-bold text-[var(--dash-text)]">
+                        {project.title}
+                      </span>
+                      <span className="block truncate font-mono text-[10px] text-[var(--dash-muted)]">
+                        {project.subtitle}
+                      </span>
+                    </span>
+                    <span className="shrink-0 border border-[var(--dash-primary-soft)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--dash-primary)]">
+                      {project.stamp}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <EmptyStrip>{t("home.commandCenter.noProjects")}</EmptyStrip>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <section
+          className="relative flex min-h-0 flex-col overflow-hidden border border-[var(--dash-border)] bg-[var(--dash-panel)] backdrop-blur-sm"
+          data-dash-stagger="panel"
+        >
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[var(--dash-primary-soft)] to-transparent" />
+          <div className="relative z-10 flex-1 overflow-y-auto p-4">
+            {activeSection === "launch" ? (
+              <div data-dashboard-view="active" className="flex h-full flex-col gap-4">
+                <ViewHeader title={t("home.launch.header")} />
+                <div className="grid gap-3">
+                  <ActionCard
+                    className="launch-entry"
+                    icon={FolderOpenIcon}
+                    title={t("header.openWorkspace")}
+                    description={t("home.launch.openWorkspaceDescription")}
+                    onClick={onOpenWorkspace}
+                  />
+                  <ActionCard
+                    className="launch-entry"
+                    icon={Clock01Icon}
+                    title={t("home.commandCenter.continueSession")}
+                    description={
+                      sessionRows[0]
+                        ? `${t("home.commandCenter.status.assistant")}: ${
+                            sessionRows[0].title || assistantStatus
+                          }`
+                        : t("home.commandCenter.status.noSession")
+                    }
+                    onClick={() => onOpenAssistant()}
+                  />
+                  <ActionCard
+                    className="launch-entry"
+                    icon={GitCompareIcon}
+                    title={t("home.javaRefactor")}
+                    description={t("home.launch.refactorDescription")}
+                    onClick={onOpenJavaRefactor}
+                    disabled={!hasModelAccess}
+                  />
+                  <ActionCard
+                    className="launch-entry"
+                    icon={Search01Icon}
+                    title={t("home.commandCenter.searchRepo")}
+                    description={t("home.launch.searchDescription")}
+                    onClick={hasWorkspace ? () => onSearchRepository?.() : onOpenWorkspace}
+                    disabled={!hasWorkspace && !onOpenWorkspace}
+                  />
+                </div>
+
+                <form
+                  className="mt-auto space-y-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    onOpenAssistant(
+                      commandDraft.trim() || t("home.commandCenter.commandFallback"),
+                    );
+                    setCommandDraft("");
+                  }}
+                >
+                  <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--dash-muted)]">
+                    {t("home.commandCenter.commandLabel")}
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Input
+                      value={commandDraft}
+                      onChange={(event) => setCommandDraft(event.target.value)}
+                      placeholder={t("home.commandCenter.commandPlaceholder")}
+                      className="h-12 rounded-none border-[var(--dash-border)] bg-[var(--dash-panel-strong)] font-mono text-[12px] text-[var(--dash-text)] placeholder:text-[var(--dash-muted)]"
+                    />
+                    <Button
+                      type="submit"
+                      className="h-12 min-w-32 rounded-none bg-[var(--dash-primary)] px-4 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--dash-bg)] hover:bg-[var(--dash-accent)]"
+                    >
+                      {t("home.commandCenter.commandSend")}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            ) : activeSection === "workflow" ? (
+              <HomeDashboardWorkflowView
+                accentColor={resolvedThemeColors.accent}
+                backgroundColor={resolvedThemeColors.background}
+                chartData={workflowChartData}
+                chartOptions={workflowChartOptions}
+                entries={workflowEntries}
+                emptyLabel={t("home.commandCenter.noRecentFiles")}
+                hasRecentProjects={recentProjects.length > 0}
+                hasWorkspace={hasWorkspace}
+                languageChartData={workflowLanguageChartData}
+                languageChartOptions={workflowLanguageChartOptions}
+                languageSummary={workflowLanguageSummary}
+                onBrowseProject={onBrowseProject}
+                onOpenRecentFile={onOpenRecentFile}
+                onOpenWorkspace={onOpenWorkspace}
+                primaryColor={resolvedThemeColors.primary}
+                githubProfile={githubProfile}
+                trendData={workflowTrendData}
+                trendOptions={workflowTrendOptions}
+              />
+            ) : activeSection === "agents" ? (
+              <HomeDashboardAgentsView
+                agentRows={agentRows}
+                alerts={alerts}
+                chartData={agentChartData}
+                chartOptions={agentChartOptions}
+                readinessScore={readinessScore}
+                githubProfile={githubProfile}
+              />
+            ) : (
+              <HomeDashboardGithubView
+                alerts={alerts}
+                branchLabel={branchLabel}
+                ciCdHealthy={(repoStatus?.behind ?? 0) === 0}
+                cloneError={cloneError}
+                cloneLabelTone={cloneState === "done" ? "cyan" : "primary"}
+                cloneLogs={cloneLogs}
+                cloneStateLabel={cloneStateLabel}
+                cloneTargetDir={cloneTargetDir}
+                githubClientId={githubClientId}
+                githubDashboard={githubDashboard}
+                githubDashboardError={githubError ?? githubDashboardError}
+                githubDashboardState={githubDashboardState}
+                githubIdentity={githubIdentity}
+                githubProfile={githubProfile}
+                githubRepoQuery={githubRepoQuery}
+                githubStatusLabel={githubStatusLabel}
+                githubSummary={githubScopeSummary}
+                integrationRows={githubIntegrationRows}
+                onAuthPrimary={
+                  githubProfile
+                    ? () => void handleGithubRefresh()
+                    : () => void handleGithubConnect()
+                }
+                onAuthSecondary={
+                  githubProfile
+                    ? () => void handleGithubDisconnect()
+                    : () =>
+                        openInDashboardBrowser(
+                          githubChallenge?.verificationUri ??
+                            "https://github.com/login/device",
+                        )
+                }
+                onCloneRepository={() => void handleCloneRepository()}
+                onGithubClientIdChange={setGithubClientId}
+                onOpenScopeEntry={openScopeEntry}
+                onRepoQueryChange={setGithubRepoQuery}
+                onSearchRepository={handleGitHubSearch}
+                primaryAuthLabel={githubPrimaryActionLabel}
+                recentScope={recentScopeEntries}
+                remoteLabel={remoteLabel}
+                repoCheckerRows={repoCheckerRows}
+                secondaryAuthLabel={githubSecondaryActionLabel}
+                workspaceLinked={hasWorkspace}
+              />
+            )}
           </div>
         </section>
 
-        <div className="order-3 flex-none min-h-0 overflow-visible lg:flex-1">
-          {activeSection === "launch" ? (
-            <section className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
-              <div className="grid gap-3">
-                <PanelCard
-                  className="dashboard-card min-h-0"
-                  title={t("home.commandCenter.projects")}
-                  contentClassName="min-h-0 flex-1 pr-1 lg:overflow-auto"
-                >
-                  <div className="space-y-3">
-                    {recentProjectPaths.length === 0 ? (
-                      <EmptyLine>{t("home.commandCenter.noProjects")}</EmptyLine>
-                    ) : (
-                      recentProjectPaths.map((path) => {
-                        const isCurrent = activeProjectPath === path;
-                        return (
-                          <div
-                            key={path}
-                            className="border border-border/60 bg-background/60 px-3 py-3"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-white/88">
-                                  {basename(path)}
-                                </div>
-                                <div className="truncate text-xs leading-5 text-white/44">
-                                  {compactPath(path, 4)}
-                                </div>
-                              </div>
-                              <span
-                                className={cn(
-                                  "shrink-0 border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]",
-                                  isCurrent
-                                    ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"
-                                    : "border-border/70 bg-black/20 text-white/52",
-                                )}
-                              >
-                                {isCurrent
-                                  ? t("home.commandCenter.project.current")
-                                  : t("home.commandCenter.project.known")}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+        <aside className="flex min-h-0 flex-col gap-4" data-dash-stagger="panel">
+          <section className="flex flex-1 flex-col overflow-hidden border border-[var(--dash-border)] bg-[var(--dash-panel)] px-3 py-4">
+            <div className="flex items-center justify-between border-b border-[var(--dash-border)] pb-2">
+                <div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--dash-primary)]">
+                    {t("home.news.header")}
                   </div>
-                </PanelCard>
-                <PanelCard
-                  className="dashboard-card min-h-0"
-                  title={t("home.commandCenter.alerts")}
-                  contentClassName="min-h-0 flex-1 pr-1 lg:overflow-auto"
-                >
-                  <div className="space-y-3">
-                    {alerts.map((alert) => (
-                      <div
-                        key={alert.body}
-                        className={cn(
-                          "border px-3 py-3 text-sm leading-6",
-                          alert.tone === "ready"
-                            ? "border-emerald-300/20 bg-emerald-300/8 text-emerald-100/88"
-                            : "border-amber-300/18 bg-amber-300/8 text-amber-100/88",
-                        )}
-                      >
-                        {alert.body}
-                      </div>
-                    ))}
-                  </div>
-                </PanelCard>
-              </div>
-              <PanelCard
-                className="dashboard-card min-h-0"
-                title={t("home.commandCenter.openAssistant")}
-                contentClassName="min-h-0 flex-1 pr-1 lg:overflow-auto"
-              >
-                <div className="space-y-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <InfoTile
-                      label={t("home.commandCenter.status.assistant")}
-                      value={assistantStatus}
-                    />
-                    <InfoTile
-                      label={t("home.commandCenter.status.models")}
-                      value={modelsStatus}
-                    />
-                  </div>
-                  <p className="text-sm leading-6 text-white/58">
-                    {t("home.commandCenter.systemValue")}
-                  </p>
-                  <div className="grid gap-2">
-                    {promptDeck.map((item) => (
-                      <button
-                        key={item.prompt}
-                        type="button"
-                        className="border border-border/60 bg-background/55 px-3 py-3 text-left transition-colors hover:border-cyan-300/30 hover:bg-background/75"
-                        onClick={() => onOpenAssistant(item.prompt)}
-                      >
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/88">
-                          {item.label}
-                        </div>
-                        <p className="mt-2 text-sm leading-5 text-white/58">
-                          {item.prompt}
-                        </p>
-                      </button>
-                    ))}
+                  <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dash-muted)]">
+                    {t("home.news.subheader", {
+                      language: preferredNewsLanguage.toUpperCase(),
+                    })}
                   </div>
                 </div>
-              </PanelCard>
-            </section>
-          ) : activeSection === "workflow" ? (
-            <section className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-                <PanelCard
-                  className="dashboard-card min-h-0"
-                  title={t("home.commandCenter.sessions")}
-                  contentClassName="min-h-0 flex-1 pr-1 lg:overflow-auto"
-                >
-                  <div className="space-y-3">
-                    {sessionRows.length === 0 ? (
-                      <EmptyLine>{t("home.commandCenter.noSessions")}</EmptyLine>
-                    ) : (
-                      sessionRows.map((session) => (
-                        <button
-                          key={session.id}
-                          type="button"
-                          className={cn(
-                            "w-full border px-3 py-3 text-left transition-colors",
-                            session.id === activeSessionId
-                              ? "border-cyan-300/30 bg-cyan-300/10"
-                              : "border-border/60 bg-background/60 hover:border-white/14 hover:bg-background/78",
-                          )}
-                          onClick={() => onOpenAssistant()}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 truncate text-sm font-medium text-white/86">
-                              {session.title || t("home.commandCenter.status.noSession")}
-                            </div>
-                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/42">
-                              {formatTime(session.updatedAt)}
-                            </span>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </PanelCard>
-                <PanelCard
-                  className="dashboard-card min-h-0"
-                  title={t("home.commandCenter.recentFiles")}
-                  contentClassName="min-h-0 flex-1 pr-1 lg:overflow-auto"
-                >
-                  <div className="space-y-2">
-                    {recentFilePaths.length === 0 ? (
-                      <EmptyLine>{t("home.commandCenter.noRecentFiles")}</EmptyLine>
-                    ) : (
-                      recentFilePaths.map((path) => (
-                        <button
-                          key={path}
-                          type="button"
-                          className="flex w-full items-center justify-between gap-3 border border-border/60 bg-background/60 px-3 py-3 text-left transition-colors hover:border-white/14 hover:bg-background/78"
-                          onClick={() => onOpenRecentFile?.(path)}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium text-white/86">
-                              {basename(path)}
-                            </span>
-                            <span className="block truncate text-xs leading-5 text-white/42">
-                              {compactPath(path, 4)}
-                            </span>
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </PanelCard>
-              </div>
-              <PanelCard
-                className="dashboard-card min-h-0"
-                title={t("home.commandCenter.openAssistant")}
-                contentClassName="min-h-0 flex-1 pr-1 lg:overflow-auto"
+              <button
+                type="button"
+                onClick={() => void handleNewsRefresh()}
+                className="border border-[var(--dash-border)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dash-accent)] transition-colors hover:border-[var(--dash-accent)]"
               >
-                <div className="space-y-3">
-                  <div className="border border-border/60 bg-background/60 px-3 py-3 text-sm leading-6 text-white/58">
-                    {t("home.commandCenter.systemValue")}
-                  </div>
-                  <div className="grid gap-2">
-                    {promptDeck.map((item) => (
-                      <button
-                        key={item.prompt}
-                        type="button"
-                        className="border border-border/60 bg-black/18 px-3 py-3 text-left text-sm leading-5 text-white/68 transition-colors hover:border-cyan-300/30 hover:bg-black/28"
-                        onClick={() => onOpenAssistant(item.prompt)}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </PanelCard>
-            </section>
-          ) : (
-            <section className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
-              <PanelCard
-                className="dashboard-card min-h-0"
-                title={t("home.commandCenter.status")}
-                contentClassName="min-h-0 flex-1"
-              >
-                <div className="flex h-full min-h-0 flex-col gap-4">
-                  <div className="grid min-h-0 gap-3 pr-1 md:grid-cols-2 xl:overflow-auto">
-                    {statusRows.map((row) => (
-                      <MeterRow
-                        key={row.label}
-                        label={row.label}
-                        value={row.value}
-                        percent={row.percent}
+                {newsStatusLabel}
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <Input
+                value={newsQuery}
+                onChange={(event) => setNewsQuery(event.target.value)}
+                placeholder={t("home.news.searchPlaceholder")}
+                className="h-9 rounded-none border-[var(--dash-border)] bg-[var(--dash-panel-strong)] font-mono text-[10px] text-[var(--dash-text)] placeholder:text-[var(--dash-muted)]"
+              />
+            </div>
+
+            <div className="mt-3 flex flex-1 flex-col overflow-hidden">
+              {activeNews ? (
+                <div className="flex h-full flex-col gap-3 overflow-y-auto">
+                  <div className="overflow-hidden border border-[var(--dash-border)] bg-[var(--dash-panel-strong)]">
+                    {activeNews.imageUrl ? (
+                      <img
+                        src={activeNews.imageUrl}
+                        alt={activeNews.title}
+                        className="h-28 w-full object-cover"
                       />
-                    ))}
-                  </div>
-
-                  <div className="shrink-0 border border-border/60 bg-background/55 p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold">
-                          {t("home.commandCenter.metrics")}
-                        </div>
-                        <p className="text-xs leading-5 text-white/48">
-                          {t("home.commandCenter.metricsDescription")}
-                        </p>
-                      </div>
-                      <span className="border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
-                        Chart.js
-                      </span>
-                    </div>
-                    {telemetryHasChartSignal ? (
-                      <div className="relative h-40">
-                        <Bar data={telemetryData} options={telemetryOptions} />
-                      </div>
                     ) : (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {telemetryItems.map((item) => (
-                          <InfoTile key={item.label} label={item.label} value={String(item.value)} />
-                        ))}
-                      </div>
+                      <NewsImageFallback item={activeNews} />
                     )}
                   </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    <NewsBadge text={activeNews.sourceName} tone="primary" />
+                    <NewsBadge text={activeNews.language.toUpperCase()} tone="cyan" />
+                    <NewsBadge text={activeNews.kind.toUpperCase()} tone="muted" />
+                  </div>
+
+                  <div className="font-mono text-[11px] font-bold leading-5 text-[var(--dash-text)]">
+                    {activeNews.title}
+                  </div>
+                  <div className="font-mono text-[10px] leading-5 text-[var(--dash-muted)]">
+                    {activeNews.summary}
+                  </div>
+                  <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dash-muted)]">
+                    {formatTime(activeNews.publishedAt, t("home.news.live"))} · {activeNews.sourceName}
+                  </div>
+
+                  {newsError ? (
+                    <div className="border border-[var(--dash-primary-soft)] bg-[var(--dash-primary-soft)] px-2 py-2 font-mono text-[9px] leading-5 text-[var(--dash-text)]">
+                      {newsError}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-auto grid gap-2">
+                    <UtilityButton onClick={handleRotateNews}>{t("home.news.rotate")}</UtilityButton>
+                    <UtilityButton onClick={() => openInDashboardBrowser(activeNews.link)}>
+                      {t("home.news.openBrief")}
+                    </UtilityButton>
+                  </div>
                 </div>
-              </PanelCard>
+              ) : (
+                <div className="flex h-full flex-col gap-3">
+                  <EmptyStrip>{t("home.news.noMatch")}</EmptyStrip>
+                  <UtilityButton onClick={() => setNewsQuery("")}>
+                    {t("home.news.clearFilter")}
+                  </UtilityButton>
+                </div>
+              )}
+            </div>
+          </section>
 
-              <div className="grid gap-3">
-                <PanelCard
-                  className="dashboard-card min-h-0"
-                  title={t("home.commandCenter.branchDeck")}
-                  contentClassName="min-h-0 flex-1 pr-1 xl:overflow-auto"
-                >
-                  <div className="space-y-4">
-                    <div className="border border-border/60 bg-background/60 px-4 py-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
-                        {t("home.commandCenter.status.branch")}
-                      </div>
-                      <div className="mt-2 text-2xl font-semibold text-white">
-                        {repoStatus?.branch ?? t("home.commandCenter.status.offline")}
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-white/54">
-                        {repoStatus?.upstream
-                          ? `${repoStatus.upstream} | ${remoteLabel}`
-                          : t("home.commandCenter.status.clean")}
-                      </p>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        className="border border-border/60 bg-background/60 px-3 py-3 text-left transition-colors hover:border-cyan-300/30 hover:bg-background/78"
-                        onClick={hasWorkspace ? onBrowseProject : onOpenWorkspace}
-                      >
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/52">
-                          {t("home.commandCenter.browseProject")}
-                        </div>
-                        <p className="mt-2 text-sm leading-5 text-white/64">
-                          {hasWorkspace
-                            ? t("home.commandCenter.browseDescription")
-                            : t("home.commandCenter.browseDescriptionOffline")}
-                        </p>
-                      </button>
-                      <button
-                        type="button"
-                        className="border border-border/60 bg-background/60 px-3 py-3 text-left transition-colors hover:border-cyan-300/30 hover:bg-background/78"
-                        onClick={onOpenJavaRefactor}
-                      >
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/52">
-                          {t("home.javaRefactor")}
-                        </div>
-                        <p className="mt-2 text-sm leading-5 text-white/64">
-                          {t("home.commandCenter.refactorDescription")}
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-                </PanelCard>
+          <section className="relative h-36 overflow-hidden border border-[var(--dash-border)] bg-[var(--dash-primary-soft)]">
+            <BongoTerminal className="opacity-90" />
+          </section>
+        </aside>
+      </div>
+      ) : (
+        <div className="relative z-10 mt-4 min-h-0 flex-1 overflow-hidden">
+          <div className="h-full w-full overflow-hidden border border-[var(--dash-border)] bg-[var(--dash-panel)] backdrop-blur-sm" data-dash-stagger="panel">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[var(--dash-primary-soft)] to-transparent" />
+            <div className="relative z-10 h-full overflow-y-auto p-6">
+              {activeSection === "workflow" ? (
+                <HomeDashboardWorkflowView
+                  accentColor={resolvedThemeColors.accent}
+                  backgroundColor={resolvedThemeColors.background}
+                  chartData={workflowChartData}
+                  chartOptions={workflowChartOptions}
+                  entries={workflowEntries}
+                  emptyLabel={t("home.commandCenter.noRecentFiles")}
+                  hasRecentProjects={recentProjects.length > 0}
+                  hasWorkspace={hasWorkspace}
+                  languageChartData={workflowLanguageChartData}
+                  languageChartOptions={workflowLanguageChartOptions}
+                  languageSummary={workflowLanguageSummary}
+                  onBrowseProject={onBrowseProject}
+                  onOpenRecentFile={onOpenRecentFile}
+                  onOpenWorkspace={onOpenWorkspace}
+                  primaryColor={resolvedThemeColors.primary}
+                  githubProfile={githubProfile}
+                  trendData={workflowTrendData}
+                  trendOptions={workflowTrendOptions}
+                />
+              ) : activeSection === "agents" ? (
+                <HomeDashboardAgentsView
+                  agentRows={agentRows}
+                  alerts={alerts}
+                  chartData={agentChartData}
+                  chartOptions={agentChartOptions}
+                  readinessScore={readinessScore}
+                  githubProfile={githubProfile}
+                />
+              ) : activeSection === "anime" ? (
+                <HomeDashboardAnimeView githubProfile={githubProfile} />
+              ) : (
+                <HomeDashboardGithubView
+                  alerts={alerts}
+                  branchLabel={branchLabel}
+                  ciCdHealthy={(repoStatus?.behind ?? 0) === 0}
+                  cloneError={cloneError}
+                  cloneLabelTone={cloneState === "done" ? "cyan" : "primary"}
+                  cloneLogs={cloneLogs}
+                  cloneStateLabel={cloneStateLabel}
+                  cloneTargetDir={cloneTargetDir}
+                  githubClientId={githubClientId}
+                  githubDashboard={githubDashboard}
+                  githubDashboardError={githubError ?? githubDashboardError}
+                  githubDashboardState={githubDashboardState}
+                  githubIdentity={githubIdentity}
+                  githubProfile={githubProfile}
+                  githubRepoQuery={githubRepoQuery}
+                  githubStatusLabel={githubStatusLabel}
+                  githubSummary={githubScopeSummary}
+                  integrationRows={githubIntegrationRows}
+                  onAuthPrimary={
+                    githubProfile
+                      ? () => void handleGithubRefresh()
+                      : () => void handleGithubConnect()
+                  }
+                  onAuthSecondary={
+                    githubProfile
+                      ? () => void handleGithubDisconnect()
+                      : () =>
+                          openInDashboardBrowser(
+                            githubChallenge?.verificationUri ??
+                              "https://github.com/login/device",
+                          )
+                  }
+                  onCloneRepository={() => void handleCloneRepository()}
+                  onGithubClientIdChange={setGithubClientId}
+                  onOpenScopeEntry={openScopeEntry}
+                  onRepoQueryChange={setGithubRepoQuery}
+                  onSearchRepository={handleGitHubSearch}
+                  primaryAuthLabel={githubPrimaryActionLabel}
+                  recentScope={recentScopeEntries}
+                  remoteLabel={remoteLabel}
+                  repoCheckerRows={repoCheckerRows}
+                  secondaryAuthLabel={githubSecondaryActionLabel}
+                  workspaceLinked={hasWorkspace}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-                <PanelCard
-                  className="dashboard-card min-h-0"
-                  title={t("home.commandCenter.alerts")}
-                  contentClassName="min-h-0 flex-1 pr-1 xl:overflow-auto"
-                >
-                  <div className="space-y-2">
-                    {alerts.map((alert) => (
-                      <div
-                        key={alert.body}
-                        className={cn(
-                          "border px-3 py-3 text-sm leading-6",
-                          alert.tone === "ready"
-                            ? "border-emerald-300/20 bg-emerald-300/8 text-emerald-100/88"
-                            : "border-amber-300/18 bg-amber-300/8 text-amber-100/88",
-                        )}
-                      >
-                        {alert.body}
-                      </div>
-                    ))}
-                  </div>
-                </PanelCard>
-              </div>
-            </section>
-          )}
+function matchesNewsQuery(item: DashboardNewsItem, rawQuery: string): boolean {
+  const query = normalizeSearchText(rawQuery);
+  if (!query) return true;
+
+  const haystack = normalizeSearchText([
+    item.title,
+    item.summary,
+    item.sourceName,
+    item.sourceUrl,
+    item.language,
+    item.kind,
+  ].join(" "));
+
+  return query.split(/\s+/).every((token) => {
+    if (token === "pt" || token === "portuguese" || token === "portugues") {
+      return item.language === "pt";
+    }
+    if (token === "en" || token === "english" || token === "ingles") {
+      return item.language === "en";
+    }
+    if (
+      token === "cyber" ||
+      token === "security" ||
+      token === "appsec" ||
+      token === "sec" ||
+      token === "ciber" ||
+      token === "seguranca"
+    ) {
+      return item.kind === "cyber" || hasWholeTokenMatch(haystack, token);
+    }
+    if (
+      token === "dev" ||
+      token === "developer" ||
+      token === "code" ||
+      token === "codigo" ||
+      token === "desenvolvimento"
+    ) {
+      return item.kind === "dev" || hasWholeTokenMatch(haystack, token);
+    }
+    return haystack.includes(token);
+  });
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function hasWholeTokenMatch(haystack: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(haystack);
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function parseGithubCloneUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(?:\.git)?$/i.test(trimmed)) {
+    return trimmed.endsWith(".git") ? trimmed : `${trimmed}.git`;
+  }
+
+  if (/^git@github\.com:[\w.-]+\/[\w.-]+(?:\.git)?$/i.test(trimmed)) {
+    return trimmed.endsWith(".git") ? trimmed : `${trimmed}.git`;
+  }
+
+  if (/^[\w.-]+\/[\w.-]+$/.test(trimmed)) {
+    return `https://github.com/${trimmed}.git`;
+  }
+
+  return null;
+}
+
+function buildWorkflowLanguageSummary(
+  recentFilePaths: string[],
+  githubDashboard: GitHubDashboardData | null,
+): Array<{ label: string; value: number; color: string }> {
+  if (githubDashboard?.languages.length) {
+    return githubDashboard.languages.map((language) => ({
+      label: language.name,
+      value: Math.max(1, Math.round(language.percent)),
+      color: language.color,
+    }));
+  }
+
+  const buckets = new Map<string, number>();
+  for (const path of recentFilePaths) {
+    const label = classifyPathLanguage(path);
+    buckets.set(label, (buckets.get(label) ?? 0) + 1);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([label, value], index) => ({
+      label,
+      value,
+      color: workflowBucketColor(label, index),
+    }))
+    .sort((left, right) => right.value - left.value);
+}
+
+function classifyPathLanguage(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  switch (ext) {
+    case "ts":
+    case "tsx":
+      return "TypeScript";
+    case "js":
+    case "jsx":
+    case "mjs":
+    case "cjs":
+      return "JavaScript";
+    case "java":
+      return "Java";
+    case "kt":
+    case "kts":
+      return "Kotlin";
+    case "py":
+      return "Python";
+    case "go":
+      return "Go";
+    case "rs":
+      return "Rust";
+    case "css":
+    case "scss":
+    case "sass":
+    case "less":
+      return "CSS";
+    case "html":
+    case "htm":
+      return "HTML";
+    case "json":
+    case "yaml":
+    case "yml":
+    case "toml":
+    case "xml":
+    case "properties":
+      return "Config";
+    case "md":
+    case "mdx":
+      return "Markdown";
+    case "sh":
+    case "ps1":
+    case "bat":
+      return "Shell";
+    default:
+      return ext ? ext.toUpperCase() : "Other";
+  }
+}
+
+function workflowBucketColor(label: string, index: number): string {
+  const palette = [
+    "#22d3ee",
+    "#f97316",
+    "#8b5cf6",
+    "#84cc16",
+    "#38bdf8",
+    "#ec4899",
+  ];
+  const hash = label
+    .split("")
+    .reduce((acc, char) => ((acc * 31 + char.charCodeAt(0)) >>> 0), 0);
+  return palette[index % palette.length] ?? `hsl(${hash % 360} 70% 56%)`;
+}
+
+function NewsImageFallback({ item }: { item: DashboardNewsItem }) {
+  const initials = item.sourceName
+    .split(/\s+/)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .slice(0, 3)
+    .toUpperCase();
+
+  return (
+    <div
+      className="relative flex h-28 flex-col justify-between overflow-hidden px-3 py-3"
+      style={{
+        background: `linear-gradient(135deg, ${item.accent}38 0%, transparent 62%), radial-gradient(circle at top right, ${item.accent}28 0%, transparent 44%), var(--dash-panel-strong)`,
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(color-mix(in_srgb,var(--dash-text)_18%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_srgb,var(--dash-text)_18%,transparent)_1px,transparent_1px)] [background-size:18px_18px]" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--dash-text)]">
+          {item.sourceName}
+        </div>
+        <div className="font-project-title text-[20px] leading-none text-[var(--dash-text)]">
+          {initials}
+        </div>
+      </div>
+      <div className="relative space-y-1">
+        <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dash-muted)]">
+          {item.language.toUpperCase()} · {item.kind.toUpperCase()}
+        </div>
+        <div className="line-clamp-2 font-mono text-[10px] font-bold leading-4 text-[var(--dash-text)]">
+          {item.title}
         </div>
       </div>
     </div>
   );
 }
 
-function CommandCenterScene() {
-  const reducedMotion = useReducedMotion();
-  const sceneId = useId().replace(/:/g, "");
-  const gridId = `command-center-grid-${sceneId}`;
-  const glowId = `command-center-glow-${sceneId}`;
-  const sweepId = `command-center-sweep-${sceneId}`;
-  const ringId = `command-center-ring-${sceneId}`;
-
-  return (
-    <div className="h-full w-full">
-      <svg
-        viewBox="0 0 320 220"
-        preserveAspectRatio="xMidYMid slice"
-        className="h-full w-full"
-        aria-hidden
-      >
-        <defs>
-          <radialGradient id={glowId} cx="50%" cy="46%" r="62%">
-            <stop offset="0%" stopColor="#67e8f9" stopOpacity="0.34" />
-            <stop offset="56%" stopColor="#22d3ee" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#020617" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id={sweepId} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#67e8f9" stopOpacity="0" />
-            <stop offset="50%" stopColor="#67e8f9" stopOpacity="0.42" />
-            <stop offset="100%" stopColor="#67e8f9" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id={ringId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#67e8f9" stopOpacity="0.85" />
-            <stop offset="100%" stopColor="#fb923c" stopOpacity="0.68" />
-          </linearGradient>
-          <pattern id={gridId} width="24" height="24" patternUnits="userSpaceOnUse">
-            <path
-              d="M 24 0 L 0 0 0 24"
-              fill="none"
-              stroke="rgba(148,163,184,0.16)"
-              strokeWidth="1"
-            />
-          </pattern>
-        </defs>
-
-        <rect width="320" height="220" fill={`url(#${glowId})`} />
-        <rect width="320" height="220" fill={`url(#${gridId})`} opacity="0.22" />
-
-        <g opacity="0.74">
-          <path
-            d="M40 160 C84 120 110 176 154 136 S232 70 280 98"
-            fill="none"
-            stroke="#22d3ee"
-            strokeOpacity="0.28"
-            strokeWidth="2"
-            strokeDasharray="7 8"
-          >
-            {!reducedMotion ? (
-              <animate
-                attributeName="stroke-dashoffset"
-                values="0;-30"
-                dur="2.8s"
-                repeatCount="indefinite"
-              />
-            ) : null}
-          </path>
-          <path
-            d="M34 72 H112 L126 58 H196"
-            fill="none"
-            stroke="#fb923c"
-            strokeOpacity="0.38"
-            strokeWidth="2"
-          />
-          <path
-            d="M192 156 H236 L258 136 H292"
-            fill="none"
-            stroke="#67e8f9"
-            strokeOpacity="0.34"
-            strokeWidth="2"
-          />
-        </g>
-
-        <g>
-          <circle
-            cx="160"
-            cy="110"
-            r="70"
-            fill="none"
-            stroke="rgba(103,232,249,0.16)"
-            strokeWidth="1.5"
-            strokeDasharray="3 10"
-          />
-          <circle
-            cx="160"
-            cy="110"
-            r="56"
-            fill="none"
-            stroke={`url(#${ringId})`}
-            strokeWidth="2.5"
-            strokeDasharray="92 40"
-            strokeLinecap="round"
-          >
-            {!reducedMotion ? (
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="0 160 110"
-                to="360 160 110"
-                dur="14s"
-                repeatCount="indefinite"
-              />
-            ) : null}
-          </circle>
-          <circle
-            cx="160"
-            cy="110"
-            r="36"
-            fill="rgba(8,145,178,0.08)"
-            stroke="rgba(191,219,254,0.3)"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M160 74 L188 92 L188 128 L160 146 L132 128 L132 92 Z"
-            fill="rgba(10,18,28,0.55)"
-            stroke="#dbeafe"
-            strokeOpacity="0.52"
-            strokeWidth="1.6"
-          >
-            {!reducedMotion ? (
-              <animate
-                attributeName="fill-opacity"
-                values="0.42;0.7;0.42"
-                dur="3.2s"
-                repeatCount="indefinite"
-              />
-            ) : null}
-          </path>
-          <path
-            d="M160 87 L176 110 L160 133 L144 110 Z"
-            fill="#fb923c"
-            fillOpacity="0.78"
-            stroke="#fdba74"
-            strokeOpacity="0.7"
-            strokeWidth="1.2"
-          >
-            {!reducedMotion ? (
-              <animate
-                attributeName="fill-opacity"
-                values="0.52;0.86;0.52"
-                dur="2.4s"
-                repeatCount="indefinite"
-              />
-            ) : null}
-          </path>
-          <path d="M118 110 H202 M160 68 V152" stroke="#dbeafe" strokeOpacity="0.28" strokeWidth="1" />
-        </g>
-
-        <g opacity="0.95">
-          <g>
-            <circle cx="230" cy="110" r="5" fill="#67e8f9" />
-            <path d="M160 40 L168 48 L160 56 L152 48 Z" fill="#67e8f9" fillOpacity="0.78" />
-            {!reducedMotion ? (
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="0 160 110"
-                to="360 160 110"
-                dur="10s"
-                repeatCount="indefinite"
-              />
-            ) : null}
-          </g>
-          <g>
-            <path d="M92 110 L84 118 L76 110 L84 102 Z" fill="#fb923c" fillOpacity="0.82" />
-            <circle cx="160" cy="178" r="4.5" fill="#fb923c" />
-            {!reducedMotion ? (
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="360 160 110"
-                to="0 160 110"
-                dur="7.4s"
-                repeatCount="indefinite"
-              />
-            ) : null}
-          </g>
-        </g>
-
-        <g opacity="0.72">
-          {[0, 1, 2, 3].map((index) => {
-            const leftY = 62 + index * 16;
-            const rightY = 140 + index * 12;
-            const leftWidth = 30 + index * 10;
-            const rightWidth = 20 + index * 12;
-            return (
-              <g key={index}>
-                <rect
-                  x="36"
-                  y={leftY}
-                  width={leftWidth}
-                  height="3"
-                  rx="1.5"
-                  fill="#22d3ee"
-                  fillOpacity={0.28 + index * 0.08}
-                >
-                  {!reducedMotion ? (
-                    <animate
-                      attributeName="width"
-                      values={`${leftWidth};${leftWidth + 16};${leftWidth}`}
-                      dur={`${2 + index * 0.25}s`}
-                      repeatCount="indefinite"
-                    />
-                  ) : null}
-                </rect>
-                <rect
-                  x={262 - rightWidth}
-                  y={rightY}
-                  width={rightWidth}
-                  height="3"
-                  rx="1.5"
-                  fill="#fb923c"
-                  fillOpacity={0.24 + index * 0.1}
-                >
-                  {!reducedMotion ? (
-                    <animate
-                      attributeName="width"
-                      values={`${rightWidth};${rightWidth + 14};${rightWidth}`}
-                      dur={`${1.8 + index * 0.22}s`}
-                      repeatCount="indefinite"
-                    />
-                  ) : null}
-                </rect>
-              </g>
-            );
-          })}
-        </g>
-
-        <g opacity="0.9">
-          <rect x="18" y="18" width="118" height="48" fill="rgba(2,6,23,0.42)" stroke="rgba(103,232,249,0.18)" />
-          <text x="30" y="38" fill="#dbeafe" fontSize="10" letterSpacing="2.8" fontFamily="JetBrains Mono, monospace">
-            LIVE COMMAND MAP
-          </text>
-          <text x="30" y="56" fill="#67e8f9" fontSize="16" fontWeight="700" fontFamily="Bebas Neue, sans-serif">
-            03 ACTIVE LOOPS
-          </text>
-          <text x="206" y="48" fill="#fdba74" fontSize="10" letterSpacing="2.6" fontFamily="JetBrains Mono, monospace">
-            VECTOR LOCK
-          </text>
-          <text x="206" y="66" fill="#f8fafc" fontSize="22" fontWeight="700" fontFamily="Bebas Neue, sans-serif">
-            ONLINE
-          </text>
-        </g>
-
-        <rect x="0" y="-48" width="320" height="68" fill={`url(#${sweepId})`} opacity="0.28">
-          {!reducedMotion ? (
-            <animate
-              attributeName="y"
-              values="-48;220"
-              dur="4.2s"
-              repeatCount="indefinite"
-            />
-          ) : null}
-        </rect>
-      </svg>
-    </div>
-  );
-}
-
-function PanelCard({
-  title,
-  className,
-  contentClassName,
-  children,
-}: {
-  title: string;
-  className?: string;
-  contentClassName?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card
-      className={cn(
-        "flex min-h-0 flex-col rounded-none border border-border/70 bg-card/82",
-        className,
-      )}
-    >
-      <CardHeader className="border-b border-border/60 pb-3">
-        <CardTitle className="text-base text-white">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className={cn("min-h-0 flex-1 pt-3.5", contentClassName)}>
-        {children}
-      </CardContent>
-    </Card>
-  );
-}
-
-function QuickActionButton({
-  icon,
-  label,
-  onClick,
-  disabled,
-}: {
-  icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
-  label: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      disabled={disabled}
-      onClick={onClick}
-      className="h-auto justify-start gap-3 rounded-none border-border/70 bg-background/65 px-4 py-2.5 text-left hover:border-cyan-300/30 hover:bg-background/82"
-    >
-      <HugeiconsIcon icon={icon} size={16} strokeWidth={1.75} className="shrink-0" />
-      <span className="text-xs font-semibold uppercase tracking-[0.16em]">{label}</span>
-    </Button>
-  );
-}
-
-function MeterRow({
-  label,
-  value,
-  percent,
-}: {
-  label: string;
-  value: string;
-  percent: number;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
-        <span>{label}</span>
-        <span className="truncate text-right text-white/70">{value}</span>
-      </div>
-      <div className="h-1.5 overflow-hidden bg-white/[0.06]">
-        <span
-          className="hud-meter-fill block h-full origin-left bg-linear-to-r from-cyan-400 via-sky-400 to-orange-300"
-          style={{ width: `${Math.max(8, percent)}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function SceneChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-border/70 bg-background/78 px-3 py-2 text-xs text-white/46">
-      {label}
-      <div className="mt-1 truncate text-sm text-white/88">{value}</div>
-    </div>
-  );
-}
-
-function InfoTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-border/60 bg-background/60 px-3 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
-        {label}
-      </div>
-      <div className="mt-2 truncate text-sm font-medium text-white/88">{value}</div>
-    </div>
-  );
-}
-
-function EmptyLine({ children }: { children: ReactNode }) {
-  return (
-    <div className="border border-dashed border-border/60 bg-background/40 px-3 py-4 text-sm leading-6 text-white/42">
-      {children}
-    </div>
-  );
-}
+const heroMaskStyle: CSSProperties = {
+  clipPath: "polygon(20% 0%, 100% 0, 100% 80%, 80% 100%, 0 100%, 0 20%)",
+};

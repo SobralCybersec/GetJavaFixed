@@ -207,12 +207,12 @@ export function RefactorSection() {
   return (
     <div ref={containerRef} className="flex flex-col gap-6">
       <SectionHeader
-        title={t("settings.tabs.refactor", { defaultValue: "Refactor" })}
+        title={t("settings.tabs.refactor")}
         description={t("models.refactorPromptDescription")}
       />
 
       {/* Statistics Dashboard */}
-      <div ref={statsRef} className="grid grid-cols-3 gap-3">
+      <div ref={statsRef} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <div className="stat-card flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-4 py-3">
           <span className="text-[11px] font-medium text-muted-foreground">
             {t("models.ruleFiles")}
@@ -225,7 +225,7 @@ export function RefactorSection() {
         
         <div className="stat-card flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-4 py-3">
           <span className="text-[11px] font-medium text-muted-foreground">
-            {t("refactor.active", { defaultValue: "Active" })}
+            {t("refactor.active")}
           </span>
           <span className="text-2xl font-bold text-emerald-400">{ruleStats.active}</span>
           <div className="h-1 rounded-full bg-border/40">
@@ -235,7 +235,7 @@ export function RefactorSection() {
         
         <div className="stat-card flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 px-4 py-3">
           <span className="text-[11px] font-medium text-muted-foreground">
-            {t("refactor.coverage", { defaultValue: "Coverage" })}
+            {t("refactor.coverage")}
           </span>
           <span className="text-2xl font-bold text-sky-400">{ruleStats.coverage}%</span>
           <div className="h-1 rounded-full bg-border/40">
@@ -249,13 +249,13 @@ export function RefactorSection() {
         {/* Chart.js Visualization */}
         <div className="chart-container rounded-lg border border-border/60 bg-card/60 p-4">
           <h3 className="mb-4 text-sm font-medium text-foreground">
-            {t("refactor.rulesDistribution", { defaultValue: "Rules Distribution" })}
+            {t("refactor.rulesDistribution")}
           </h3>
           <Doughnut
             data={{
               labels: [
-                t("refactor.active", { defaultValue: "Active" }),
-                t("refactor.inactive", { defaultValue: "Inactive" }),
+                t("refactor.active"),
+                t("refactor.inactive"),
               ],
               datasets: [
                 {
@@ -286,7 +286,7 @@ export function RefactorSection() {
         {/* 3D Visualization */}
         <div className="viz-3d-container relative rounded-lg border border-border/60 bg-card/60 p-4">
           <h3 className="mb-2 text-sm font-medium text-foreground">
-            {t("refactor.visualization", { defaultValue: "3D Refactor Rules" })}
+            {t("refactor.visualization")}
           </h3>
           <div className="aspect-square rounded-lg bg-background/40">
             <Canvas camera={{ position: [0, 0, 5] }}>
@@ -393,7 +393,7 @@ export function RefactorSection() {
                       });
                   }}
                 >
-                  {t("refactor.refresh", { defaultValue: "Refresh" })}
+                  {t("refactor.refresh")}
                 </Button>
               </div>
               <div className="flex max-h-80 flex-col gap-1 overflow-auto">
@@ -403,7 +403,7 @@ export function RefactorSection() {
                   </div>
                 ) : rules.length === 0 ? (
                   <div className="text-[11px] text-muted-foreground/60 px-2 py-2">
-                    {t("refactor.noRules", { defaultValue: "No rules found" })}
+                    {t("refactor.noRules")}
                   </div>
                 ) : (
                   rules.map((rule) => (
